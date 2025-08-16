@@ -17,8 +17,24 @@ interface AuthState {
   signup: (email: string, password: string, confirmPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  resendConfirmation: (email: string) => Promise<void>;
   initialize: () => Promise<void>;
 }
+
+const cleanupAuthState = () => {
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -55,25 +71,39 @@ export const useAuthStore = create<AuthState>()(
       },
 
       login: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        if (data.session) {
-          set({
-            session: data.session,
-            user: {
-              id: data.user.id,
-              email: data.user.email || '',
-              name: data.user.user_metadata?.name
-            },
-            isAuthenticated: true,
+        try {
+          // Clean up existing state first
+          cleanupAuthState();
+          
+          // Attempt global sign out to clear any stale sessions
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch (err) {
+            // Continue even if this fails
+          }
+          
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
           });
+
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          if (data.session) {
+            set({
+              session: data.session,
+              user: {
+                id: data.user.id,
+                email: data.user.email || '',
+                name: data.user.user_metadata?.name
+              },
+              isAuthenticated: true,
+            });
+          }
+        } catch (error) {
+          throw error;
         }
       },
 
@@ -121,6 +151,20 @@ export const useAuthStore = create<AuthState>()(
       resetPassword: async (email: string) => {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
+        });
+        
+        if (error) {
+          throw new Error(error.message);
+        }
+      },
+
+      resendConfirmation: async (email: string) => {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login`
+          }
         });
         
         if (error) {

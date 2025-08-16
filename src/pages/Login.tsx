@@ -12,8 +12,10 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [showResendButton, setShowResendButton] = useState(false);
   
-  const { login, initialize, isAuthenticated } = useAuthStore();
+  const { login, initialize, isAuthenticated, resendConfirmation } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -42,9 +44,10 @@ const Login = () => {
       const errorMessage = (error as Error).message;
       
       if (errorMessage.includes('Email not confirmed')) {
+        setShowResendButton(true);
         toast({
           title: "Email not confirmed",
-          description: "Please check your email and click the confirmation link before logging in.",
+          description: "Please check your email and click the confirmation link, or click 'Resend Confirmation' below.",
           variant: "destructive",
         });
       } else {
@@ -56,6 +59,35 @@ const Login = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Please enter your email address first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      await resendConfirmation(email);
+      toast({
+        title: "Confirmation email sent",
+        description: "Please check your email for the new confirmation link.",
+      });
+      setShowResendButton(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to resend confirmation email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -128,6 +160,20 @@ const Login = () => {
                 {isLoading ? "Signing In..." : "Log In"}
               </Button>
             </form>
+            
+            {showResendButton && (
+              <div className="mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleResendConfirmation}
+                  disabled={isResending}
+                >
+                  {isResending ? "Sending..." : "Resend Confirmation Email"}
+                </Button>
+              </div>
+            )}
             
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">
