@@ -82,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
           throw new Error('Passwords do not match');
         }
 
-        const redirectUrl = `${window.location.origin}/`;
+        const redirectUrl = `${window.location.origin}/login`;
         
         const { data, error } = await supabase.auth.signUp({
           email,
