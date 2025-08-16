@@ -158,22 +158,106 @@ const TagSelection = () => {
     }
   };
 
-  const handleSaveMeeting = () => {
-    const fileName = `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
-    
-    const newMeeting = {
-      fileName,
-      date: new Date(),
-      summary: '',
-      status: 'On Process' as const,
-      tags: selectedTags,
-      duration: recordingData?.duration || 0,
-      audioUrl: recordingData?.audioBlob ? URL.createObjectURL(recordingData.audioBlob) : undefined,
-      userId: '1' // This will be replaced with actual user ID when Supabase is connected
-    };
+  const handleSaveMeeting = async () => {
+    if (!recordingData?.audioBlob) {
+      toast({
+        title: "Error",
+        description: "No audio recording found",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    addMeeting(newMeeting);
-    navigate('/home');
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to save meetings",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const fileName = `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
+      const audioFilePath = `${user.id}/${fileName}`;
+
+      // Upload audio file to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('meeting-audio')
+        .upload(audioFilePath, recordingData.audioBlob, {
+          contentType: 'audio/wav',
+          upsert: false
+        });
+
+      if (uploadError) {
+        toast({
+          title: "Error uploading audio",
+          description: uploadError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create meeting in database
+      const { data: meetingData, error: meetingError } = await supabase
+        .from('meetings')
+        .insert({
+          meeting_date: new Date().toISOString(),
+          user_id: user.id,
+          summary: '',
+          audio_file_name: fileName,
+          status: 'On Process'
+        })
+        .select()
+        .single();
+
+      if (meetingError) {
+        toast({
+          title: "Error saving meeting",
+          description: meetingError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create meeting-tag relationships
+      if (selectedTags.length > 0) {
+        const meetingTagsData = selectedTags.map(tag => ({
+          meeting_id: meetingData.id,
+          tag_id: tag.id
+        }));
+
+        const { error: tagsError } = await supabase
+          .from('meeting_tags')
+          .insert(meetingTagsData);
+
+        if (tagsError) {
+          toast({
+            title: "Error linking tags",
+            description: tagsError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      toast({
+        title: "Meeting saved",
+        description: "Your meeting has been saved successfully",
+      });
+
+      navigate('/home');
+    } catch (error) {
+      console.error('Error saving meeting:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save meeting",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
