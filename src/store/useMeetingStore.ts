@@ -31,6 +31,7 @@ interface MeetingState {
   updateMeeting: (id: string, updates: Partial<Meeting>) => void;
   deleteMeeting: (id: string) => void;
   addTag: (tag: Omit<Tag, 'id'>) => void;
+  setTags: (tags: Tag[]) => void;
   updateTag: (id: string, updates: Partial<Tag>) => void;
   deleteTag: (id: string) => void;
   startRecording: () => void;
@@ -81,6 +82,10 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
     set((state) => ({
       tags: [...state.tags, newTag],
     }));
+  },
+
+  setTags: (tags) => {
+    set({ tags });
   },
 
   updateTag: (id, updates) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tags, addTag, addMeeting } = useMeetingStore();
+  const { tags, addTag, addMeeting, setTags } = useMeetingStore();
   const { toast } = useToast();
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
@@ -23,6 +23,47 @@ const TagSelection = () => {
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
 
   const recordingData = location.state as { duration: number; audioBlob: Blob | null } | null;
+
+  // Fetch user's tags from database on component mount
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('tags')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          toast({
+            title: "Error loading tags",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Set fetched tags directly (they already have IDs)
+        if (data && data.length > 0) {
+          const formattedTags = data.map(tag => ({
+            id: tag.id,
+            name: tag.name,
+            color: tag.color,
+            userId: tag.user_id
+          }));
+          setTags(formattedTags);
+        }
+      } catch (error) {
+        console.error('Error fetching tags:', error);
+      }
+    };
+
+    fetchTags();
+  }, [addTag, toast]);
 
   const tagColors = [
     '#3B82F6', // Blue
@@ -81,20 +122,27 @@ const TagSelection = () => {
           return;
         }
 
-        // Add to local store (data will have the actual database ID)
+        // Add to local store without id (addTag generates it)
         const newTag = {
-          id: data.id,
           name: data.name,
           color: data.color,
           userId: data.user_id
         };
         
         addTag(newTag);
+        
+        // Create the full tag object for selection (using the generated id from store)
+        const fullNewTag = {
+          id: Date.now().toString(), // This matches the ID generation in the store
+          name: data.name,
+          color: data.color,
+          userId: data.user_id
+        };
         setNewTagName('');
         setIsCreatingTag(false);
         
         // Auto-select the newly created tag
-        setSelectedTags(prev => [...prev, newTag]);
+        setSelectedTags(prev => [...prev, fullNewTag]);
         
         toast({
           title: "Tag created",
