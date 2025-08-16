@@ -44,13 +44,7 @@ interface MeetingState {
 
 export const useMeetingStore = create<MeetingState>((set, get) => ({
   meetings: [],
-  tags: [
-    // Sample tags
-    { id: '1', name: 'Team Meeting', color: '#3B82F6', userId: '1' },
-    { id: '2', name: 'Client Call', color: '#EF4444', userId: '1' },
-    { id: '3', name: 'Project Review', color: '#10B981', userId: '1' },
-    { id: '4', name: 'Brainstorming', color: '#F59E0B', userId: '1' },
-  ],
+  tags: [],
   isRecording: false,
   isPaused: false,
   recordingDuration: 0,
