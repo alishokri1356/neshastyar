@@ -77,40 +77,6 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-gradient-card border-0 shadow-soft">
-            <CardContent className="p-6 text-center">
-              <div className="space-y-2">
-                <FileText className="h-8 w-8 text-primary mx-auto" />
-                <p className="text-2xl font-bold text-foreground">{meetings.length}</p>
-                <p className="text-sm text-muted-foreground">Total Meetings</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-card border-0 shadow-soft">
-            <CardContent className="p-6 text-center">
-              <div className="space-y-2">
-                <Plus className="h-8 w-8 text-primary mx-auto" />
-                <p className="text-2xl font-bold text-foreground">{tags.length}</p>
-                <p className="text-sm text-muted-foreground">Active Tags</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-card border-0 shadow-soft">
-            <CardContent className="p-6 text-center">
-              <div className="space-y-2">
-                <Clock className="h-8 w-8 text-primary mx-auto" />
-                <p className="text-2xl font-bold text-foreground">
-                  {meetings.filter(m => m.status === 'Done').length}
-                </p>
-                <p className="text-sm text-muted-foreground">Completed</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Tags Section */}
         <div className="space-y-4">
