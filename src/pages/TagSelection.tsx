@@ -8,11 +8,14 @@ import { Label } from '@/components/ui/label';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Plus, Check, Tag } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { tags, addTag, addMeeting } = useMeetingStore();
+  const { toast } = useToast();
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
@@ -43,24 +46,67 @@ const TagSelection = () => {
     });
   };
 
-  const handleCreateTag = () => {
+  const handleCreateTag = async () => {
     if (newTagName.trim()) {
-      const newTag = {
-        name: newTagName.trim(),
-        color: newTagColor,
-        userId: '1' // This will be replaced with actual user ID when Supabase is connected
-      };
-      
-      addTag(newTag);
-      setNewTagName('');
-      setIsCreatingTag(false);
-      
-      // Auto-select the newly created tag
-      const createdTag = {
-        ...newTag,
-        id: Date.now().toString() // This matches the ID generation in the store
-      };
-      setSelectedTags(prev => [...prev, createdTag]);
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          toast({
+            title: "Authentication required",
+            description: "Please log in to create tags",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Save tag to database
+        const { data, error } = await supabase
+          .from('tags')
+          .insert({
+            name: newTagName.trim(),
+            color: newTagColor,
+            user_id: user.id
+          })
+          .select()
+          .single();
+
+        if (error) {
+          toast({
+            title: "Error creating tag",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Add to local store (data will have the actual database ID)
+        const newTag = {
+          id: data.id,
+          name: data.name,
+          color: data.color,
+          userId: data.user_id
+        };
+        
+        addTag(newTag);
+        setNewTagName('');
+        setIsCreatingTag(false);
+        
+        // Auto-select the newly created tag
+        setSelectedTags(prev => [...prev, newTag]);
+        
+        toast({
+          title: "Tag created",
+          description: `"${newTag.name}" has been created successfully`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create tag",
+          variant: "destructive",
+        });
+      }
     }
   };
 
