@@ -1,15 +1,104 @@
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 import { Mic2, LogOut, Plus, Calendar, Clock, FileText } from 'lucide-react';
+
+interface DatabaseTag {
+  id: string;
+  name: string;
+  color: string;
+  meetingCount: number;
+}
+
+interface DatabaseMeeting {
+  id: string;
+  meeting_date: string;
+  summary: string;
+  status: string;
+  audio_file_name: string;
+}
 
 const Home = () => {
   const navigate = useNavigate();
-  const { tags, meetings, getMeetingsByTag } = useMeetingStore();
   const { user, logout } = useAuthStore();
+  const { toast } = useToast();
+  const [tags, setTags] = useState<DatabaseTag[]>([]);
+  const [meetings, setMeetings] = useState<DatabaseMeeting[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch data from database
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (!user) return;
+
+        // Fetch tags with meeting counts
+        const { data: tagsData, error: tagsError } = await supabase
+          .from('tags')
+          .select(`
+            id,
+            name,
+            color,
+            meeting_tags (
+              meeting_id
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (tagsError) {
+          console.error('Error fetching tags:', tagsError);
+          toast({
+            title: "Error loading tags",
+            description: tagsError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Transform tags data to include meeting count
+        const formattedTags = tagsData?.map(tag => ({
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          meetingCount: tag.meeting_tags?.length || 0
+        })) || [];
+
+        setTags(formattedTags);
+
+        // Fetch recent meetings
+        const { data: meetingsData, error: meetingsError } = await supabase
+          .from('meetings')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (meetingsError) {
+          console.error('Error fetching meetings:', meetingsError);
+          toast({
+            title: "Error loading meetings",
+            description: meetingsError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setMeetings(meetingsData || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, toast]);
 
   const handleTagClick = (tagId: string) => {
     navigate(`/tag/${tagId}`);
@@ -33,9 +122,16 @@ const Home = () => {
     }
   };
 
-  const recentMeetings = meetings
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
@@ -83,7 +179,6 @@ const Home = () => {
           <h3 className="text-xl font-semibold text-foreground">Your Tags</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {tags.map((tag) => {
-              const tagMeetings = getMeetingsByTag(tag.id);
               return (
                 <Card
                   key={tag.id}
@@ -97,12 +192,12 @@ const Home = () => {
                         style={{ backgroundColor: tag.color }}
                       />
                       <Badge variant="secondary" className="text-xs">
-                        {tagMeetings.length}
+                        {tag.meetingCount}
                       </Badge>
                     </div>
                     <h4 className="font-medium text-foreground">{tag.name}</h4>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {tagMeetings.length} meeting{tagMeetings.length !== 1 ? 's' : ''}
+                      {tag.meetingCount} meeting{tag.meetingCount !== 1 ? 's' : ''}
                     </p>
                   </CardContent>
                 </Card>
@@ -112,11 +207,11 @@ const Home = () => {
         </div>
 
         {/* Recent Meetings */}
-        {recentMeetings.length > 0 && (
+        {meetings.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-xl font-semibold text-foreground">Recent Meetings</h3>
             <div className="space-y-3">
-              {recentMeetings.map((meeting) => (
+              {meetings.map((meeting) => (
                 <Card
                   key={meeting.id}
                   className="cursor-pointer hover:shadow-medium transition-all duration-300 bg-gradient-card border-0"
@@ -125,11 +220,11 @@ const Home = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-foreground">{meeting.fileName}</h4>
+                        <h4 className="font-medium text-foreground">{meeting.audio_file_name?.replace('.wav', '') || 'Meeting'}</h4>
                         <div className="flex items-center space-x-2 mt-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
                           <span className="text-sm text-muted-foreground">
-                            {new Date(meeting.date).toLocaleDateString()}
+                            {new Date(meeting.meeting_date).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
