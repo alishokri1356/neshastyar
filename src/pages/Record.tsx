@@ -58,6 +58,24 @@ const Record = () => {
         }
       };
 
+      // Handle recording completion
+      mediaRecorder.onstop = () => {
+        console.log('Recording stopped, chunks collected:', chunksRef.current.length);
+        const audioBlob = chunksRef.current.length > 0 
+          ? new Blob(chunksRef.current, { type: 'audio/wav' }) 
+          : null;
+        
+        console.log('Audio blob created:', audioBlob?.size || 'null');
+        
+        // Navigate to tag selection with recording data
+        navigate('/tag-selection', { 
+          state: { 
+            duration: recordingDuration,
+            audioBlob: audioBlob
+          }
+        });
+      };
+
       mediaRecorder.start();
       startRecording();
     } catch (error) {
@@ -86,14 +104,6 @@ const Record = () => {
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
     stopRecording();
-    
-    // Navigate to tag selection with recording data
-    navigate('/tag-selection', { 
-      state: { 
-        duration: recordingDuration,
-        audioBlob: chunksRef.current.length > 0 ? new Blob(chunksRef.current, { type: 'audio/wav' }) : null
-      }
-    });
   };
 
   if (!isRecording) {

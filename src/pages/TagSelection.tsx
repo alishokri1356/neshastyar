@@ -23,6 +23,14 @@ const TagSelection = () => {
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
 
   const recordingData = location.state as { duration: number; audioBlob: Blob | null } | null;
+  
+  // Debug logging
+  console.log('TagSelection - Recording data received:', {
+    hasState: !!location.state,
+    duration: recordingData?.duration,
+    hasBlobData: !!recordingData?.audioBlob,
+    blobSize: recordingData?.audioBlob?.size
+  });
 
   // Fetch user's tags from database on component mount
   useEffect(() => {
