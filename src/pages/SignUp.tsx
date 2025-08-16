@@ -33,14 +33,17 @@ const SignUp = () => {
     try {
       await signup(email, password, confirmPassword);
       toast({
-        title: "Welcome to Modiryar!",
-        description: "Your account has been created successfully.",
+        title: "Check your email!",
+        description: "We've sent you a confirmation link. Please check your email and click the link before logging in.",
+        duration: 6000,
       });
-      navigate('/');
+      // Don't navigate automatically - user needs to confirm email first
+      navigate('/login');
     } catch (error) {
+      const errorMessage = (error as Error).message;
       toast({
         title: "Error",
-        description: "Failed to create account. Please try again.",
+        description: errorMessage || "Failed to create account. Please try again.",
         variant: "destructive",
       });
     } finally {

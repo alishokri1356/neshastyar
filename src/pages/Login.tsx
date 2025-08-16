@@ -39,11 +39,21 @@ const Login = () => {
       });
       navigate('/');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Invalid email or password. Please try again.",
-        variant: "destructive",
-      });
+      const errorMessage = (error as Error).message;
+      
+      if (errorMessage.includes('Email not confirmed')) {
+        toast({
+          title: "Email not confirmed",
+          description: "Please check your email and click the confirmation link before logging in.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
