@@ -422,20 +422,6 @@ const MeetingDetail = () => {
           </Card>
         )}
 
-        {/* Ask AI */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg text-card-foreground">Ask AI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Summarize this meeting and highlight its key points and main takeaways"
-              className="min-h-[80px] max-h-[80px] resize-none"
-              rows={3}
-            />
-          </CardContent>
-        </Card>
-
         {/* Summary */}
         <Card className="bg-card border-border">
           <CardHeader>
