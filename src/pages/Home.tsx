@@ -106,7 +106,7 @@ const Home = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const getStatusColor = (status: string) => {
