@@ -66,15 +66,12 @@ const Record = () => {
           : null;
         
         console.log('Audio blob created:', audioBlob?.size || 'null');
-        
-        // Capture duration BEFORE calling stopRecording (which resets it to 0)
-        const finalDuration = recordingDuration;
-        console.log('Final duration captured:', finalDuration);
+        console.log('Final duration captured:', recordingDuration);
         
         // Navigate to tag selection with recording data
         navigate('/tag-selection', { 
           state: { 
-            duration: finalDuration,
+            duration: recordingDuration,
             audioBlob: audioBlob
           }
         });

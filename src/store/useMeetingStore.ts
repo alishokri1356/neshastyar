@@ -119,7 +119,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
   },
 
   stopRecording: () => {
-    set({ isRecording: false, isPaused: false, recordingDuration: 0 });
+    set({ isRecording: false, isPaused: false });
   },
 
   setRecordingDuration: (duration) => {
