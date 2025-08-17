@@ -249,6 +249,9 @@ const TagSelection = () => {
       // Create meeting in database
       console.log('Saving meeting with duration:', recordingData.duration);
       
+      // Generate title from filename (remove extension)
+      const meetingTitle = fileName.replace(/\.(wav|mp3|m4a)$/i, '');
+      
       const { data: meetingData, error: meetingError } = await supabase
         .from('meetings')
         .insert({
@@ -256,6 +259,7 @@ const TagSelection = () => {
           user_id: user.id,
           summary: '',
           audio_file_name: fileName,
+          title: meetingTitle,
           status: 'On Process',
           duration: recordingData.duration || 0
         })

@@ -10,6 +10,7 @@ export interface Tag {
 export interface Meeting {
   id: string;
   fileName: string;
+  title: string;
   date: Date;
   summary: string;
   status: 'On Process' | 'Need Review' | 'Done';

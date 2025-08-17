@@ -83,6 +83,7 @@ const MeetingDetail = () => {
           const transformedMeeting = {
             id: meetingData.id,
             fileName: meetingData.audio_file_name || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
+            title: (meetingData as any).title || meetingData.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
             date: new Date(meetingData.meeting_date),
             summary: meetingData.summary || '',
             status: meetingData.status,
@@ -448,7 +449,7 @@ const MeetingDetail = () => {
             <div className="flex items-start justify-between">
               <div>
                 <CardTitle className="text-2xl text-card-foreground">
-                  {meeting.fileName}
+                  {meeting.title}
                 </CardTitle>
                 <p className="text-muted-foreground mt-2">
                   {formatDate(meeting.date)}
