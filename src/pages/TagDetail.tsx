@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Calendar, FileText } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -51,15 +51,15 @@ const TagDetail = () => {
           // Fetch meetings associated with this tag
           const { data: meetingsData, error: meetingsError } = await supabase
             .from('meeting_tags')
-            .select(`
-              meetings (
-                id,
-                meeting_date,
-                audio_file_name,
-                summary,
-                status
-              )
-            `)
+              .select(`
+                meetings (
+                  id,
+                  meeting_date,
+                  audio_file_name,
+                  summary,
+                  status
+                )
+              `)
             .eq('tag_id', tagId);
 
           if (meetingsError) {
@@ -73,18 +73,30 @@ const TagDetail = () => {
           }
 
           // Transform the data to match the expected format
-          const transformedMeetings = meetingsData
+          const meetingPromises = meetingsData
             ?.map(item => item.meetings)
             .filter(Boolean)
-            .map(meeting => ({
-              id: meeting.id,
-              fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
-              date: new Date(meeting.meeting_date),
-              summary: meeting.summary || '',
-              status: meeting.status,
-              tags: [],
-              userId: user.id
-            })) || [];
+            .map(async (meeting) => {
+              // Get audio duration if file exists
+              let duration = 0;
+              if (meeting.audio_file_name) {
+                duration = await getAudioDuration(meeting.audio_file_name, user.id);
+              }
+              
+              return {
+                id: meeting.id,
+                fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+                date: new Date(meeting.meeting_date),
+                summary: meeting.summary || '',
+                status: meeting.status,
+                duration: duration,
+                tags: [],
+                userId: user.id
+              };
+            });
+
+          // Wait for all promises to resolve
+          const transformedMeetings = await Promise.all(meetingPromises) || [];
 
           setMeetings(transformedMeetings);
         }
@@ -108,6 +120,39 @@ const TagDetail = () => {
         return 'bg-success/10 text-success border-success/20';
       default:
         return 'bg-muted/10 text-muted-foreground border-muted/20';
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    if (!seconds || seconds === 0) return null;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getAudioDuration = async (fileName: string, userId: string): Promise<number> => {
+    try {
+      // Get signed URL for the audio file
+      const { data } = await supabase.storage
+        .from('meeting-audio')
+        .createSignedUrl(`${userId}/${fileName}`, 60); // 1 minute expiry
+      
+      if (!data?.signedUrl) return 0;
+
+      // Create audio element to get duration
+      return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.addEventListener('loadedmetadata', () => {
+          resolve(Math.floor(audio.duration));
+        });
+        audio.addEventListener('error', () => {
+          resolve(0);
+        });
+        audio.src = data.signedUrl;
+      });
+    } catch (error) {
+      console.error('Error getting audio duration:', error);
+      return 0;
     }
   };
 
@@ -195,28 +240,35 @@ const TagDetail = () => {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 space-y-2">
-                          <h3 className="font-semibold text-foreground text-lg">
-                            {meeting.fileName}
-                          </h3>
-                          
-                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
-                            <span>
-                              {new Date(meeting.date).toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {new Date(meeting.date).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
+                           <h3 className="font-semibold text-foreground text-lg">
+                             {meeting.fileName}
+                           </h3>
+                           
+                           {meeting.duration > 0 && (
+                             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                               <Clock className="h-3 w-3" />
+                               <span>{formatDuration(meeting.duration)}</span>
+                             </div>
+                           )}
+                           
+                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                             <Calendar className="h-4 w-4" />
+                             <span>
+                               {new Date(meeting.date).toLocaleDateString('en-US', {
+                                 weekday: 'long',
+                                 year: 'numeric',
+                                 month: 'long',
+                                 day: 'numeric'
+                               })}
+                             </span>
+                             <span>•</span>
+                             <span>
+                               {new Date(meeting.date).toLocaleTimeString('en-US', {
+                                 hour: '2-digit',
+                                 minute: '2-digit'
+                               })}
+                             </span>
+                           </div>
 
                           {meeting.summary && (
                             <p className="text-sm text-muted-foreground line-clamp-2">
