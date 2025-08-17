@@ -56,6 +56,7 @@ const TagDetail = () => {
                   id,
                   meeting_date,
                   audio_file_name,
+                  title,
                   summary,
                   status,
                   duration
@@ -79,7 +80,7 @@ const TagDetail = () => {
             .filter(Boolean)
             .map((meeting: any) => ({
               id: meeting.id,
-              fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+              fileName: (meeting as any).title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
               date: new Date(meeting.meeting_date),
               summary: meeting.summary || '',
               status: meeting.status,
