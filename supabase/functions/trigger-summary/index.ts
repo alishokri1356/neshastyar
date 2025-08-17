@@ -24,7 +24,7 @@ serve(async (req) => {
     }
 
     // Make the webhook call to your n8n server
-    const response = await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+    const response = await fetch('https://n8n.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
