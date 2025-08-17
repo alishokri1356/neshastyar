@@ -67,6 +67,18 @@ const Record = () => {
         
         console.log('Audio blob created:', audioBlob?.size || 'null');
         
+        // Save file to local device immediately
+        if (audioBlob) {
+          const url = URL.createObjectURL(audioBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `meeting-recording-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+        
         // Navigate to tag selection with recording data
         navigate('/tag-selection', { 
           state: { 
