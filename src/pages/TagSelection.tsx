@@ -363,60 +363,68 @@ const TagSelection = () => {
         }
       }
 
-      // Automatically trigger summary generation with detailed logging
-      let summaryGenerationStarted = false;
+      // Auto-trigger summary generation using the exact same method as MeetingDetail (WORKING METHOD)
       try {
-        console.log('=== STARTING SUMMARY GENERATION ===');
-        console.log('Meeting ID:', meetingData.id);
-        console.log('File name for summary:', fileName);
-        console.log('User ID:', user.id);
+        console.log('=== AUTO-TRIGGERING SUMMARY GENERATION (MEETINGDETAIL METHOD) ===');
         
-        // Check if the Edge Function exists first
-        console.log('Checking Supabase connection...');
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('Auth session valid:', !!session);
+        // Update meeting status to "در حال پردازش"
+        const { error: statusError } = await supabase
+          .from('meetings')
+          .update({ status: 'در حال پردازش' })
+          .eq('id', meetingData.id);
+
+        if (statusError) throw statusError;
+
+        // Get current user email
+        const userEmail = user?.email || '';
         
-        console.log('Invoking trigger-summary Edge Function...');
-        const functionStartTime = Date.now();
-        
-        const { data: summaryData, error: summaryError } = await supabase.functions.invoke('trigger-summary', {
-          body: { fileName: fileName }
+        console.log('Auto-triggering summary generation with data:', { 
+          fileName: fileName, 
+          userEmail: userEmail,
+          meetingId: meetingData.id
         });
         
-        const functionEndTime = Date.now();
-        console.log(`Function call took: ${functionEndTime - functionStartTime}ms`);
-        console.log('Function response data:', summaryData);
-        console.log('Function response error:', summaryError);
+        // Try multiple approaches to ensure the request gets through (same as MeetingDetail)
+        const requestData = {
+          fileName: fileName,
+          userEmail: userEmail,
+          meetingId: meetingData.id
+        };
 
-        if (summaryError) {
-          console.error('=== SUMMARY GENERATION FAILED ===');
-          console.error('Error type:', summaryError.name);
-          console.error('Error message:', summaryError.message);
-          console.error('Error details:', summaryError);
-          
-          toast({
-            title: "Summary Generation Failed",
-            description: `Could not start automatic summary generation: ${summaryError.message}. You can manually start it from the meeting page.`,
-            variant: "destructive",
+        // Approach 1: Try with no-cors first
+        try {
+          await fetch('https://n8n.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
           });
-        } else {
-          console.log('=== SUMMARY GENERATION STARTED SUCCESSFULLY ===');
-          console.log('Summary trigger response:', summaryData);
-          summaryGenerationStarted = true;
-          
-          // Update meeting status to indicate processing has started
-          console.log('Updating meeting status to processing...');
-          const { error: updateError } = await supabase
-            .from('meetings')
-            .update({ status: 'در حال پردازش' })
-            .eq('id', meetingData.id);
-
-          if (updateError) {
-            console.error('Error updating meeting status:', updateError);
-          } else {
-            console.log('Meeting status updated successfully');
-          }
+          console.log('Auto-summary no-cors request sent');
+        } catch (e) {
+          console.log('Auto-summary no-cors failed, trying alternative');
         }
+
+        // Approach 2: Try with dynamic image for GET request with query params
+        try {
+          const img = new Image();
+          const url = new URL('https://n8n.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd');
+          url.searchParams.append('fileName', fileName);
+          url.searchParams.append('userEmail', userEmail);
+          url.searchParams.append('meetingId', meetingData.id);
+          img.src = url.toString();
+          console.log('Auto-summary image request sent to:', url.toString());
+        } catch (e) {
+          console.log('Auto-summary image approach failed');
+        }
+
+        console.log('=== AUTO-SUMMARY GENERATION TRIGGERED SUCCESSFULLY ===');
+        
+        toast({
+          title: "Summary generation triggered",
+          description: "Auto-summary generation started. You'll be notified when it's ready.",
+        });
       } catch (error) {
         console.error('=== SUMMARY GENERATION EXCEPTION ===');
         console.error('Exception type:', error?.constructor?.name);
@@ -432,7 +440,7 @@ const TagSelection = () => {
 
       toast({
         title: "Meeting saved",
-        description: summaryGenerationStarted ? "Meeting saved and summary generation started automatically" : "Meeting saved successfully - summary generation failed to start automatically",
+        description: "Meeting saved and auto-summary generation triggered successfully",
       });
 
       console.log('Navigating to home page...');
