@@ -306,39 +306,40 @@ const MeetingDetail = () => {
     try {
       console.log('Sending request to webhook with data:', { fileName: meeting.fileName });
       
-      // Create a form and submit it to bypass CORS
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd';
-      form.style.display = 'none';
-      
-      const input = document.createElement('input');
-      input.name = 'fileName';
-      input.value = meeting.fileName;
-      form.appendChild(input);
-      
-      // Add form to document, submit, then remove
-      document.body.appendChild(form);
-      
-      // Submit in a hidden iframe to avoid page redirect
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.name = 'hidden-iframe';
-      form.target = 'hidden-iframe';
-      
-      document.body.appendChild(iframe);
-      form.submit();
-      
-      // Clean up after a short delay
-      setTimeout(() => {
-        document.body.removeChild(form);
-        document.body.removeChild(iframe);
-      }, 1000);
+      // Try multiple approaches to ensure the request gets through
+      const requestData = {
+        fileName: meeting.fileName
+      };
 
-      console.log('Request sent successfully via form submission');
+      // Approach 1: Try with no-cors first
+      try {
+        await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData)
+        });
+        console.log('no-cors request sent');
+      } catch (e) {
+        console.log('no-cors failed, trying alternative');
+      }
+
+      // Approach 2: Try with dynamic image for GET request with query params
+      try {
+        const img = new Image();
+        const url = new URL('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
+        url.searchParams.append('fileName', meeting.fileName);
+        img.src = url.toString();
+        console.log('Image request sent to:', url.toString());
+      } catch (e) {
+        console.log('Image approach failed');
+      }
+
       toast({
-        title: "Summary generation started",
-        description: "Auto summary generation request has been sent.",
+        title: "Summary generation triggered",
+        description: "Request sent to webhook. Check your n8n logs to confirm receipt.",
       });
     } catch (error) {
       console.error('Error triggering auto summary:', error);
