@@ -294,8 +294,11 @@ const TagSelection = () => {
           <Card className="bg-gradient-card border-0 shadow-soft">
             <CardContent className="p-6">
               <h3 className="font-semibold text-foreground mb-2">Recording Complete</h3>
-              <p className="text-sm text-muted-foreground">
-                Duration: {Math.floor((recordingData.duration || 0) / 60)}:{((recordingData.duration || 0) % 60).toString().padStart(2, '0')}
+              <p className="text-sm text-muted-foreground mb-2">
+                Duration: {Math.floor((recordingData.duration || 0) / 1000 / 60)}:{Math.floor(((recordingData.duration || 0) / 1000) % 60).toString().padStart(2, '0')}
+              </p>
+              <p className="text-xs text-muted-foreground/70 font-mono">
+                File: {recordingData.audioBlob ? `${recordingData.audioBlob.size} bytes (${recordingData.audioBlob.type})` : 'No file data'}
               </p>
             </CardContent>
           </Card>
@@ -306,11 +309,12 @@ const TagSelection = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Tags</h2>
             <Button
-              variant="outline"
-              size="sm"
+              variant="destructive"
+              size="lg"
               onClick={() => setIsCreatingTag(!isCreatingTag)}
+              className="h-12 px-6 font-semibold"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-5 w-5 mr-2" />
               New Tag
             </Button>
           </div>
