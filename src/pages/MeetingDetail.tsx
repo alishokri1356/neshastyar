@@ -302,6 +302,37 @@ const MeetingDetail = () => {
     }).format(date);
   };
 
+  const handleAutoGenerateSummary = async () => {
+    try {
+      const response = await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: meeting.fileName,
+          fileid: meeting.id
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Summary generation started",
+          description: "Auto summary generation has been triggered successfully.",
+        });
+      } else {
+        throw new Error('Failed to trigger summary generation');
+      }
+    } catch (error) {
+      console.error('Error triggering auto summary:', error);
+      toast({
+        title: "Error",
+        description: "Failed to trigger auto summary generation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteMeeting = async () => {
     if (!meeting) return;
     
@@ -429,7 +460,7 @@ const MeetingDetail = () => {
               <CardTitle className="text-lg text-card-foreground">Meeting Summary</CardTitle>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
-                  onClick={() => {/* TODO: Implement auto generate functionality */}}
+                  onClick={handleAutoGenerateSummary}
                   size="sm"
                   className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
