@@ -427,18 +427,17 @@ const MeetingDetail = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-card-foreground">Meeting Summary</CardTitle>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
                   onClick={() => {/* TODO: Implement auto generate functionality */}}
-                  size="lg"
-                  variant="primary"
-                  className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide"
+                  size="sm"
+                  className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
-                  <Sparkles className="mr-2 h-5 w-5" />
+                  <Sparkles className="mr-1 sm:mr-2 h-4 w-4" />
                   Auto Generate Summary
                 </Button>
-                <Button onClick={handleSaveSummary} size="sm">
-                  <Save className="mr-2 h-4 w-4" />
+                <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
+                  <Save className="mr-1 sm:mr-2 h-4 w-4" />
                   Save
                 </Button>
               </div>
