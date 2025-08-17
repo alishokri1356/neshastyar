@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -28,6 +28,8 @@ const MeetingDetail = () => {
   const [showAddTag, setShowAddTag] = useState(false);
   const [meetingTags, setMeetingTags] = useState<any[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
 
   // Fetch meeting and all user tags from database
   useEffect(() => {
@@ -95,6 +97,7 @@ const MeetingDetail = () => {
           setMeeting(transformedMeeting);
           setMeetingTags(tags);
           setSummary(transformedMeeting.summary);
+          setEditedTitle(transformedMeeting.title);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -432,6 +435,51 @@ const MeetingDetail = () => {
     }
   };
 
+  const handleEditTitle = () => {
+    setIsEditingTitle(true);
+    setEditedTitle(meeting.title);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!editedTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Title cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('meetings')
+        .update({ title: editedTitle.trim() } as any)
+        .eq('id', meeting.id);
+
+      if (error) throw error;
+
+      setMeeting(prev => ({ ...prev, title: editedTitle.trim() }));
+      setIsEditingTitle(false);
+      
+      toast({
+        title: "Title updated",
+        description: "Meeting title has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving title:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save title. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelEditTitle = () => {
+    setIsEditingTitle(false);
+    setEditedTitle(meeting.title);
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -447,10 +495,43 @@ const MeetingDetail = () => {
         <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-2xl text-card-foreground">
-                  {meeting.title}
-                </CardTitle>
+              <div className="flex-1">
+                {isEditingTitle ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      className="text-2xl font-bold"
+                      placeholder="عنوان جلسه"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveTitle();
+                        } else if (e.key === 'Escape') {
+                          handleCancelEditTitle();
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={handleSaveTitle} size="sm">
+                        <Check className="mr-2 h-4 w-4" />
+                        ذخیره
+                      </Button>
+                      <Button onClick={handleCancelEditTitle} variant="outline" size="sm">
+                        <X className="mr-2 h-4 w-4" />
+                        لغو
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-2xl text-card-foreground">
+                      {meeting.title}
+                    </CardTitle>
+                    <Button onClick={handleEditTitle} variant="ghost" size="sm">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <p className="text-muted-foreground mt-2">
                   {formatDate(meeting.date)}
                 </p>
