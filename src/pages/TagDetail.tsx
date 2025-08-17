@@ -57,7 +57,8 @@ const TagDetail = () => {
                   meeting_date,
                   audio_file_name,
                   summary,
-                  status
+                  status,
+                  duration
                 )
               `)
             .eq('tag_id', tagId);
@@ -76,13 +77,13 @@ const TagDetail = () => {
           const transformedMeetings = meetingsData
             ?.map(item => item.meetings)
             .filter(Boolean)
-            .map(meeting => ({
+            .map((meeting: any) => ({
               id: meeting.id,
               fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
               date: new Date(meeting.meeting_date),
               summary: meeting.summary || '',
               status: meeting.status,
-              duration: 0, // Will be updated once duration field is added
+              duration: meeting.duration || 0,
               tags: [],
               userId: user.id
             })) || [];
@@ -119,31 +120,6 @@ const TagDetail = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getAudioDuration = async (fileName: string, userId: string): Promise<number> => {
-    try {
-      // Get signed URL for the audio file
-      const { data } = await supabase.storage
-        .from('meeting-audio')
-        .createSignedUrl(`${userId}/${fileName}`, 60); // 1 minute expiry
-      
-      if (!data?.signedUrl) return 0;
-
-      // Create audio element to get duration
-      return new Promise((resolve) => {
-        const audio = new Audio();
-        audio.addEventListener('loadedmetadata', () => {
-          resolve(Math.floor(audio.duration));
-        });
-        audio.addEventListener('error', () => {
-          resolve(0);
-        });
-        audio.src = data.signedUrl;
-      });
-    } catch (error) {
-      console.error('Error getting audio duration:', error);
-      return 0;
-    }
-  };
 
   if (isLoading) {
     return (
