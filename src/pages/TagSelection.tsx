@@ -299,7 +299,7 @@ const TagSelection = () => {
           summary: '',
           audio_file_name: fileName,
           title: meetingTitle,
-          status: 'On Process',
+          status: 'آماده پردازش',
           duration: recordingData.duration || 0
         })
         .select()

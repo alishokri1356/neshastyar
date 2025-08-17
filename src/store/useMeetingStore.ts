@@ -13,7 +13,7 @@ export interface Meeting {
   title: string;
   date: Date;
   summary: string;
-  status: 'On Process' | 'Need Review' | 'Done';
+  status: 'آماده پردازش' | 'Need Review' | 'Done';
   tags: Tag[];
   audioUrl?: string;
   duration?: number;
