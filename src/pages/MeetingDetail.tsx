@@ -304,23 +304,25 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
-      console.log('Sending request to edge function with data:', { fileName: meeting.fileName });
+      console.log('Sending request to webhook with data:', { fileName: meeting.fileName });
       
-      const { data, error } = await supabase.functions.invoke('trigger-summary', {
-        body: {
+      // Use no-cors mode to bypass CORS restrictions
+      const response = await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           fileName: meeting.fileName
-        }
+        })
       });
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message);
-      }
-
-      console.log('Edge function response:', data);
+      // With no-cors mode, we can't read the response, but the request will be sent
+      console.log('Request sent successfully');
       toast({
         title: "Summary generation started",
-        description: "Auto summary generation has been triggered successfully.",
+        description: "Auto summary generation request has been sent.",
       });
     } catch (error) {
       console.error('Error triggering auto summary:', error);
