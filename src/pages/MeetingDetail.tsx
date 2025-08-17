@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Save, Play, Pause, Plus, X } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,6 +27,7 @@ const MeetingDetail = () => {
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [showAddTag, setShowAddTag] = useState(false);
   const [meetingTags, setMeetingTags] = useState<any[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch meeting and all user tags from database
   useEffect(() => {
@@ -300,6 +302,62 @@ const MeetingDetail = () => {
     }).format(date);
   };
 
+  const handleDeleteMeeting = async () => {
+    if (!meeting) return;
+    
+    setIsDeleting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Delete audio file from storage if it exists
+      if (meeting.audioUrl) {
+        const fileName = meeting.fileName.includes('.') ? meeting.fileName : `${meeting.fileName}.wav`;
+        const { error: storageError } = await supabase.storage
+          .from('meeting-audio')
+          .remove([`${user.id}/${fileName}`]);
+        
+        if (storageError) {
+          console.error('Error deleting audio file:', storageError);
+        }
+      }
+
+      // Delete meeting_tags relationships
+      const { error: tagsError } = await supabase
+        .from('meeting_tags')
+        .delete()
+        .eq('meeting_id', meeting.id);
+
+      if (tagsError) throw tagsError;
+
+      // Delete meeting record
+      const { error: meetingError } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', meeting.id)
+        .eq('user_id', user.id);
+
+      if (meetingError) throw meetingError;
+
+      toast({
+        title: "Meeting deleted",
+        description: "Meeting and associated audio file have been deleted successfully.",
+      });
+
+      // Navigate back to home
+      navigate('/home');
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete meeting. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -478,6 +536,46 @@ const MeetingDetail = () => {
                   }
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Delete Meeting */}
+        <Card className="bg-card border-border border-destructive/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-card-foreground">Delete Meeting</h3>
+                <p className="text-sm text-muted-foreground">
+                  Permanently delete this meeting and its audio recording.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isDeleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isDeleting ? 'Deleting...' : 'Delete Meeting'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the meeting
+                      "{meeting.fileName}" and its audio recording from our servers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteMeeting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete Meeting
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>
