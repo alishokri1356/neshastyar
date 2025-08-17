@@ -28,15 +28,17 @@ const TagSelection = () => {
 
   const recordingData = location.state as { duration: number; audioBlob: Blob | null; fileName?: string } | null;
   
-  // Debug logging
-  console.log('TagSelection - Recording data received:', {
-    hasState: !!location.state,
-    duration: recordingData?.duration,
-    hasBlobData: !!recordingData?.audioBlob,
-    blobSize: recordingData?.audioBlob?.size
-  });
+  // Debug logging (only log once per component mount)
+  useEffect(() => {
+    console.log('TagSelection - Recording data received:', {
+      hasState: !!location.state,
+      duration: recordingData?.duration,
+      hasBlobData: !!recordingData?.audioBlob,
+      blobSize: recordingData?.audioBlob?.size
+    });
 
-  console.log('TagSelection - Full recording data:', recordingData);
+    console.log('TagSelection - Full recording data:', recordingData);
+  }, []); // Empty dependency array to run only once
 
   // Fetch user's tags from database on component mount
   useEffect(() => {
@@ -253,13 +255,37 @@ const TagSelection = () => {
         return;
       }
 
-      // Upload audio file to Supabase storage
-      const { error: uploadError } = await supabase.storage
+      // Upload audio file to Supabase storage with duplicate handling
+      let uploadError = null;
+      let uploadSuccess = false;
+
+      // First try uploading with upsert: false
+      const uploadResult = await supabase.storage
         .from('meeting-audio')
         .upload(audioFilePath, recordingData.audioBlob, {
           contentType: 'audio/wav',
           upsert: false
         });
+
+      if (uploadResult.error) {
+        // If file exists (409 Duplicate), try with upsert: true to overwrite
+        if (uploadResult.error.message?.includes('already exists') || uploadResult.error.message?.includes('Duplicate')) {
+          console.log('File exists, attempting to overwrite...');
+          const retryResult = await supabase.storage
+            .from('meeting-audio')
+            .upload(audioFilePath, recordingData.audioBlob, {
+              contentType: 'audio/wav',
+              upsert: true // This will overwrite the existing file
+            });
+          
+          uploadError = retryResult.error;
+          uploadSuccess = !retryResult.error;
+        } else {
+          uploadError = uploadResult.error;
+        }
+      } else {
+        uploadSuccess = true;
+      }
 
       clearInterval(progressInterval);
       
