@@ -591,6 +591,9 @@ const MeetingDetail = () => {
                     </Button>
                   </div>
                 )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  {meeting.fileName}
+                </p>
                 <p className="text-muted-foreground mt-2">
                   {formatDate(meeting.date)}
                 </p>
