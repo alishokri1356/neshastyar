@@ -104,9 +104,10 @@ const Home = () => {
     navigate(`/tag/${tagId}`);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await logout();
+    // Force navigation to landing page
+    window.location.href = '/';
   };
 
   const getStatusColor = (status: string) => {
