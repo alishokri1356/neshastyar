@@ -306,20 +306,36 @@ const MeetingDetail = () => {
     try {
       console.log('Sending request to webhook with data:', { fileName: meeting.fileName });
       
-      // Use no-cors mode to bypass CORS restrictions
-      const response = await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileName: meeting.fileName
-        })
-      });
+      // Create a form and submit it to bypass CORS
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd';
+      form.style.display = 'none';
+      
+      const input = document.createElement('input');
+      input.name = 'fileName';
+      input.value = meeting.fileName;
+      form.appendChild(input);
+      
+      // Add form to document, submit, then remove
+      document.body.appendChild(form);
+      
+      // Submit in a hidden iframe to avoid page redirect
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.name = 'hidden-iframe';
+      form.target = 'hidden-iframe';
+      
+      document.body.appendChild(iframe);
+      form.submit();
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(form);
+        document.body.removeChild(iframe);
+      }, 1000);
 
-      // With no-cors mode, we can't read the response, but the request will be sent
-      console.log('Request sent successfully');
+      console.log('Request sent successfully via form submission');
       toast({
         title: "Summary generation started",
         description: "Auto summary generation request has been sent.",
