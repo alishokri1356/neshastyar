@@ -304,8 +304,11 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
+      console.log('Sending request to webhook with data:', { fileName: meeting.fileName });
+      
       const response = await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
         method: 'POST',
+        mode: 'cors',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -314,19 +317,33 @@ const MeetingDetail = () => {
         })
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
+        const responseData = await response.text();
+        console.log('Response data:', responseData);
         toast({
           title: "Summary generation started",
           description: "Auto summary generation has been triggered successfully.",
         });
       } else {
-        throw new Error('Failed to trigger summary generation');
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('Error triggering auto summary:', error);
+      
+      // More specific error message based on error type
+      let errorMessage = "Failed to trigger auto summary generation. Please try again.";
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        errorMessage = "Network error: Unable to reach the webhook. This might be a CORS issue or the webhook server is not accessible.";
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to trigger auto summary generation. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
