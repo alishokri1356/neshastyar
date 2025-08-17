@@ -26,7 +26,7 @@ const TagSelection = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadCancelled, setUploadCancelled] = useState(false);
 
-  const recordingData = location.state as { duration: number; audioBlob: Blob | null } | null;
+  const recordingData = location.state as { duration: number; audioBlob: Blob | null; fileName?: string } | null;
   
   // Debug logging
   console.log('TagSelection - Recording data received:', {
@@ -228,7 +228,8 @@ const TagSelection = () => {
         return;
       }
 
-      const fileName = `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
+      // Use original filename if available, otherwise generate one
+      const fileName = recordingData.fileName || `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
       const audioFilePath = `${user.id}/${fileName}`;
 
       // Simulate upload progress since Supabase doesn't provide real-time progress
