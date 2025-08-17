@@ -109,6 +109,54 @@ const MeetingDetail = () => {
     fetchData();
   }, [meetingId]);
 
+  // Real-time subscription to listen for meeting updates
+  useEffect(() => {
+    if (!meetingId) return;
+
+    console.log('Setting up real-time subscription for meeting:', meetingId);
+
+    const subscription = supabase
+      .channel('meeting-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'meetings',
+          filter: `id=eq.${meetingId}`
+        },
+        (payload) => {
+          console.log('Meeting updated:', payload);
+          const updatedMeeting = payload.new as any;
+          
+          // Update the meeting state with new data
+          setMeeting((prev: any) => ({
+            ...prev,
+            summary: updatedMeeting.summary || '',
+            status: updatedMeeting.status,
+            title: updatedMeeting.title || prev.title
+          }));
+          
+          // Update summary in the textarea
+          setSummary(updatedMeeting.summary || '');
+          
+          // Show notification when AI processing is complete
+          if (updatedMeeting.status === 'Need Review' && updatedMeeting.summary) {
+            toast({
+              title: "خلاصه تولید شد",
+              description: "خلاصه جلسه با موفقیت تولید شد و آماده بررسی است.",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up real-time subscription');
+      supabase.removeChannel(subscription);
+    };
+  }, [meetingId, toast]);
+
   const getAudioUrl = async (fileName: string, userId: string) => {
     try {
       const { data } = await supabase.storage
