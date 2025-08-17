@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
+import Landing from './Landing';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -9,11 +10,15 @@ const Index = () => {
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/home');
-    } else {
-      navigate('/login');
     }
   }, [isAuthenticated, navigate]);
 
+  // Show landing page for unauthenticated users
+  if (!isAuthenticated) {
+    return <Landing />;
+  }
+
+  // Show loading for authenticated users while navigating
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5">
       <div className="text-center">
