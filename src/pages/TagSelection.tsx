@@ -130,22 +130,17 @@ const TagSelection = () => {
           return;
         }
 
-        // Add to local store without id (addTag generates it)
-        const newTag = {
-          name: data.name,
-          color: data.color,
-          userId: data.user_id
-        };
-        
-        addTag(newTag);
-        
-        // Create the full tag object for selection (using the generated id from store)
+        // Create the full tag object for selection using the database ID
         const fullNewTag = {
-          id: Date.now().toString(), // This matches the ID generation in the store
+          id: data.id, // Use the actual UUID from database
           name: data.name,
           color: data.color,
           userId: data.user_id
         };
+        
+        // Add to local store with the database ID
+        addTag(fullNewTag);
+        
         setNewTagName('');
         setIsCreatingTag(false);
         
@@ -154,7 +149,7 @@ const TagSelection = () => {
         
         toast({
           title: "Tag created",
-          description: `"${newTag.name}" has been created successfully`,
+          description: `"${fullNewTag.name}" has been created successfully`,
         });
       } catch (error) {
         toast({
