@@ -338,13 +338,13 @@ const TagSelection = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Select Tags</h1>
-              <p className="text-xs text-muted-foreground">Choose or create tags for your meeting</p>
+            <h1 className="text-xl font-bold text-foreground">انتخاب برچسب</h1>
+              <p className="text-xs text-muted-foreground">برچسب‌هایی برای جلسه خود انتخاب یا ایجاد کنید</p>
             </div>
           </div>
           
           <Badge variant="secondary">
-            {selectedTags.length} selected
+            {selectedTags.length} انتخاب شده
           </Badge>
         </div>
       </header>
@@ -354,12 +354,12 @@ const TagSelection = () => {
         {recordingData && (
           <Card className="bg-gradient-card border-0 shadow-soft">
             <CardContent className="p-6">
-              <h3 className="font-semibold text-foreground mb-2">Recording Complete</h3>
+              <h3 className="font-semibold text-foreground mb-2">ضبط تکمیل شد</h3>
               <p className="text-sm text-muted-foreground mb-2">
-                Duration: {Math.floor((recordingData.duration || 0) / 1000 / 60)}:{Math.floor(((recordingData.duration || 0) / 1000) % 60).toString().padStart(2, '0')}
+                مدت زمان: {Math.floor((recordingData.duration || 0) / 1000 / 60)}:{Math.floor(((recordingData.duration || 0) / 1000) % 60).toString().padStart(2, '0')}
               </p>
               <p className="text-xs text-muted-foreground/70 font-mono">
-                File: {recordingData.audioBlob ? `${recordingData.audioBlob.size} bytes (${recordingData.audioBlob.type})` : 'No file data'}
+                فایل: {recordingData.audioBlob ? `${recordingData.audioBlob.size} بایت (${recordingData.audioBlob.type})` : 'داده فایل موجود نیست'}
               </p>
             </CardContent>
           </Card>
@@ -368,15 +368,15 @@ const TagSelection = () => {
         {/* Create New Tag */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Tags</h2>
+            <h2 className="text-lg font-semibold text-foreground">برچسب‌ها</h2>
             <Button
               variant="destructive"
               size="lg"
               onClick={() => setIsCreatingTag(!isCreatingTag)}
               className="h-12 px-6 font-semibold"
             >
-              <Plus className="h-5 w-5 mr-2" />
-              New Tag
+              <Plus className="h-5 w-5 ml-2" />
+              برچسب جدید
             </Button>
           </div>
 
@@ -384,18 +384,18 @@ const TagSelection = () => {
             <Card className="bg-gradient-card border-0">
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tagName">Tag Name</Label>
+                  <Label htmlFor="tagName">نام برچسب</Label>
                   <Input
                     id="tagName"
                     value={newTagName}
                     onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder="Enter tag name"
+                    placeholder="نام برچسب را وارد کنید"
                     onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Color</Label>
+                  <Label>رنگ</Label>
                   <div className="flex space-x-2">
                     {tagColors.map((color) => (
                       <button
@@ -412,10 +412,10 @@ const TagSelection = () => {
                 
                 <div className="flex space-x-2">
                   <Button onClick={handleCreateTag} disabled={!newTagName.trim()}>
-                    Create
+                    ایجاد
                   </Button>
                   <Button variant="outline" onClick={() => setIsCreatingTag(false)}>
-                    Cancel
+                    لغو
                   </Button>
                 </div>
               </CardContent>
@@ -461,14 +461,14 @@ const TagSelection = () => {
           <div className="text-center py-12">
             <Tag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              No tags yet
+              هنوز برچسبی نیست
             </h3>
             <p className="text-muted-foreground mb-6">
-              Create your first tag to organize your meetings.
+              اولین برچسب خود را برای سازماندهی جلسات ایجاد کنید.
             </p>
             <Button onClick={() => setIsCreatingTag(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create First Tag
+              <Plus className="h-4 w-4 ml-2" />
+              ایجاد اولین برچسب
             </Button>
           </div>
         )}
@@ -479,7 +479,7 @@ const TagSelection = () => {
             <div className="bg-card border border-border rounded-full p-4 shadow-2xl">
               <div className="text-center space-y-3">
                 <div className="text-sm font-medium text-card-foreground">
-                  Uploading meeting... {uploadProgress}%
+                  در حال بارگذاری جلسه... {uploadProgress}%
                 </div>
                 <div className="w-64 bg-muted rounded-full h-2">
                   <div 
@@ -490,24 +490,24 @@ const TagSelection = () => {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
+                      <X className="h-4 w-4 ml-2" />
+                      لغو
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Cancel Upload?</AlertDialogTitle>
+                      <AlertDialogTitle>لغو بارگذاری؟</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to cancel the upload? This will stop the current upload process and you'll need to start over.
+                        آیا مطمئن هستید که می‌خواهید بارگذاری را لغو کنید؟ این عمل فرآیند بارگذاری فعلی را متوقف می‌کند و باید از ابتدا شروع کنید.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Continue Upload</AlertDialogCancel>
+                      <AlertDialogCancel>ادامه بارگذاری</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleCancelUpload}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        Yes, Cancel Upload
+                        بله، لغو بارگذاری
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -520,7 +520,7 @@ const TagSelection = () => {
               disabled={selectedTags.length === 0}
               className="h-14 px-8 rounded-full shadow-2xl"
             >
-              Save Meeting
+              ذخیره جلسه
               {selectedTags.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {selectedTags.length}

@@ -128,7 +128,7 @@ const Home = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
       </div>
     );
@@ -145,15 +145,15 @@ const Home = () => {
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary-glow rounded-full animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Modiryar</h1>
-              <p className="text-xs text-muted-foreground">AI Meeting Assistant</p>
+            <h1 className="text-xl font-bold text-foreground">مدیریار</h1>
+              <p className="text-xs text-muted-foreground">دستیار هوشمند جلسات</p>
             </div>
           </div>
           
           <div className="flex items-center space-x-3">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-foreground">{user?.email}</p>
-              <p className="text-xs text-muted-foreground">Professional</p>
+              <p className="text-xs text-muted-foreground">حرفه‌ای</p>
             </div>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
@@ -166,18 +166,18 @@ const Home = () => {
         {/* Welcome Section */}
         <div className="text-center space-y-4">
           <h2 className="text-3xl font-bold text-foreground">
-            Welcome back, {user?.email?.split('@')[0]}!
+            خوش برگشتید، {user?.email?.split('@')[0]}!
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Transform your meetings with AI-powered summaries and intelligent organization. 
-            Record, tag, and never lose track of important discussions again.
+            جلسات خود را با خلاصه‌سازی هوشمند و سازماندهی باهوش تبدیل کنید. 
+            ضبط کنید، برچسب بزنید و هرگز مباحث مهم را از دست ندهید.
           </p>
         </div>
 
 
         {/* Tags Section */}
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-foreground">Your Tags</h3>
+          <h3 className="text-xl font-semibold text-foreground">برچسب‌های شما</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {tags.map((tag) => {
               return (
@@ -198,7 +198,7 @@ const Home = () => {
                     </div>
                     <h4 className="font-medium text-foreground">{tag.name}</h4>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {tag.meetingCount} meeting{tag.meetingCount !== 1 ? 's' : ''}
+                      {tag.meetingCount} جلسه
                     </p>
                   </CardContent>
                 </Card>
@@ -210,7 +210,7 @@ const Home = () => {
         {/* Recent Meetings */}
         {meetings.length > 0 && (
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-foreground">Recent Meetings</h3>
+            <h3 className="text-xl font-semibold text-foreground">جلسات اخیر</h3>
             <div className="space-y-3">
               {meetings.map((meeting) => (
                 <Card
@@ -221,7 +221,7 @@ const Home = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-foreground">{meeting.audio_file_name?.replace('.wav', '') || 'Meeting'}</h4>
+                        <h4 className="font-medium text-foreground">{meeting.audio_file_name?.replace('.wav', '') || 'جلسه'}</h4>
                         <div className="flex items-center space-x-2 mt-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
                           <span className="text-sm text-muted-foreground">
@@ -248,8 +248,8 @@ const Home = () => {
             className="h-16 px-8 rounded-full shadow-2xl"
             onClick={() => navigate('/record')}
           >
-            <Mic2 className="h-6 w-6 mr-3" />
-            Record Meeting
+            <Mic2 className="h-6 w-6 ml-3" />
+            ضبط جلسه
           </Button>
         </div>
       </div>

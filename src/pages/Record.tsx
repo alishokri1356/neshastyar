@@ -119,9 +119,9 @@ const Record = () => {
           </div>
           
           <div className="space-y-4">
-            <h1 className="text-3xl font-bold text-foreground">Ready to Record</h1>
+            <h1 className="text-3xl font-bold text-foreground">آماده ضبط</h1>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Tap the button below to start recording your meeting. Make sure you're in a quiet environment for the best quality.
+              روی دکمه زیر کلیک کنید تا ضبط جلسه را شروع کنید. اطمینان حاصل کنید که در محیط آرامی هستید تا کیفیت بهتری داشته باشید.
             </p>
           </div>
 
@@ -129,8 +129,8 @@ const Record = () => {
             onClick={handleStartRecording}
             className="bg-red-500 hover:bg-red-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
           >
-            <Mic className="h-6 w-6 mr-3" />
-            Start Recording
+            <Mic className="h-6 w-6 ml-3" />
+            شروع ضبط
           </Button>
 
           <Button
@@ -138,7 +138,7 @@ const Record = () => {
             onClick={() => navigate('/home')}
             className="mt-4"
           >
-            Cancel
+            لغو
           </Button>
         </div>
       </div>
@@ -161,7 +161,7 @@ const Record = () => {
         {/* Recording Status */}
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-foreground">
-            {isPaused ? 'Recording Paused' : 'Recording...'}
+            {isPaused ? 'ضبط متوقف شده' : 'در حال ضبط...'}
           </h1>
           <div className="text-4xl font-mono font-bold text-red-500">
             {formatTime(recordingDuration)}
@@ -193,8 +193,8 @@ const Record = () => {
 
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
           {isPaused 
-            ? 'Tap play to resume recording or stop to finish'
-            : 'Tap pause to temporarily stop or stop to finish recording'
+            ? 'روی پلی کلیک کنید تا ضبط را ادامه دهید یا استاپ کنید تا تمام شود'
+            : 'روی مکث کلیک کنید تا موقتاً متوقف شود یا استاپ کنید تا ضبط تمام شود'
           }
         </p>
       </div>

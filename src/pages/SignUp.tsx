@@ -61,22 +61,22 @@ const SignUp = () => {
               <Mic2 className="h-8 w-8 text-primary" />
               <Sparkles className="h-4 w-4 text-primary-glow absolute -top-1 -right-1 animate-pulse" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Modiryar</h1>
+            <h1 className="text-2xl font-bold text-foreground">مدیریار</h1>
           </div>
-          <p className="text-muted-foreground">AI-Powered Meeting Assistant</p>
+          <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
         </div>
 
         <Card className="shadow-medium border-0 bg-gradient-card">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Create Account</CardTitle>
+            <CardTitle className="text-2xl text-center">ایجاد حساب کاربری</CardTitle>
             <CardDescription className="text-center">
-              Join thousands of professionals using AI to transform their meetings
+              به هزاران متخصصی بپیوندید که از هوش مصنوعی برای تبدیل جلسات خود استفاده می‌کنند
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">ایمیل</Label>
                 <Input
                   id="email"
                   type="email"
@@ -89,11 +89,11 @@ const SignUp = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">رمز عبور</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Create a secure password"
+                  placeholder="یک رمز عبور امن ایجاد کنید"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -102,11 +102,11 @@ const SignUp = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">تکرار رمز عبور</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Confirm your password"
+                  placeholder="رمز عبور خود را تکرار کنید"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -121,18 +121,18 @@ const SignUp = () => {
                 disabled={isLoading}
                 size="lg"
               >
-                {isLoading ? "Creating Account..." : "Sign Up"}
+                {isLoading ? "در حال ایجاد حساب..." : "ثبت نام"}
               </Button>
             </form>
             
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">
-                Already have an account?{" "}
+                قبلاً حساب کاربری دارید؟{" "}
                 <Link 
                   to="/login" 
                   className="font-medium text-primary hover:text-primary-glow transition-colors"
                 >
-                  Log In
+                  ورود
                 </Link>
               </p>
             </div>

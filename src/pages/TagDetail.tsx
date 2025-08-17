@@ -126,7 +126,7 @@ const TagDetail = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading tag details...</p>
+          <p className="text-muted-foreground">در حال بارگذاری جزئیات برچسب...</p>
         </div>
       </div>
     );
@@ -136,9 +136,9 @@ const TagDetail = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-4">Tag not found</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-4">برچسب پیدا نشد</h2>
           <Button onClick={() => navigate('/home')}>
-            Back to Home
+            بازگشت به خانه
           </Button>
         </div>
       </div>
@@ -168,7 +168,7 @@ const TagDetail = () => {
           </div>
           
           <Badge variant="secondary" className="text-sm">
-            {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
+            {meetings.length} جلسه
           </Badge>
         </div>
       </header>
@@ -178,19 +178,19 @@ const TagDetail = () => {
           <div className="text-center py-12">
             <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              No meetings yet
+              هنوز جلسه‌ای نیست
             </h3>
             <p className="text-muted-foreground mb-6">
-              Start recording meetings and tag them to see them here.
+              ضبط جلسات را شروع کنید و برچسب بزنید تا آنها را اینجا ببینید.
             </p>
             <Button onClick={() => navigate('/record')}>
-              Record Meeting
+              ضبط جلسه
             </Button>
           </div>
         ) : (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-foreground">
-              Meetings ({meetings.length})
+              جلسات ({meetings.length})
             </h2>
             
             <div className="space-y-3">

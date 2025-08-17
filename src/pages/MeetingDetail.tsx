@@ -124,7 +124,7 @@ const MeetingDetail = () => {
         <div className="max-w-4xl mx-auto">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading meeting details...</p>
+            <p className="text-muted-foreground">در حال بارگذاری جزئیات جلسه...</p>
           </div>
         </div>
       </div>
@@ -136,10 +136,10 @@ const MeetingDetail = () => {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Meeting not found</h1>
+            <h1 className="text-2xl font-bold text-foreground mb-4">جلسه پیدا نشد</h1>
             <Button onClick={() => navigate('/home')} variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
+              <ArrowLeft className="ml-2 h-4 w-4" />
+              بازگشت به خانه
             </Button>
           </div>
         </div>
@@ -454,7 +454,7 @@ const MeetingDetail = () => {
         {meeting.audioUrl && (
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-lg text-card-foreground">Audio Recording</CardTitle>
+              <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
@@ -488,7 +488,7 @@ const MeetingDetail = () => {
         <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">Meeting Summary</CardTitle>
+              <CardTitle className="text-lg text-card-foreground">خلاصه جلسه</CardTitle>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
                   onClick={handleAutoGenerateSummary}
@@ -496,11 +496,11 @@ const MeetingDetail = () => {
                   className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
                   <Sparkles className="mr-1 sm:mr-2 h-4 w-4" />
-                  Auto Generate Summary
+                  تولید خلاصه خودکار
                 </Button>
                 <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
                   <Save className="mr-1 sm:mr-2 h-4 w-4" />
-                  Save
+                  ذخیره
                 </Button>
               </div>
             </div>
@@ -509,7 +509,7 @@ const MeetingDetail = () => {
             <Textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="Enter meeting summary..."
+              placeholder="خلاصه جلسه را وارد کنید..."
               className="min-h-[200px] resize-none"
             />
           </CardContent>
@@ -519,10 +519,10 @@ const MeetingDetail = () => {
         <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">Tags</CardTitle>
+              <CardTitle className="text-lg text-card-foreground">برچسب‌ها</CardTitle>
               <Button onClick={() => setShowAddTag(true)} size="sm" variant="outline">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Tag
+                افزودن برچسب
               </Button>
             </div>
           </CardHeader>

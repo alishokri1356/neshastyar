@@ -101,22 +101,22 @@ const Login = () => {
               <Mic2 className="h-8 w-8 text-primary" />
               <Sparkles className="h-4 w-4 text-primary-glow absolute -top-1 -right-1 animate-pulse" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Modiryar</h1>
+            <h1 className="text-2xl font-bold text-foreground">مدیریار</h1>
           </div>
-          <p className="text-muted-foreground">AI-Powered Meeting Assistant</p>
+          <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
         </div>
 
         <Card className="shadow-medium border-0 bg-gradient-card">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
+            <CardTitle className="text-2xl text-center">خوش آمدید</CardTitle>
             <CardDescription className="text-center">
-              Sign in to access your meetings and AI summaries
+              برای دسترسی به جلسات و خلاصه‌های هوشمند خود وارد شوید
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">ایمیل</Label>
                 <Input
                   id="email"
                   type="email"
@@ -129,11 +129,11 @@ const Login = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">رمز عبور</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="رمز عبور خود را وارد کنید"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -146,7 +146,7 @@ const Login = () => {
                   to="/forgot-password" 
                   className="text-sm text-primary hover:text-primary-glow transition-colors"
                 >
-                  Forgot Password?
+                  رمز عبور را فراموش کرده‌اید؟
                 </Link>
               </div>
               
@@ -157,7 +157,7 @@ const Login = () => {
                 disabled={isLoading}
                 size="lg"
               >
-                {isLoading ? "Signing In..." : "Log In"}
+                {isLoading ? "در حال ورود..." : "ورود"}
               </Button>
             </form>
             
@@ -170,19 +170,19 @@ const Login = () => {
                   onClick={handleResendConfirmation}
                   disabled={isResending}
                 >
-                  {isResending ? "Sending..." : "Resend Confirmation Email"}
+                  {isResending ? "در حال ارسال..." : "ارسال مجدد ایمیل تأیید"}
                 </Button>
               </div>
             )}
             
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
+                حساب کاربری ندارید؟{" "}
                 <Link 
                   to="/signup" 
                   className="font-medium text-primary hover:text-primary-glow transition-colors"
                 >
-                  Sign Up
+                  ثبت نام
                 </Link>
               </p>
             </div>
