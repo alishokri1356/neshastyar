@@ -8,26 +8,112 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Save, Play, Pause, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const MeetingDetail = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const { meetings, tags, updateMeeting, addTag } = useMeetingStore();
-  const meeting = meetings.find(m => m.id === meetingId);
+  const { tags, addTag } = useMeetingStore();
   
+  const [meeting, setMeeting] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [showAddTag, setShowAddTag] = useState(false);
+  const [meetingTags, setMeetingTags] = useState<any[]>([]);
 
+  // Fetch meeting from database
   useEffect(() => {
-    if (meeting) {
-      setSummary(meeting.summary || '');
+    const fetchMeeting = async () => {
+      if (!meetingId) return;
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Fetch meeting details
+        const { data: meetingData, error: meetingError } = await supabase
+          .from('meetings')
+          .select('*')
+          .eq('id', meetingId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (meetingError) {
+          console.error('Error fetching meeting:', meetingError);
+          setIsLoading(false);
+          return;
+        }
+
+        if (meetingData) {
+          // Fetch meeting tags
+          const { data: tagData, error: tagError } = await supabase
+            .from('meeting_tags')
+            .select(`
+              tags (
+                id,
+                name,
+                color
+              )
+            `)
+            .eq('meeting_id', meetingId);
+
+          const tags = tagData?.map(item => item.tags).filter(Boolean) || [];
+
+          const transformedMeeting = {
+            id: meetingData.id,
+            fileName: meetingData.audio_file_name || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
+            date: new Date(meetingData.meeting_date),
+            summary: meetingData.summary || '',
+            status: meetingData.status,
+            tags: tags,
+            userId: meetingData.user_id,
+            audioUrl: meetingData.audio_file_name ? await getAudioUrl(meetingData.audio_file_name, user.id) : null
+          };
+
+          setMeeting(transformedMeeting);
+          setMeetingTags(tags);
+          setSummary(transformedMeeting.summary);
+        }
+      } catch (error) {
+        console.error('Error fetching meeting:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMeeting();
+  }, [meetingId]);
+
+  const getAudioUrl = async (fileName: string, userId: string) => {
+    try {
+      const { data } = await supabase.storage
+        .from('meeting-audio')
+        .createSignedUrl(`${userId}/${fileName}`, 3600); // 1 hour expiry
+      
+      return data?.signedUrl || null;
+    } catch (error) {
+      console.error('Error getting audio URL:', error);
+      return null;
     }
-  }, [meeting]);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading meeting details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!meeting) {
     return (
@@ -45,54 +131,138 @@ const MeetingDetail = () => {
     );
   }
 
-  const handleSaveSummary = () => {
-    updateMeeting(meeting.id, { summary });
-    toast({
-      title: "Summary saved",
-      description: "Meeting summary has been updated successfully.",
-    });
-  };
+  const handleSaveSummary = async () => {
+    try {
+      const { error } = await supabase
+        .from('meetings')
+        .update({ summary })
+        .eq('id', meeting.id);
 
-  const handleAddTag = () => {
-    if (newTagName.trim()) {
-      const newTag = {
-        name: newTagName.trim(),
-        color: newTagColor,
-        userId: meeting.userId,
-      };
-      addTag(newTag);
-      
-      // Add tag to meeting
-      const updatedTags = [...meeting.tags, { ...newTag, id: Date.now().toString() }];
-      updateMeeting(meeting.id, { tags: updatedTags });
-      
-      setNewTagName('');
-      setShowAddTag(false);
+      if (error) throw error;
+
+      setMeeting(prev => ({ ...prev, summary }));
       toast({
-        title: "Tag added",
-        description: "New tag has been added to the meeting.",
+        title: "Summary saved",
+        description: "Meeting summary has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving summary:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save summary. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
-  const handleRemoveTag = (tagId: string) => {
-    const updatedTags = meeting.tags.filter(tag => tag.id !== tagId);
-    updateMeeting(meeting.id, { tags: updatedTags });
-    toast({
-      title: "Tag removed",
-      description: "Tag has been removed from the meeting.",
-    });
+  const handleAddTag = async () => {
+    if (newTagName.trim()) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Create new tag in database
+        const { data: newTag, error: tagError } = await supabase
+          .from('tags')
+          .insert({
+            name: newTagName.trim(),
+            color: newTagColor,
+            user_id: user.id
+          })
+          .select()
+          .single();
+
+        if (tagError) throw tagError;
+
+        // Link tag to meeting
+        const { error: linkError } = await supabase
+          .from('meeting_tags')
+          .insert({
+            meeting_id: meeting.id,
+            tag_id: newTag.id
+          });
+
+        if (linkError) throw linkError;
+
+        const updatedTags = [...meetingTags, newTag];
+        setMeetingTags(updatedTags);
+        setMeeting(prev => ({ ...prev, tags: updatedTags }));
+        
+        setNewTagName('');
+        setShowAddTag(false);
+        
+        toast({
+          title: "Tag added",
+          description: "New tag has been added to the meeting.",
+        });
+      } catch (error) {
+        console.error('Error adding tag:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add tag. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
-  const handleAddExistingTag = (tag: any) => {
-    const tagExists = meeting.tags.some(t => t.id === tag.id);
-    if (!tagExists) {
-      const updatedTags = [...meeting.tags, tag];
-      updateMeeting(meeting.id, { tags: updatedTags });
+  const handleRemoveTag = async (tagId: string) => {
+    try {
+      const { error } = await supabase
+        .from('meeting_tags')
+        .delete()
+        .eq('meeting_id', meeting.id)
+        .eq('tag_id', tagId);
+
+      if (error) throw error;
+
+      const updatedTags = meetingTags.filter(tag => tag.id !== tagId);
+      setMeetingTags(updatedTags);
+      setMeeting(prev => ({ ...prev, tags: updatedTags }));
+      
       toast({
-        title: "Tag added",
-        description: "Tag has been added to the meeting.",
+        title: "Tag removed",
+        description: "Tag has been removed from the meeting.",
       });
+    } catch (error) {
+      console.error('Error removing tag:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove tag. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddExistingTag = async (tag: any) => {
+    const tagExists = meetingTags.some(t => t.id === tag.id);
+    if (!tagExists) {
+      try {
+        const { error } = await supabase
+          .from('meeting_tags')
+          .insert({
+            meeting_id: meeting.id,
+            tag_id: tag.id
+          });
+
+        if (error) throw error;
+
+        const updatedTags = [...meetingTags, tag];
+        setMeetingTags(updatedTags);
+        setMeeting(prev => ({ ...prev, tags: updatedTags }));
+        
+        toast({
+          title: "Tag added",
+          description: "Tag has been added to the meeting.",
+        });
+      } catch (error) {
+        console.error('Error adding tag:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add tag. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -275,7 +445,7 @@ const MeetingDetail = () => {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {tags
-                    .filter(tag => !meeting.tags.some(mt => mt.id === tag.id))
+                    .filter(tag => !meetingTags.some(mt => mt.id === tag.id))
                     .map((tag) => (
                       <button
                         key={tag.id}
