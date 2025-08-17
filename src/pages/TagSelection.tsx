@@ -337,9 +337,40 @@ const TagSelection = () => {
         }
       }
 
+      // Automatically trigger summary generation
+      try {
+        const { error: summaryError } = await supabase.functions.invoke('trigger-summary', {
+          body: { fileName: fileName }
+        });
+
+        if (summaryError) {
+          console.error('Error triggering summary generation:', summaryError);
+          toast({
+            title: "Warning",
+            description: "Meeting saved but summary generation failed to start",
+            variant: "destructive",
+          });
+        } else {
+          console.log('Summary generation triggered successfully for:', fileName);
+          
+          // Update meeting status to indicate processing has started
+          await supabase
+            .from('meetings')
+            .update({ status: 'در حال پردازش' })
+            .eq('id', meetingData.id);
+        }
+      } catch (error) {
+        console.error('Error triggering summary generation:', error);
+        toast({
+          title: "Warning",
+          description: "Meeting saved but summary generation failed to start",
+          variant: "destructive",
+        });
+      }
+
       toast({
         title: "Meeting saved",
-        description: "Your meeting has been saved successfully",
+        description: "Your meeting has been saved and summary generation started",
       });
 
       navigate('/home');
