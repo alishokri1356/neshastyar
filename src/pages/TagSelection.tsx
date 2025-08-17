@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Plus, Check, Tag } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Tag, X } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,6 +24,7 @@ const TagSelection = () => {
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadCancelled, setUploadCancelled] = useState(false);
 
   const recordingData = location.state as { duration: number; audioBlob: Blob | null } | null;
   
@@ -175,6 +177,7 @@ const TagSelection = () => {
 
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadCancelled(false);
 
     try {
       // Get current user
@@ -195,13 +198,19 @@ const TagSelection = () => {
       // Simulate upload progress since Supabase doesn't provide real-time progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 90 || uploadCancelled) {
             clearInterval(progressInterval);
-            return 90; // Keep at 90% until upload completes
+            return uploadCancelled ? prev : 90; // Keep at 90% until upload completes
           }
           return prev + 10;
         });
       }, 200);
+
+      // Check if cancelled before starting upload
+      if (uploadCancelled) {
+        clearInterval(progressInterval);
+        return;
+      }
 
       // Upload audio file to Supabase storage
       const { error: uploadError } = await supabase.storage
@@ -212,6 +221,18 @@ const TagSelection = () => {
         });
 
       clearInterval(progressInterval);
+      
+      // Check if cancelled after upload
+      if (uploadCancelled) {
+        // Clean up uploaded file if it was uploaded
+        if (!uploadError) {
+          await supabase.storage
+            .from('meeting-audio')
+            .remove([audioFilePath]);
+        }
+        return;
+      }
+      
       setUploadProgress(100);
 
       if (uploadError) {
@@ -282,7 +303,18 @@ const TagSelection = () => {
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      setUploadCancelled(false);
     }
+  };
+
+  const handleCancelUpload = () => {
+    setUploadCancelled(true);
+    setIsUploading(false);
+    setUploadProgress(0);
+    toast({
+      title: "Upload cancelled",
+      description: "Meeting upload has been cancelled",
+    });
   };
 
   return (
@@ -438,7 +470,7 @@ const TagSelection = () => {
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
           {isUploading ? (
             <div className="bg-card border border-border rounded-full p-4 shadow-2xl">
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-3">
                 <div className="text-sm font-medium text-card-foreground">
                   Uploading meeting... {uploadProgress}%
                 </div>
@@ -448,6 +480,31 @@ const TagSelection = () => {
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel Upload?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to cancel the upload? This will stop the current upload process and you'll need to start over.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Continue Upload</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCancelUpload}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Yes, Cancel Upload
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ) : (
