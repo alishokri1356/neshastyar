@@ -337,27 +337,49 @@ const TagSelection = () => {
         }
       }
 
-      // Automatically trigger summary generation
+      // Automatically trigger summary generation with detailed logging
       let summaryGenerationStarted = false;
       try {
-        console.log('Triggering summary generation for:', fileName);
+        console.log('=== STARTING SUMMARY GENERATION ===');
+        console.log('Meeting ID:', meetingData.id);
+        console.log('File name for summary:', fileName);
+        console.log('User ID:', user.id);
+        
+        // Check if the Edge Function exists first
+        console.log('Checking Supabase connection...');
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Auth session valid:', !!session);
+        
+        console.log('Invoking trigger-summary Edge Function...');
+        const functionStartTime = Date.now();
         
         const { data: summaryData, error: summaryError } = await supabase.functions.invoke('trigger-summary', {
           body: { fileName: fileName }
         });
+        
+        const functionEndTime = Date.now();
+        console.log(`Function call took: ${functionEndTime - functionStartTime}ms`);
+        console.log('Function response data:', summaryData);
+        console.log('Function response error:', summaryError);
 
         if (summaryError) {
-          console.error('Summary generation error:', summaryError);
+          console.error('=== SUMMARY GENERATION FAILED ===');
+          console.error('Error type:', summaryError.name);
+          console.error('Error message:', summaryError.message);
+          console.error('Error details:', summaryError);
+          
           toast({
-            title: "Warning",
-            description: "Meeting saved but summary generation failed to start",
+            title: "Summary Generation Failed",
+            description: `Could not start automatic summary generation: ${summaryError.message}. You can manually start it from the meeting page.`,
             variant: "destructive",
           });
         } else {
-          console.log('Summary generation triggered successfully:', summaryData);
+          console.log('=== SUMMARY GENERATION STARTED SUCCESSFULLY ===');
+          console.log('Summary trigger response:', summaryData);
           summaryGenerationStarted = true;
           
           // Update meeting status to indicate processing has started
+          console.log('Updating meeting status to processing...');
           const { error: updateError } = await supabase
             .from('meetings')
             .update({ status: 'در حال پردازش' })
@@ -365,22 +387,29 @@ const TagSelection = () => {
 
           if (updateError) {
             console.error('Error updating meeting status:', updateError);
+          } else {
+            console.log('Meeting status updated successfully');
           }
         }
       } catch (error) {
-        console.error('Error triggering summary generation:', error);
+        console.error('=== SUMMARY GENERATION EXCEPTION ===');
+        console.error('Exception type:', error?.constructor?.name);
+        console.error('Exception message:', error?.message);
+        console.error('Full exception:', error);
+        
         toast({
-          title: "Warning",
-          description: "Meeting saved but summary generation failed to start. You can manually start it from the meeting details.",
+          title: "Summary Generation Error", 
+          description: `Unexpected error during summary generation: ${error?.message || 'Unknown error'}. You can manually start it from the meeting page.`,
           variant: "destructive",
         });
       }
 
       toast({
         title: "Meeting saved",
-        description: summaryGenerationStarted ? "Meeting saved and summary generation started" : "Meeting saved successfully",
+        description: summaryGenerationStarted ? "Meeting saved and summary generation started automatically" : "Meeting saved successfully - summary generation failed to start automatically",
       });
 
+      console.log('Navigating to home page...');
       navigate('/home');
     } catch (error) {
       console.error('Error saving meeting:', error);
