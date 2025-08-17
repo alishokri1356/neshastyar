@@ -36,6 +36,8 @@ const TagSelection = () => {
     blobSize: recordingData?.audioBlob?.size
   });
 
+  console.log('TagSelection - Full recording data:', recordingData);
+
   // Fetch user's tags from database on component mount
   useEffect(() => {
     const fetchTags = async () => {
@@ -245,6 +247,8 @@ const TagSelection = () => {
       }
 
       // Create meeting in database
+      console.log('Saving meeting with duration:', recordingData.duration);
+      
       const { data: meetingData, error: meetingError } = await supabase
         .from('meetings')
         .insert({
@@ -257,6 +261,8 @@ const TagSelection = () => {
         })
         .select()
         .single();
+
+      console.log('Meeting saved:', meetingData);
 
       if (meetingError) {
         toast({
