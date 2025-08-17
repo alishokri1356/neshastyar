@@ -21,6 +21,8 @@ const TagSelection = () => {
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const recordingData = location.state as { duration: number; audioBlob: Blob | null } | null;
   
@@ -171,6 +173,9 @@ const TagSelection = () => {
       return;
     }
 
+    setIsUploading(true);
+    setUploadProgress(0);
+
     try {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -187,6 +192,17 @@ const TagSelection = () => {
       const fileName = `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
       const audioFilePath = `${user.id}/${fileName}`;
 
+      // Simulate upload progress since Supabase doesn't provide real-time progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90; // Keep at 90% until upload completes
+          }
+          return prev + 10;
+        });
+      }, 200);
+
       // Upload audio file to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('meeting-audio')
@@ -194,6 +210,9 @@ const TagSelection = () => {
           contentType: 'audio/wav',
           upsert: false
         });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       if (uploadError) {
         toast({
@@ -260,6 +279,9 @@ const TagSelection = () => {
         description: "Failed to save meeting",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -414,18 +436,34 @@ const TagSelection = () => {
 
         {/* Save Button */}
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
-          <Button
-            onClick={handleSaveMeeting}
-            disabled={selectedTags.length === 0}
-            className="h-14 px-8 rounded-full shadow-2xl"
-          >
-            Save Meeting
-            {selectedTags.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {selectedTags.length}
-              </Badge>
-            )}
-          </Button>
+          {isUploading ? (
+            <div className="bg-card border border-border rounded-full p-4 shadow-2xl">
+              <div className="text-center space-y-2">
+                <div className="text-sm font-medium text-card-foreground">
+                  Uploading meeting... {uploadProgress}%
+                </div>
+                <div className="w-64 bg-muted rounded-full h-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={handleSaveMeeting}
+              disabled={selectedTags.length === 0}
+              className="h-14 px-8 rounded-full shadow-2xl"
+            >
+              Save Meeting
+              {selectedTags.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {selectedTags.length}
+                </Badge>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </div>
