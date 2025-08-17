@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { Mic, Pause, Square, Play } from 'lucide-react';
+import { Mic, Pause, Square, Play, Upload } from 'lucide-react';
 
 const Record = () => {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ const Record = () => {
   const intervalRef = useRef<NodeJS.Timeout>();
   const mediaRecorderRef = useRef<MediaRecorder>();
   const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
@@ -107,6 +108,35 @@ const Record = () => {
     stopRecording();
   };
 
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('audio/')) {
+      // Get audio duration (approximate)
+      const audio = new Audio();
+      audio.src = URL.createObjectURL(file);
+      
+      audio.onloadedmetadata = () => {
+        const duration = Math.floor(audio.duration);
+        URL.revokeObjectURL(audio.src);
+        
+        // Navigate to tag selection with file data
+        navigate('/tag-selection', { 
+          state: { 
+            duration: duration,
+            audioBlob: file,
+            fileName: file.name
+          }
+        });
+      };
+    } else {
+      alert('لطفاً یک فایل صوتی انتخاب کنید');
+    }
+  };
+
   if (!isRecording) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
@@ -125,13 +155,32 @@ const Record = () => {
             </p>
           </div>
 
-          <Button
-            onClick={handleStartRecording}
-            className="bg-red-500 hover:bg-red-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
-          >
-            <Mic className="h-6 w-6 ml-3" />
-            شروع ضبط
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button
+              onClick={handleStartRecording}
+              className="bg-red-500 hover:bg-red-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
+            >
+              <Mic className="h-6 w-6 ml-3" />
+              شروع ضبط
+            </Button>
+
+            <Button
+              onClick={handleFileSelect}
+              variant="outline"
+              className="h-16 px-8 rounded-full text-lg font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            >
+              <Upload className="h-6 w-6 ml-3" />
+              انتخاب فایل
+            </Button>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
 
           <Button
             variant="ghost"
