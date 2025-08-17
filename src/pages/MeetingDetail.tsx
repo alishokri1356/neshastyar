@@ -304,6 +304,17 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
+      // Update meeting status to "در حال پردازش"
+      const { error: statusError } = await supabase
+        .from('meetings')
+        .update({ status: 'در حال پردازش' })
+        .eq('id', meeting.id);
+
+      if (statusError) throw statusError;
+
+      // Update local state
+      setMeeting(prev => ({ ...prev, status: 'در حال پردازش' }));
+
       // Get current user email
       const { data: { user } } = await supabase.auth.getUser();
       const userEmail = user?.email || '';
