@@ -429,7 +429,7 @@ const MeetingDetail = () => {
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Ask AI about this meeting..."
+              placeholder="Summarize this meeting and highlight its key points and main takeaways"
               className="min-h-[80px] max-h-[80px] resize-none"
               rows={3}
             />
