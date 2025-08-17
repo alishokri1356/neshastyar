@@ -18,6 +18,7 @@ const MeetingDetail = () => {
   const { tags, addTag } = useMeetingStore();
   
   const [meeting, setMeeting] = useState<any>(null);
+  const [allUserTags, setAllUserTags] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -26,14 +27,27 @@ const MeetingDetail = () => {
   const [showAddTag, setShowAddTag] = useState(false);
   const [meetingTags, setMeetingTags] = useState<any[]>([]);
 
-  // Fetch meeting from database
+  // Fetch meeting and all user tags from database
   useEffect(() => {
-    const fetchMeeting = async () => {
+    const fetchData = async () => {
       if (!meetingId) return;
       
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+
+        // Fetch all user tags
+        const { data: allTags, error: allTagsError } = await supabase
+          .from('tags')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (allTagsError) {
+          console.error('Error fetching user tags:', allTagsError);
+        } else {
+          setAllUserTags(allTags || []);
+        }
 
         // Fetch meeting details
         const { data: meetingData, error: meetingError } = await supabase
@@ -80,13 +94,13 @@ const MeetingDetail = () => {
           setSummary(transformedMeeting.summary);
         }
       } catch (error) {
-        console.error('Error fetching meeting:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchMeeting();
+    fetchData();
   }, [meetingId]);
 
   const getAudioUrl = async (fileName: string, userId: string) => {
@@ -187,6 +201,7 @@ const MeetingDetail = () => {
         const updatedTags = [...meetingTags, newTag];
         setMeetingTags(updatedTags);
         setMeeting(prev => ({ ...prev, tags: updatedTags }));
+        setAllUserTags(prev => [...prev, newTag]); // Add to all user tags as well
         
         setNewTagName('');
         setShowAddTag(false);
@@ -444,7 +459,7 @@ const MeetingDetail = () => {
                   Available Tags:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {tags
+                  {allUserTags
                     .filter(tag => !meetingTags.some(mt => mt.id === tag.id))
                     .map((tag) => (
                       <button
