@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -427,10 +427,21 @@ const MeetingDetail = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-card-foreground">Meeting Summary</CardTitle>
-              <Button onClick={handleSaveSummary} size="sm">
-                <Save className="mr-2 h-4 w-4" />
-                Save
-              </Button>
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => {/* TODO: Implement auto generate functionality */}}
+                  size="lg"
+                  variant="primary"
+                  className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Auto Generate Summary
+                </Button>
+                <Button onClick={handleSaveSummary} size="sm">
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
