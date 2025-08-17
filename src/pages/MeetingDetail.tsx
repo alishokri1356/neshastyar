@@ -556,7 +556,7 @@ const MeetingDetail = () => {
                 <div className="border border-border rounded-lg p-4 space-y-3">
                   <div className="flex gap-3">
                     <Input
-                      placeholder="Tag name"
+                      placeholder="نام برچسب"
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       className="flex-1"
@@ -570,14 +570,14 @@ const MeetingDetail = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleAddTag} size="sm">
-                      Add Tag
+                      افزودن برچسب
                     </Button>
                     <Button 
                       onClick={() => setShowAddTag(false)} 
                       variant="outline" 
                       size="sm"
                     >
-                      Cancel
+                      لغو
                     </Button>
                   </div>
                 </div>
@@ -586,7 +586,7 @@ const MeetingDetail = () => {
               {/* Available Tags */}
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">
-                  Available Tags:
+                  برچسب‌های موجود:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {allUserTags
@@ -617,33 +617,33 @@ const MeetingDetail = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium text-card-foreground">Delete Meeting</h3>
+                <h3 className="text-lg font-medium text-card-foreground">حذف جلسه</h3>
                 <p className="text-sm text-muted-foreground">
-                  Permanently delete this meeting and its audio recording.
+                  این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.
                 </p>
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" disabled={isDeleting}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {isDeleting ? 'Deleting...' : 'Delete Meeting'}
+                    <Trash2 className="ml-2 h-4 w-4" />
+                    {isDeleting ? 'در حال حذف...' : 'حذف جلسه'}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogTitle>آیا مطمئن هستید؟</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the meeting
-                      "{meeting.fileName}" and its audio recording from our servers.
+                      این عمل قابل بازگشت نیست. این کار جلسه
+                      "{meeting.fileName}" و ضبط صوتی آن را برای همیشه از سرورهای ما حذف خواهد کرد.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>لغو</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteMeeting}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      Delete Meeting
+                      حذف جلسه
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
