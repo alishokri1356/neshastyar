@@ -232,16 +232,20 @@ const TagSelection = () => {
       const fileName = recordingData.fileName || `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
       const audioFilePath = `${user.id}/${fileName}`;
 
-      // Simulate upload progress since Supabase doesn't provide real-time progress
+      // Simulate upload progress based on file size for better accuracy
+      const fileSizeInMB = recordingData.audioBlob.size / (1024 * 1024);
+      const estimatedUploadTime = Math.max(2000, Math.min(fileSizeInMB * 1000, 10000)); // 2-10 seconds based on file size
+      const progressStep = 85 / (estimatedUploadTime / 300); // Update every 300ms to reach 85%
+      
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90 || uploadCancelled) {
+          if (prev >= 85 || uploadCancelled) {
             clearInterval(progressInterval);
-            return uploadCancelled ? prev : 90; // Keep at 90% until upload completes
+            return uploadCancelled ? prev : 85; // Keep at 85% until upload completes
           }
-          return prev + 10;
+          return Math.min(prev + progressStep + Math.random() * 2, 85);
         });
-      }, 200);
+      }, 300);
 
       // Check if cancelled before starting upload
       if (uploadCancelled) {
