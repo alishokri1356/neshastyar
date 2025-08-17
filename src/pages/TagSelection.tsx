@@ -338,39 +338,47 @@ const TagSelection = () => {
       }
 
       // Automatically trigger summary generation
+      let summaryGenerationStarted = false;
       try {
-        const { error: summaryError } = await supabase.functions.invoke('trigger-summary', {
+        console.log('Triggering summary generation for:', fileName);
+        
+        const { data: summaryData, error: summaryError } = await supabase.functions.invoke('trigger-summary', {
           body: { fileName: fileName }
         });
 
         if (summaryError) {
-          console.error('Error triggering summary generation:', summaryError);
+          console.error('Summary generation error:', summaryError);
           toast({
             title: "Warning",
             description: "Meeting saved but summary generation failed to start",
             variant: "destructive",
           });
         } else {
-          console.log('Summary generation triggered successfully for:', fileName);
+          console.log('Summary generation triggered successfully:', summaryData);
+          summaryGenerationStarted = true;
           
           // Update meeting status to indicate processing has started
-          await supabase
+          const { error: updateError } = await supabase
             .from('meetings')
             .update({ status: 'در حال پردازش' })
             .eq('id', meetingData.id);
+
+          if (updateError) {
+            console.error('Error updating meeting status:', updateError);
+          }
         }
       } catch (error) {
         console.error('Error triggering summary generation:', error);
         toast({
           title: "Warning",
-          description: "Meeting saved but summary generation failed to start",
+          description: "Meeting saved but summary generation failed to start. You can manually start it from the meeting details.",
           variant: "destructive",
         });
       }
 
       toast({
         title: "Meeting saved",
-        description: "Your meeting has been saved and summary generation started",
+        description: summaryGenerationStarted ? "Meeting saved and summary generation started" : "Meeting saved successfully",
       });
 
       navigate('/home');
