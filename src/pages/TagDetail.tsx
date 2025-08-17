@@ -1,17 +1,102 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Calendar, FileText } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const TagDetail = () => {
   const { tagId } = useParams<{ tagId: string }>();
   const navigate = useNavigate();
-  const { tags, getMeetingsByTag } = useMeetingStore();
+  const { tags } = useMeetingStore();
+  const { toast } = useToast();
+  
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [tag, setTag] = useState<any>(null);
 
-  const tag = tags.find(t => t.id === tagId);
-  const meetings = tagId ? getMeetingsByTag(tagId) : [];
+  // Fetch tag and its meetings from database
+  useEffect(() => {
+    const fetchTagAndMeetings = async () => {
+      if (!tagId) return;
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Fetch tag details
+        const { data: tagData, error: tagError } = await supabase
+          .from('tags')
+          .select('*')
+          .eq('id', tagId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (tagError) {
+          console.error('Error fetching tag:', tagError);
+          return;
+        }
+
+        if (tagData) {
+          setTag({
+            id: tagData.id,
+            name: tagData.name,
+            color: tagData.color,
+            userId: tagData.user_id
+          });
+
+          // Fetch meetings associated with this tag
+          const { data: meetingsData, error: meetingsError } = await supabase
+            .from('meeting_tags')
+            .select(`
+              meetings (
+                id,
+                meeting_date,
+                audio_file_name,
+                summary,
+                status
+              )
+            `)
+            .eq('tag_id', tagId);
+
+          if (meetingsError) {
+            console.error('Error fetching meetings:', meetingsError);
+            toast({
+              title: "Error loading meetings",
+              description: meetingsError.message,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Transform the data to match the expected format
+          const transformedMeetings = meetingsData
+            ?.map(item => item.meetings)
+            .filter(Boolean)
+            .map(meeting => ({
+              id: meeting.id,
+              fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+              date: new Date(meeting.meeting_date),
+              summary: meeting.summary || '',
+              status: meeting.status,
+              tags: [],
+              userId: user.id
+            })) || [];
+
+          setMeetings(transformedMeetings);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTagAndMeetings();
+  }, [tagId, toast]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -25,6 +110,17 @@ const TagDetail = () => {
         return 'bg-muted/10 text-muted-foreground border-muted/20';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading tag details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!tag) {
     return (
