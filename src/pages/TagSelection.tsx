@@ -42,17 +42,42 @@ const TagSelection = () => {
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        console.log('TagSelection - Fetching user...');
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-        if (!user) return;
+        console.log('TagSelection - Auth result:', { user: !!user, authError });
+        
+        if (authError) {
+          console.error('TagSelection - Auth error:', authError);
+          toast({
+            title: "Authentication Error",
+            description: "Please log in to view your tags",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (!user) {
+          console.log('TagSelection - No authenticated user found');
+          toast({
+            title: "Not logged in",
+            description: "Please log in to view your tags",
+            variant: "destructive",
+          });
+          return;
+        }
 
+        console.log('TagSelection - Fetching tags for user:', user.id);
         const { data, error } = await supabase
           .from('tags')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
+        console.log('TagSelection - Tags fetch result:', { data, error });
+
         if (error) {
+          console.error('TagSelection - Tags fetch error:', error);
           toast({
             title: "Error loading tags",
             description: error.message,
@@ -63,6 +88,7 @@ const TagSelection = () => {
 
         // Set fetched tags directly (they already have IDs)
         if (data && data.length > 0) {
+          console.log('TagSelection - Found tags:', data.length);
           const formattedTags = data.map(tag => ({
             id: tag.id,
             name: tag.name,
@@ -70,14 +96,22 @@ const TagSelection = () => {
             userId: tag.user_id
           }));
           setTags(formattedTags);
+        } else {
+          console.log('TagSelection - No tags found for user');
+          setTags([]); // Explicitly set empty array
         }
       } catch (error) {
-        console.error('Error fetching tags:', error);
+        console.error('TagSelection - Error fetching tags:', error);
+        toast({
+          title: "Unexpected Error",
+          description: "Failed to load tags",
+          variant: "destructive",
+        });
       }
     };
 
     fetchTags();
-  }, [addTag, toast]);
+  }, [setTags, toast]);
 
   const tagColors = [
     '#3B82F6', // Blue
