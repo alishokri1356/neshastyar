@@ -114,7 +114,25 @@ const Record = () => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('audio/')) {
+    
+    // Define supported audio MIME types for mobile devices
+    const supportedAudioTypes = [
+      'audio/mpeg', // MP3
+      'audio/mp3',
+      'audio/wav', // WAV
+      'audio/wave',
+      'audio/x-wav',
+      'audio/aac', // AAC
+      'audio/mp4', // M4A
+      'audio/x-m4a',
+      'audio/ogg', // OGG
+      'audio/webm', // WebM
+      'audio/3gpp', // 3GP (common on Android)
+      'audio/amr', // AMR (common on older Android)
+      'audio/flac' // FLAC
+    ];
+    
+    if (file && supportedAudioTypes.includes(file.type)) {
       // Get audio duration (approximate)
       const audio = new Audio();
       audio.src = URL.createObjectURL(file);
@@ -132,8 +150,13 @@ const Record = () => {
           }
         });
       };
+      
+      audio.onerror = () => {
+        URL.revokeObjectURL(audio.src);
+        alert('فایل صوتی نامعتبر است یا قابل پخش نیست');
+      };
     } else {
-      alert('لطفاً یک فایل صوتی انتخاب کنید');
+      alert('لطفاً یک فایل صوتی معتبر انتخاب کنید (MP3, WAV, AAC, M4A, OGG)');
     }
   };
 
@@ -177,7 +200,7 @@ const Record = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="audio/*"
+            accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/aac,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,audio/3gpp,audio/amr,audio/flac,.mp3,.wav,.aac,.m4a,.ogg,.3gp,.amr,.flac"
             onChange={handleFileChange}
             className="hidden"
           />
