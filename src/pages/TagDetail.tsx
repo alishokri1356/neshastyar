@@ -73,30 +73,19 @@ const TagDetail = () => {
           }
 
           // Transform the data to match the expected format
-          const meetingPromises = meetingsData
+          const transformedMeetings = meetingsData
             ?.map(item => item.meetings)
             .filter(Boolean)
-            .map(async (meeting) => {
-              // Get audio duration if file exists
-              let duration = 0;
-              if (meeting.audio_file_name) {
-                duration = await getAudioDuration(meeting.audio_file_name, user.id);
-              }
-              
-              return {
-                id: meeting.id,
-                fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
-                date: new Date(meeting.meeting_date),
-                summary: meeting.summary || '',
-                status: meeting.status,
-                duration: duration,
-                tags: [],
-                userId: user.id
-              };
-            });
-
-          // Wait for all promises to resolve
-          const transformedMeetings = await Promise.all(meetingPromises) || [];
+            .map(meeting => ({
+              id: meeting.id,
+              fileName: meeting.audio_file_name || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+              date: new Date(meeting.meeting_date),
+              summary: meeting.summary || '',
+              status: meeting.status,
+              duration: 0, // Will be updated once duration field is added
+              tags: [],
+              userId: user.id
+            })) || [];
 
           setMeetings(transformedMeetings);
         }

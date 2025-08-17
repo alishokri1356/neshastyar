@@ -252,7 +252,8 @@ const TagSelection = () => {
           user_id: user.id,
           summary: '',
           audio_file_name: fileName,
-          status: 'On Process'
+          status: 'On Process',
+          duration: recordingData.duration || 0
         })
         .select()
         .single();
