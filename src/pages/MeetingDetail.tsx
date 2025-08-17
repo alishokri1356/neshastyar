@@ -310,13 +310,15 @@ const MeetingDetail = () => {
       
       console.log('Sending request to webhook with data:', { 
         fileName: meeting.fileName, 
-        userEmail: userEmail 
+        userEmail: userEmail,
+        meetingId: meeting.id
       });
       
       // Try multiple approaches to ensure the request gets through
       const requestData = {
         fileName: meeting.fileName,
-        userEmail: userEmail
+        userEmail: userEmail,
+        meetingId: meeting.id
       };
 
       // Approach 1: Try with no-cors first
@@ -340,6 +342,7 @@ const MeetingDetail = () => {
         const url = new URL('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
         url.searchParams.append('fileName', meeting.fileName);
         url.searchParams.append('userEmail', userEmail);
+        url.searchParams.append('meetingId', meeting.id);
         img.src = url.toString();
         console.log('Image request sent to:', url.toString());
       } catch (e) {
