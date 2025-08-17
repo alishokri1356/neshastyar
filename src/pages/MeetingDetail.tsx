@@ -116,7 +116,7 @@ const MeetingDetail = () => {
     console.log('Setting up real-time subscription for meeting:', meetingId);
 
     const subscription = supabase
-      .channel('meeting-updates')
+      .channel(`meeting-updates-${meetingId}`) // Use unique channel name
       .on(
         'postgres_changes',
         {
@@ -126,24 +126,31 @@ const MeetingDetail = () => {
           filter: `id=eq.${meetingId}`
         },
         (payload) => {
-          console.log('Meeting updated in real-time:', payload);
+          console.log('🔥 Meeting updated in real-time:', payload);
+          console.log('🔥 Payload new:', payload.new);
           const updatedMeeting = payload.new as any;
           
           // Update the meeting state with new data
-          setMeeting((prev: any) => ({
-            ...prev,
-            summary: updatedMeeting.summary || '',
-            status: updatedMeeting.status,
-            title: updatedMeeting.title || prev.title
-          }));
+          setMeeting((prev: any) => {
+            console.log('🔥 Previous meeting state:', prev);
+            const newState = {
+              ...prev,
+              summary: updatedMeeting.summary || '',
+              status: updatedMeeting.status,
+              title: updatedMeeting.title || prev.title
+            };
+            console.log('🔥 New meeting state:', newState);
+            return newState;
+          });
           
           // Update summary in the textarea
           setSummary(updatedMeeting.summary || '');
           
-          console.log('Updated meeting state with status:', updatedMeeting.status);
+          console.log('🔥 Updated meeting state with status:', updatedMeeting.status);
           
           // Show notification when AI processing is complete
           if ((updatedMeeting.status === 'Need Review' || updatedMeeting.status === 'خلاصه شده') && updatedMeeting.summary) {
+            console.log('🔥 Showing completion toast for status:', updatedMeeting.status);
             toast({
               title: "خلاصه تولید شد",
               description: "خلاصه جلسه با موفقیت تولید شد و آماده بررسی است.",
@@ -151,10 +158,12 @@ const MeetingDetail = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔥 Subscription status:', status);
+      });
 
     return () => {
-      console.log('Cleaning up real-time subscription');
+      console.log('🔥 Cleaning up real-time subscription for meeting:', meetingId);
       supabase.removeChannel(subscription);
     };
   }, [meetingId, toast]);
