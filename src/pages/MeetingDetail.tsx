@@ -304,11 +304,19 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
-      console.log('Sending request to webhook with data:', { fileName: meeting.fileName });
+      // Get current user email
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email || '';
+      
+      console.log('Sending request to webhook with data:', { 
+        fileName: meeting.fileName, 
+        userEmail: userEmail 
+      });
       
       // Try multiple approaches to ensure the request gets through
       const requestData = {
-        fileName: meeting.fileName
+        fileName: meeting.fileName,
+        userEmail: userEmail
       };
 
       // Approach 1: Try with no-cors first
@@ -331,6 +339,7 @@ const MeetingDetail = () => {
         const img = new Image();
         const url = new URL('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
         url.searchParams.append('fileName', meeting.fileName);
+        url.searchParams.append('userEmail', userEmail);
         img.src = url.toString();
         console.log('Image request sent to:', url.toString());
       } catch (e) {
