@@ -304,15 +304,12 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
-      const response = await fetch('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: meeting.fileName,
-          fileid: meeting.id
-        })
+      const url = new URL('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
+      url.searchParams.append('filename', meeting.fileName);
+      url.searchParams.append('fileid', meeting.id);
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
       });
 
       if (response.ok) {
