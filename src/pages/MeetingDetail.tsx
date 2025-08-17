@@ -126,7 +126,7 @@ const MeetingDetail = () => {
           filter: `id=eq.${meetingId}`
         },
         (payload) => {
-          console.log('Meeting updated:', payload);
+          console.log('Meeting updated in real-time:', payload);
           const updatedMeeting = payload.new as any;
           
           // Update the meeting state with new data
@@ -140,8 +140,10 @@ const MeetingDetail = () => {
           // Update summary in the textarea
           setSummary(updatedMeeting.summary || '');
           
+          console.log('Updated meeting state with status:', updatedMeeting.status);
+          
           // Show notification when AI processing is complete
-          if (updatedMeeting.status === 'Need Review' && updatedMeeting.summary) {
+          if ((updatedMeeting.status === 'Need Review' || updatedMeeting.status === 'خلاصه شده') && updatedMeeting.summary) {
             toast({
               title: "خلاصه تولید شد",
               description: "خلاصه جلسه با موفقیت تولید شد و آماده بررسی است.",
