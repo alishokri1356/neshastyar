@@ -268,7 +268,7 @@ const TagDetail = () => {
                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                              <Calendar className="h-4 w-4" />
                              <span>
-                               {new Date(meeting.date).toLocaleDateString('en-US', {
+                               {new Date(meeting.date).toLocaleDateString('fa-IR', {
                                  weekday: 'long',
                                  year: 'numeric',
                                  month: 'long',
@@ -277,7 +277,7 @@ const TagDetail = () => {
                              </span>
                              <span>•</span>
                              <span>
-                               {new Date(meeting.date).toLocaleTimeString('en-US', {
+                               {new Date(meeting.date).toLocaleTimeString('fa-IR', {
                                  hour: '2-digit',
                                  minute: '2-digit'
                                })}
