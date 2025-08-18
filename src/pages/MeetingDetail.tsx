@@ -597,9 +597,13 @@ const MeetingDetail = () => {
                 <p className="text-sm text-muted-foreground mt-1">
                   {meeting.fileName}
                 </p>
-                <p className="text-muted-foreground mt-2">
-                  {formatDate(meeting.date)}
-                </p>
+<p className="text-muted-foreground mt-2">
+  {new Date(meeting.date).toLocaleDateString("fa-IR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  })}
+</p>
               </div>
               <Badge className={getStatusColor(meeting.status)}>
                 {meeting.status}
