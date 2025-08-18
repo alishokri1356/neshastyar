@@ -390,7 +390,7 @@ const TagSelection = () => {
           userEmail: userEmail,
           meetingId: meetingData.id
         };
-
+/*
         // Approach 1: Try with no-cors first
         try {
           await fetch('https://n8n.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
@@ -405,7 +405,7 @@ const TagSelection = () => {
         } catch (e) {
           console.log('Auto-summary no-cors failed, trying alternative');
         }
-
+*/
         // Approach 2: Try with dynamic image for GET request with query params
         try {
           const img = new Image();
