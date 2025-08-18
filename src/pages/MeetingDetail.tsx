@@ -787,19 +787,19 @@ const MeetingDetail = () => {
                     {isDeleting ? 'در حال حذف...' : 'حذف جلسه'}
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-[90vw] sm:max-w-md mx-4">
+                <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle className="text-base sm:text-lg">آیا مطمئن هستید؟</AlertDialogTitle>
-                    <AlertDialogDescription className="text-sm sm:text-base leading-relaxed">
+                    <AlertDialogTitle>آیا مطمئن هستید؟</AlertDialogTitle>
+                    <AlertDialogDescription>
                       این عمل قابل بازگشت نیست. این کار جلسه
                       "{meeting.title}" و ضبط صوتی آن را برای همیشه از سرورهای ما حذف خواهد کرد.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                    <AlertDialogCancel className="w-full sm:w-auto">لغو</AlertDialogCancel>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>لغو</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteMeeting}
-                      className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                       حذف جلسه
                     </AlertDialogAction>
