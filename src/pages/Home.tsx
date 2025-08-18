@@ -181,39 +181,17 @@ const Home = () => {
         </div>
 
 
-        {/* Tags Dropdown */}
-        {tags.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-foreground">انتخاب برچسب</h3>
-            <Select onValueChange={handleTagClick}>
-              <SelectTrigger className="w-full max-w-md bg-gradient-card border-0">
-                <SelectValue placeholder="برچسب خود را انتخاب کنید..." />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border border-border">
-                <SelectItem value="no-tags">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 rounded-full bg-muted-foreground/30 border border-muted-foreground/50" />
-                    <span>بدون برچسب</span>
-                  </div>
-                </SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span>{tag.name}</span>
-                      <Badge variant="secondary" className="text-xs ml-auto">
-                        {tag.meetingCount}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        {/* Previous Meetings Button */}
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            className="px-8 py-6 text-lg bg-gradient-card border-0 hover:shadow-medium transition-all duration-300"
+            onClick={() => navigate('/tags')}
+          >
+            <FileText className="h-5 w-5 ml-3" />
+            جلسات ضبط شده قبلی
+          </Button>
+        </div>
 
         {/* Recent Meetings */}
         {meetings.length > 0 && (

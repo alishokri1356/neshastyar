@@ -17,6 +17,7 @@ import Record from "./pages/Record";
 import TagSelection from "./pages/TagSelection";
 import NotFound from "./pages/NotFound";
 import UntaggedMeetings from "./pages/UntaggedMeetings";
+import TagList from "./pages/TagList";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => {
             <Route path="/record" element={<Record />} />
             <Route path="/tag-selection" element={<TagSelection />} />
             <Route path="/meetings/untagged" element={<UntaggedMeetings />} />
+            <Route path="/tags" element={<TagList />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
