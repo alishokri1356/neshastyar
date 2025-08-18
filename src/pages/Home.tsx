@@ -184,12 +184,13 @@ const Home = () => {
         {/* Previous Meetings Button */}
         <div className="flex justify-center">
           <Button
-            variant="outline"
-            className="px-8 py-6 text-lg bg-gradient-card border-0 hover:shadow-medium transition-all duration-300"
+            variant="default"
+            className="group relative px-8 py-6 text-lg bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary border-0 shadow-elegant hover:shadow-glow transition-all duration-500 hover:scale-105 overflow-hidden"
             onClick={() => navigate('/tags')}
           >
-            <FileText className="h-5 w-5 ml-3" />
-            جلسات ضبط شده قبلی
+            <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+            <FileText className="h-5 w-5 ml-3 transition-transform group-hover:scale-110 duration-300" />
+            <span className="relative z-10 font-semibold">جلسات ضبط شده قبلی</span>
           </Button>
         </div>
 
