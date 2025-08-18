@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Home from "./pages/Home";
 import TagDetail from "./pages/TagDetail";
 import MeetingDetail from "./pages/MeetingDetail";
+import DeleteConfirmation from "./pages/DeleteConfirmation";
 import Record from "./pages/Record";
 import TagSelection from "./pages/TagSelection";
 import NotFound from "./pages/NotFound";
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/home" element={<Home />} />
             <Route path="/tag/:tagId" element={<TagDetail />} />
             <Route path="/meeting/:meetingId" element={<MeetingDetail />} />
+            <Route path="/meeting/:meetingId/delete" element={<DeleteConfirmation />} />
             <Route path="/record" element={<Record />} />
             <Route path="/tag-selection" element={<TagSelection />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

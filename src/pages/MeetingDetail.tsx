@@ -780,32 +780,14 @@ const MeetingDetail = () => {
                   این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.
                 </p>
               </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" disabled={isDeleting}>
-                    <Trash2 className="ml-2 h-4 w-4" />
-                    {isDeleting ? 'در حال حذف...' : 'حذف جلسه'}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>آیا مطمئن هستید؟</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      این عمل قابل بازگشت نیست. این کار جلسه
-                      "{meeting.title}" و ضبط صوتی آن را برای همیشه از سرورهای ما حذف خواهد کرد.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>لغو</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteMeeting}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      حذف جلسه
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button 
+                variant="destructive" 
+                disabled={isDeleting}
+                onClick={() => navigate(`/meeting/${meeting.id}/delete?title=${encodeURIComponent(meeting.title)}`)}
+              >
+                <Trash2 className="ml-2 h-4 w-4" />
+                حذف جلسه
+              </Button>
             </div>
           </CardContent>
         </Card>
