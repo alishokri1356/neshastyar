@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -176,37 +177,33 @@ const Home = () => {
         </div>
 
 
-        {/* Tags Section */}
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-foreground">برچسب‌های شما</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {tags.map((tag) => {
-              return (
-                <Card
-                  key={tag.id}
-                  className="cursor-pointer hover:shadow-medium transition-all duration-300 hover:scale-105 bg-gradient-card border-0"
-                  onClick={() => handleTagClick(tag.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
+        {/* Tags Dropdown */}
+        {tags.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-xl font-semibold text-foreground">انتخاب برچسب</h3>
+            <Select onValueChange={handleTagClick}>
+              <SelectTrigger className="w-full max-w-md bg-gradient-card border-0">
+                <SelectValue placeholder="برچسب خود را انتخاب کنید..." />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border">
+                {tags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.id}>
+                    <div className="flex items-center space-x-3">
                       <div
-                        className="w-4 h-4 rounded-full"
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: tag.color }}
                       />
-                      <Badge variant="secondary" className="text-xs">
+                      <span>{tag.name}</span>
+                      <Badge variant="secondary" className="text-xs ml-auto">
                         {tag.meetingCount}
                       </Badge>
                     </div>
-                    <h4 className="font-medium text-foreground">{tag.name}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {tag.meetingCount} جلسه
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
+        )}
 
         {/* Recent Meetings */}
         {meetings.length > 0 && (
