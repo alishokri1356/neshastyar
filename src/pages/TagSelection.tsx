@@ -662,7 +662,6 @@ const TagSelection = () => {
           ) : (
             <Button
               onClick={handleSaveMeeting}
-              disabled={selectedTags.length === 0}
               className="h-14 px-8 rounded-full shadow-2xl"
             >
               ذخیره جلسه
