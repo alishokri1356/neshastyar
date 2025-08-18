@@ -172,11 +172,11 @@ const Home = () => {
         {/* Welcome Section */}
         <div className="text-center space-y-4">
           <h2 className="text-3xl font-bold text-foreground">
-            خوش برگشتید، {user?.email?.split('@')[0]}!
+            خوش آمدید، {user?.email?.split('@')[0]}!
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            جلسات خود را با خلاصه‌سازی هوشمند و سازماندهی باهوش تبدیل کنید. 
-            ضبط کنید، برچسب بزنید و هرگز مباحث مهم را از دست ندهید.
+            جلسات خود را باهوش مصنوعی 
+            خلاصه سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید.
           </p>
         </div>
 
