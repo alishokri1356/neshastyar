@@ -222,7 +222,12 @@ const Home = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-foreground">{meeting.title || meeting.audio_file_name?.replace('.wav', '') || 'جلسه'}</h4>
+                        <h4 className="font-medium text-foreground">
+                          {(() => {
+                            const title = meeting.title || meeting.audio_file_name?.replace('.wav', '') || 'جلسه';
+                            return title.length > 30 ? title.substring(0, 27) + '...' : title;
+                          })()}
+                        </h4>
                         <div className="flex items-center space-x-2 mt-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
                           <span className="text-sm text-muted-foreground">
