@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Calendar, FileText, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Clock, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -121,6 +121,44 @@ const TagDetail = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleDeleteTag = async () => {
+    if (!tagId) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('tags')
+        .delete()
+        .eq('id', tagId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        toast({
+          title: "خطا در حذف برچسب",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "برچسب حذف شد",
+        description: "برچسب با موفقیت حذف شد.",
+      });
+
+      navigate('/tags');
+    } catch (error) {
+      console.error('Error deleting tag:', error);
+      toast({
+        title: "خطا در حذف برچسب",
+        description: "مشکلی در حذف برچسب پیش آمد.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -184,9 +222,19 @@ const TagDetail = () => {
             <p className="text-muted-foreground mb-6">
               ضبط جلسات را شروع کنید و برچسب بزنید تا آنها را اینجا ببینید.
             </p>
-            <Button onClick={() => navigate('/record')}>
-              ضبط جلسه
-            </Button>
+            <div className="flex flex-col gap-3 items-center">
+              <Button onClick={() => navigate('/record')}>
+                ضبط جلسه
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteTag}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                حذف برچسب
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
