@@ -224,8 +224,9 @@ const Home = () => {
                       <div className="flex-1">
                         <h4 className="font-medium text-foreground">
                           {(() => {
-                            const title = meeting.title || meeting.audio_file_name?.replace('.wav', '') || 'جلسه';
-                            return title.length > 30 ? title.substring(0, 27) + '...' : title;
+                            const title = meeting.title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
+                            const displayTitle = title && title.length > 30 ? title.substring(0, 27) + '...' : title;
+                            return displayTitle;
                           })()}
                         </h4>
                         <div className="flex items-center space-x-2 mt-1">
