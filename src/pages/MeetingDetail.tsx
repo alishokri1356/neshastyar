@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
 import { supabase } from '@/integrations/supabase/client';
 
 const MeetingDetail = () => {
@@ -396,6 +397,7 @@ const MeetingDetail = () => {
       };
 
       // Approach 1: Try with no-cors first
+      /*
       try {
         await fetch('https://n8n.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
           method: 'POST',
@@ -409,7 +411,7 @@ const MeetingDetail = () => {
       } catch (e) {
         console.log('no-cors failed, trying alternative');
       }
-
+*/
       // Approach 2: Try with dynamic image for GET request with query params
       try {
         const img = new Image();
