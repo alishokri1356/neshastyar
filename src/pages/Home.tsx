@@ -221,6 +221,11 @@ const Home = () => {
                             {new Date(meeting.meeting_date).toLocaleDateString()}
                           </span>
                         </div>
+                        {meeting.summary && (
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            {meeting.summary.length > 50 ? meeting.summary.substring(0, 50) + '...' : meeting.summary}
+                          </p>
+                        )}
                       </div>
                       <Badge className={getStatusColor(meeting.status)}>
                         {meeting.status}
