@@ -216,11 +216,15 @@ const Home = () => {
                           })()}
                         </h4>
                         <div className="flex items-center space-x-2 mt-1">
-                          <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {new Date(meeting.meeting_date).toLocaleDateString()}
-                          </span>
-                        </div>
+  <Calendar className="h-3 w-3 text-muted-foreground" />
+  <span className="text-sm text-muted-foreground">
+    {new Date(meeting.meeting_date).toLocaleDateString("fa-IR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    })}
+  </span>
+</div>
                         {meeting.summary && (
                           <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                             {meeting.summary.length > 50 ? meeting.summary.substring(0, 50) + '...' : meeting.summary}
