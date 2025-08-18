@@ -16,6 +16,7 @@ import DeleteConfirmation from "./pages/DeleteConfirmation";
 import Record from "./pages/Record";
 import TagSelection from "./pages/TagSelection";
 import NotFound from "./pages/NotFound";
+import UntaggedMeetings from "./pages/UntaggedMeetings";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => {
             <Route path="/meeting/:meetingId/delete" element={<DeleteConfirmation />} />
             <Route path="/record" element={<Record />} />
             <Route path="/tag-selection" element={<TagSelection />} />
+            <Route path="/meetings/untagged" element={<UntaggedMeetings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

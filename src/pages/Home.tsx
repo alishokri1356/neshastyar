@@ -103,7 +103,11 @@ const Home = () => {
   }, [user, toast]);
 
   const handleTagClick = (tagId: string) => {
-    navigate(`/tag/${tagId}`);
+    if (tagId === 'no-tags') {
+      navigate('/meetings/untagged');
+    } else {
+      navigate(`/tag/${tagId}`);
+    }
   };
 
   const handleLogout = async () => {
@@ -186,6 +190,12 @@ const Home = () => {
                 <SelectValue placeholder="برچسب خود را انتخاب کنید..." />
               </SelectTrigger>
               <SelectContent className="bg-popover border border-border">
+                <SelectItem value="no-tags">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 rounded-full bg-muted-foreground/30 border border-muted-foreground/50" />
+                    <span>بدون برچسب</span>
+                  </div>
+                </SelectItem>
                 {tags.map((tag) => (
                   <SelectItem key={tag.id} value={tag.id}>
                     <div className="flex items-center space-x-3">
