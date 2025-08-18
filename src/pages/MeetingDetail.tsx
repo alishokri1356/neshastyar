@@ -792,7 +792,7 @@ const MeetingDetail = () => {
                     <AlertDialogTitle>آیا مطمئن هستید؟</AlertDialogTitle>
                     <AlertDialogDescription>
                       این عمل قابل بازگشت نیست. این کار جلسه
-                      "{meeting.fileName}" و ضبط صوتی آن را برای همیشه از سرورهای ما حذف خواهد کرد.
+                      "{meeting.title}" و ضبط صوتی آن را برای همیشه از سرورهای ما حذف خواهد کرد.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
