@@ -139,7 +139,7 @@ const Landing = () => {
             رایگان شروع کنید ←
           </Button>
           <p className="text-sm text-muted-foreground mt-4">
-            نیازی به کارت اعتباری نیست • ۱۴ روز آزمایش رایگان
+            نیازی به پرداخت پول نیست • یک ماه آزمایش رایگان
           </p>
         </div>
       </section>
