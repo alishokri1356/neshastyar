@@ -6,24 +6,24 @@
 
 @layer base {
   :root {
-    /* Base colors - Professional deep blue theme */
-    --background: 0 0% 100%;
-    --foreground: 224 71% 4%;
+    /* Base colors - Warm cream theme inspired by winter menu */
+    --background: 39 44% 92%;
+    --foreground: 0 0% 15%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card: 39 44% 95%;
+    --card-foreground: 0 0% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover: 39 44% 95%;
+    --popover-foreground: 0 0% 15%;
 
-    /* Primary - Deep blue for trust and professionalism */
-    --primary: 224 76% 48%;
+    /* Primary - Teal/green accent from the menu design */
+    --primary: 174 42% 35%;
     --primary-foreground: 0 0% 98%;
-    --primary-glow: 224 76% 68%;
+    --primary-glow: 174 42% 55%;
 
-    /* Secondary - Light blue accent */
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 224 71% 4%;
+    /* Secondary - Light cream accent */
+    --secondary: 39 44% 88%;
+    --secondary-foreground: 0 0% 15%;
 
     /* Success - Recording/active states */
     --success: 142 71% 45%;
@@ -36,25 +36,25 @@
     --warning-glow: 38 92% 70%;
 
     /* Muted tones */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 39 30% 85%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 220 14% 96%;
-    --accent-foreground: 224 71% 4%;
+    --accent: 39 30% 85%;
+    --accent-foreground: 0 0% 15%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 224 76% 48%;
+    --border: 39 30% 80%;
+    --input: 39 30% 80%;
+    --ring: 174 42% 35%;
 
     --radius: 0.75rem;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-glow)));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100% / 0.8), hsl(220 14% 96% / 0.3));
+    --gradient-card: linear-gradient(145deg, hsl(39 44% 95% / 0.8), hsl(39 30% 85% / 0.3));
 
     /* Shadows */
     --shadow-soft: 0 2px 20px -2px hsl(var(--primary) / 0.1);
@@ -65,21 +65,21 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 39 44% 95%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-foreground: 0 0% 15%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 174 42% 35%;
 
     --sidebar-primary-foreground: 0 0% 98%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent: 39 30% 85%;
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent-foreground: 0 0% 15%;
 
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 39 30% 80%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 174 42% 35%;
   }
 
   .dark {
