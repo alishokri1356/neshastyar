@@ -84,6 +84,7 @@ const SignUp = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  dir="ltr"
                   className="transition-all focus:ring-primary/20"
                 />
               </div>
@@ -97,6 +98,7 @@ const SignUp = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  dir="ltr"
                   className="transition-all focus:ring-primary/20"
                 />
               </div>
@@ -110,6 +112,7 @@ const SignUp = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  dir="ltr"
                   className="transition-all focus:ring-primary/20"
                 />
               </div>
