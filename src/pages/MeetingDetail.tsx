@@ -428,7 +428,7 @@ const MeetingDetail = () => {
 
       toast({
         title: "تولید خلاصه آغاز شد",
-        description: "درخواست به وب‌هوک ارسال شد. برای تأیید دریافت، لاگ‌های n8n خود را بررسی کنید.",
+        description: "خلاصه جلسه پی از تکمیل به ایمیل شما ارسال خواهد شد.",
       });
     } catch (error) {
       console.error('Error triggering auto summary:', error);
