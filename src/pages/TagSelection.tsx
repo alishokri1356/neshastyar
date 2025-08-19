@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Plus, Check, Tag, X } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
@@ -623,15 +624,10 @@ const TagSelection = () => {
           {isUploading ? (
             <div className="bg-card border border-border rounded-full p-4 shadow-2xl">
               <div className="text-center space-y-3">
-                <div className="text-sm font-medium text-card-foreground">
-                  در حال بارگذاری جلسه... {uploadProgress}%
-                </div>
-                <div className="w-64 bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
+                 <div className="text-sm font-medium text-card-foreground">
+                   در حال بارگذاری جلسه... {Math.round(uploadProgress)}%
+                 </div>
+                 <Progress value={uploadProgress} className="w-64" />
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
