@@ -222,14 +222,14 @@ const MeetingDetail = () => {
 
       setMeeting(prev => ({ ...prev, summary }));
       toast({
-        title: "Summary saved",
-        description: "Meeting summary has been updated successfully.",
+        title: "خلاصه ذخیره شد",
+        description: "خلاصه جلسه با موفقیت به‌روزرسانی شد.",
       });
     } catch (error) {
       console.error('Error saving summary:', error);
       toast({
-        title: "Error",
-        description: "Failed to save summary. Please try again.",
+        title: "خطا",
+        description: "ذخیره خلاصه ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     }
@@ -273,14 +273,14 @@ const MeetingDetail = () => {
         setShowAddTag(false);
         
         toast({
-          title: "Tag added",
-          description: "New tag has been added to the meeting.",
+          title: "برچسب اضافه شد",
+          description: "برچسب جدید به جلسه اضافه شد.",
         });
       } catch (error) {
         console.error('Error adding tag:', error);
         toast({
-          title: "Error",
-          description: "Failed to add tag. Please try again.",
+          title: "خطا",
+          description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
           variant: "destructive",
         });
       }
@@ -302,14 +302,14 @@ const MeetingDetail = () => {
       setMeeting(prev => ({ ...prev, tags: updatedTags }));
       
       toast({
-        title: "Tag removed",
-        description: "Tag has been removed from the meeting.",
+        title: "برچسب حذف شد",
+        description: "برچسب از جلسه حذف شد.",
       });
     } catch (error) {
       console.error('Error removing tag:', error);
       toast({
-        title: "Error",
-        description: "Failed to remove tag. Please try again.",
+        title: "خطا",
+        description: "حذف برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     }
@@ -333,14 +333,14 @@ const MeetingDetail = () => {
         setMeeting(prev => ({ ...prev, tags: updatedTags }));
         
         toast({
-          title: "Tag added",
-          description: "Tag has been added to the meeting.",
+          title: "برچسب اضافه شد",
+          description: "برچسب به جلسه اضافه شد.",
         });
       } catch (error) {
         console.error('Error adding tag:', error);
         toast({
-          title: "Error",
-          description: "Failed to add tag. Please try again.",
+          title: "خطا",
+          description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
           variant: "destructive",
         });
       }
@@ -427,15 +427,15 @@ const MeetingDetail = () => {
       }
 
       toast({
-        title: "Summary generation triggered",
-        description: "Request sent to webhook. Check your n8n logs to confirm receipt.",
+        title: "تولید خلاصه آغاز شد",
+        description: "درخواست به وب‌هوک ارسال شد. برای تأیید دریافت، لاگ‌های n8n خود را بررسی کنید.",
       });
     } catch (error) {
       console.error('Error triggering auto summary:', error);
       
       toast({
-        title: "Error",
-        description: "Failed to trigger auto summary generation. Please try again.",
+        title: "خطا",
+        description: "شروع تولید خلاصه خودکار ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     }
@@ -479,8 +479,8 @@ const MeetingDetail = () => {
       if (meetingError) throw meetingError;
 
       toast({
-        title: "Meeting deleted",
-        description: "Meeting and associated audio file have been deleted successfully.",
+        title: "جلسه حذف شد",
+        description: "جلسه و فایل صوتی مربوط به آن با موفقیت حذف شد.",
       });
 
       // Navigate back to home
@@ -488,8 +488,8 @@ const MeetingDetail = () => {
     } catch (error) {
       console.error('Error deleting meeting:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete meeting. Please try again.",
+        title: "خطا",
+        description: "حذف جلسه ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     } finally {
@@ -505,8 +505,8 @@ const MeetingDetail = () => {
   const handleSaveTitle = async () => {
     if (!editedTitle.trim()) {
       toast({
-        title: "Error",
-        description: "Title cannot be empty.",
+        title: "خطا",
+        description: "عنوان نمی‌تواند خالی باشد.",
         variant: "destructive",
       });
       return;
@@ -524,14 +524,14 @@ const MeetingDetail = () => {
       setIsEditingTitle(false);
       
       toast({
-        title: "Title updated",
-        description: "Meeting title has been updated successfully.",
+        title: "عنوان به‌روزرسانی شد",
+        description: "عنوان جلسه با موفقیت به‌روزرسانی شد.",
       });
     } catch (error) {
       console.error('Error saving title:', error);
       toast({
-        title: "Error",
-        description: "Failed to save title. Please try again.",
+        title: "خطا",
+        description: "ذخیره عنوان ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     }
@@ -549,7 +549,7 @@ const MeetingDetail = () => {
         <div className="flex items-center justify-between">
           <Button onClick={() => navigate('/home')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
+            بازگشت به خانه
           </Button>
         </div>
 

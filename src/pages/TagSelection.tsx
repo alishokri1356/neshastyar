@@ -52,8 +52,8 @@ const TagSelection = () => {
         if (authError) {
           console.error('TagSelection - Auth error:', authError);
           toast({
-            title: "Authentication Error",
-            description: "Please log in to view your tags",
+            title: "خطای احراز هویت",
+            description: "لطفاً برای مشاهده برچسب‌های خود وارد شوید",
             variant: "destructive",
           });
           return;
@@ -62,8 +62,8 @@ const TagSelection = () => {
         if (!user) {
           console.log('TagSelection - No authenticated user found');
           toast({
-            title: "Not logged in",
-            description: "Please log in to view your tags",
+            title: "وارد نشده‌اید",
+            description: "لطفاً برای مشاهده برچسب‌های خود وارد شوید",
             variant: "destructive",
           });
           return;
@@ -81,7 +81,7 @@ const TagSelection = () => {
         if (error) {
           console.error('TagSelection - Tags fetch error:', error);
           toast({
-            title: "Error loading tags",
+            title: "خطا در بارگذاری برچسب‌ها",
             description: error.message,
             variant: "destructive",
           });
@@ -105,8 +105,8 @@ const TagSelection = () => {
       } catch (error) {
         console.error('TagSelection - Error fetching tags:', error);
         toast({
-          title: "Unexpected Error",
-          description: "Failed to load tags",
+          title: "خطای غیرمنتظره",
+          description: "بارگذاری برچسب‌ها ناموفق بود",
           variant: "destructive",
         });
       }
@@ -145,8 +145,8 @@ const TagSelection = () => {
         
         if (!user) {
           toast({
-            title: "Authentication required",
-            description: "Please log in to create tags",
+            title: "احراز هویت الزامی است",
+            description: "لطفاً برای ایجاد برچسب وارد شوید",
             variant: "destructive",
           });
           return;
@@ -165,7 +165,7 @@ const TagSelection = () => {
 
         if (error) {
           toast({
-            title: "Error creating tag",
+            title: "خطا در ایجاد برچسب",
             description: error.message,
             variant: "destructive",
           });
@@ -190,13 +190,13 @@ const TagSelection = () => {
         setSelectedTags(prev => [...prev, fullNewTag]);
         
         toast({
-          title: "Tag created",
-          description: `"${fullNewTag.name}" has been created successfully`,
+          title: "برچسب ایجاد شد",
+          description: `"${fullNewTag.name}" با موفقیت ایجاد شد`,
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: "Failed to create tag",
+          title: "خطا",
+          description: "ایجاد برچسب ناموفق بود",
           variant: "destructive",
         });
       }
@@ -206,8 +206,8 @@ const TagSelection = () => {
   const handleSaveMeeting = async () => {
     if (!recordingData?.audioBlob) {
       toast({
-        title: "Error",
-        description: "No audio recording found",
+        title: "خطا",
+        description: "ضبط صوتی یافت نشد",
         variant: "destructive",
       });
       return;
@@ -223,8 +223,8 @@ const TagSelection = () => {
       
       if (!user) {
         toast({
-          title: "Authentication required",
-          description: "Please log in to save meetings",
+          title: "احراز هویت الزامی است",
+          description: "لطفاً برای ذخیره جلسات وارد شوید",
           variant: "destructive",
         });
         return;
@@ -304,7 +304,7 @@ const TagSelection = () => {
 
       if (uploadError) {
         toast({
-          title: "Error uploading audio",
+          title: "خطا در بارگذاری صوت",
           description: uploadError.message,
           variant: "destructive",
         });
@@ -335,7 +335,7 @@ const TagSelection = () => {
 
       if (meetingError) {
         toast({
-          title: "Error saving meeting",
+          title: "خطا در ذخیره جلسه",
           description: meetingError.message,
           variant: "destructive",
         });
@@ -355,7 +355,7 @@ const TagSelection = () => {
 
         if (tagsError) {
           toast({
-            title: "Error linking tags",
+            title: "خطا در پیوند برچسب‌ها",
             description: tagsError.message,
             variant: "destructive",
           });
@@ -422,8 +422,8 @@ const TagSelection = () => {
         console.log('=== AUTO-SUMMARY GENERATION TRIGGERED SUCCESSFULLY ===');
         
         toast({
-          title: "Summary generation triggered",
-          description: "Auto-summary generation started. You'll be notified when it's ready.",
+          title: "تولید خلاصه آغاز شد",
+          description: "تولید خلاصه خودکار شروع شد. زمانی که آماده شد به شما اطلاع داده خواهد شد.",
         });
       } catch (error) {
         console.error('=== SUMMARY GENERATION EXCEPTION ===');
@@ -432,15 +432,15 @@ const TagSelection = () => {
         console.error('Full exception:', error);
         
         toast({
-          title: "Summary Generation Error", 
-          description: `Unexpected error during summary generation: ${error?.message || 'Unknown error'}. You can manually start it from the meeting page.`,
+          title: "خطای تولید خلاصه", 
+          description: `خطای غیرمنتظره در حین تولید خلاصه: ${error?.message || 'خطای نامشخص'}. می‌توانید آن را از صفحه جلسه به صورت دستی شروع کنید.`,
           variant: "destructive",
         });
       }
 
       toast({
-        title: "Meeting saved",
-        description: "Meeting saved and auto-summary generation triggered successfully",
+        title: "جلسه ذخیره شد",
+        description: "جلسه ذخیره شد و تولید خلاصه خودکار با موفقیت آغاز شد",
       });
 
       console.log('Navigating to home page...');
@@ -448,8 +448,8 @@ const TagSelection = () => {
     } catch (error) {
       console.error('Error saving meeting:', error);
       toast({
-        title: "Error",
-        description: "Failed to save meeting",
+        title: "خطا",
+        description: "ذخیره جلسه ناموفق بود",
         variant: "destructive",
       });
     } finally {
@@ -464,8 +464,8 @@ const TagSelection = () => {
     setIsUploading(false);
     setUploadProgress(0);
     toast({
-      title: "Upload cancelled",
-      description: "Meeting upload has been cancelled",
+      title: "بارگذاری لغو شد",
+      description: "بارگذاری جلسه لغو شد",
     });
   };
 

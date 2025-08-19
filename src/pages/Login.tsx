@@ -36,8 +36,8 @@ const Login = () => {
     try {
       await login(email, password);
       toast({
-        title: "Welcome back!",
-        description: "You've been successfully logged in.",
+        title: "خوش آمدید!",
+        description: "شما با موفقیت وارد شدید.",
       });
       navigate('/');
     } catch (error) {
@@ -46,14 +46,14 @@ const Login = () => {
       if (errorMessage.includes('Email not confirmed')) {
         setShowResendButton(true);
         toast({
-          title: "Email not confirmed",
-          description: "Please check your email and click the confirmation link, or click 'Resend Confirmation' below.",
+          title: "ایمیل تأیید نشده",
+          description: "لطفاً ایمیل خود را بررسی کنید و بر روی لینک تأیید کلیک کنید، یا بر روی 'ارسال مجدد تأیید' در زیر کلیک کنید.",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Error",
-          description: "Invalid email or password. Please try again.",
+          title: "خطا",
+          description: "ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.",
           variant: "destructive",
         });
       }
@@ -65,8 +65,8 @@ const Login = () => {
   const handleResendConfirmation = async () => {
     if (!email) {
       toast({
-        title: "Error",
-        description: "Please enter your email address first.",
+        title: "خطا",
+        description: "لطفاً ابتدا آدرس ایمیل خود را وارد کنید.",
         variant: "destructive",
       });
       return;
@@ -76,14 +76,14 @@ const Login = () => {
     try {
       await resendConfirmation(email);
       toast({
-        title: "Confirmation email sent",
-        description: "Please check your email for the new confirmation link.",
+        title: "ایمیل تأیید ارسال شد",
+        description: "لطفاً ایمیل خود را برای لینک تأیید جدید بررسی کنید.",
       });
       setShowResendButton(false);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to resend confirmation email. Please try again.",
+        title: "خطا",
+        description: "ارسال مجدد ایمیل تأیید ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     } finally {

@@ -56,7 +56,7 @@ const Home = () => {
         if (tagsError) {
           console.error('Error fetching tags:', tagsError);
           toast({
-            title: "Error loading tags",
+            title: "خطا در بارگذاری برچسب‌ها",
             description: tagsError.message,
             variant: "destructive",
           });
@@ -84,7 +84,7 @@ const Home = () => {
         if (meetingsError) {
           console.error('Error fetching meetings:', meetingsError);
           toast({
-            title: "Error loading meetings",
+            title: "خطا در بارگذاری جلسات",
             description: meetingsError.message,
             variant: "destructive",
           });

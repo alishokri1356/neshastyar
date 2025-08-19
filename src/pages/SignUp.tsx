@@ -22,8 +22,8 @@ const SignUp = () => {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords don't match",
+        title: "خطا",
+        description: "رمزهای عبور مطابقت ندارند",
         variant: "destructive",
       });
       return;
@@ -33,8 +33,8 @@ const SignUp = () => {
     try {
       await signup(email, password, confirmPassword);
       toast({
-        title: "Check your email!",
-        description: "We've sent you a confirmation link. Please check your email and click the link before logging in.",
+        title: "ایمیل خود را بررسی کنید!",
+        description: "ما لینک تأیید را برای شما ارسال کرده‌ایم. لطفاً ایمیل خود را بررسی کنید و قبل از ورود بر روی لینک کلیک کنید.",
         duration: 6000,
       });
       // Don't navigate automatically - user needs to confirm email first
@@ -42,8 +42,8 @@ const SignUp = () => {
     } catch (error) {
       const errorMessage = (error as Error).message;
       toast({
-        title: "Error",
-        description: errorMessage || "Failed to create account. Please try again.",
+        title: "خطا",
+        description: errorMessage || "ایجاد حساب کاربری ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     } finally {

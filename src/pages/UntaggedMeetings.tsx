@@ -31,7 +31,7 @@ const UntaggedMeetings = () => {
         if (meetingsError) {
           console.error('Error fetching meetings:', meetingsError);
           toast({
-            title: "Error loading meetings",
+            title: "خطا در بارگذاری جلسات",
             description: meetingsError.message,
             variant: "destructive",
           });
@@ -47,7 +47,7 @@ const UntaggedMeetings = () => {
         if (tagsError) {
           console.error('Error fetching tagged meetings:', tagsError);
           toast({
-            title: "Error loading tagged meetings",
+            title: "خطا در بارگذاری جلسات برچسب‌دار",
             description: tagsError.message,
             variant: "destructive",
           });
@@ -182,21 +182,21 @@ const UntaggedMeetings = () => {
                            
                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                              <Calendar className="h-4 w-4" />
-                             <span>
-                               {new Date(meeting.date).toLocaleDateString('en-US', {
-                                 weekday: 'long',
-                                 year: 'numeric',
-                                 month: 'long',
-                                 day: 'numeric'
-                               })}
-                             </span>
-                             <span>•</span>
-                             <span>
-                               {new Date(meeting.date).toLocaleTimeString('en-US', {
-                                 hour: '2-digit',
-                                 minute: '2-digit'
-                               })}
-                             </span>
+              <span>
+                {new Date(meeting.date).toLocaleDateString('fa-IR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </span>
+              <span>•</span>
+              <span>
+                {new Date(meeting.date).toLocaleTimeString('fa-IR', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
                            </div>
 
                           {meeting.summary && (

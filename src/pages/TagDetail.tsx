@@ -46,7 +46,7 @@ const TagDetail = () => {
           if (meetingsError) {
             console.error('Error fetching meetings:', meetingsError);
             toast({
-              title: "Error loading meetings",
+              title: "خطا در بارگذاری جلسات",
               description: meetingsError.message,
               variant: "destructive",
             });
@@ -62,7 +62,7 @@ const TagDetail = () => {
           if (tagsError) {
             console.error('Error fetching tagged meetings:', tagsError);
             toast({
-              title: "Error loading tagged meetings",
+              title: "خطا در بارگذاری جلسات برچسب‌دار",
               description: tagsError.message,
               variant: "destructive",
             });
@@ -128,7 +128,7 @@ const TagDetail = () => {
             if (meetingsError) {
               console.error('Error fetching meetings:', meetingsError);
               toast({
-                title: "Error loading meetings",
+                title: "خطا در بارگذاری جلسات",
                 description: meetingsError.message,
                 variant: "destructive",
               });
