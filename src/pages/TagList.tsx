@@ -132,7 +132,7 @@ const TagList = () => {
             بازگشت به خانه
           </Button>
           
-          <h1 className="text-lg font-semibold text-foreground">برچسب‌ها</h1>
+          <h1 className="text-lg font-semibold text-foreground">لیست جلسات بر اساس برچسب ها</h1>
           
           <div className="w-[100px]" /> {/* Spacer for centering */}
         </div>
