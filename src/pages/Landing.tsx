@@ -45,15 +45,15 @@ const Landing = () => {
 
           {/* Headline */}
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-           با استفاده از هوش مصنوعی
+           یک پایگاه دانش قابل جستجو 
+            از تمام مکالمات خود ایجاد کنید
             <br />
-            <span className="text-primary">به اطلاعات جلسات خود دسترسی داشته باشید</span>
+            <span className="text-primary">جلسات خود را ضبط، خلاصه‌سازی و آنالیز کنید</span>
           </h1>
 
           {/* Description */}
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            جلسات خود را ضبط، خلاصه‌سازی و آنالیز کنید. یک پایگاه دانش قابل جستجو 
-            از تمام مکالمات خود ایجاد کنید.
+            جلسات خود را باهوش مصنوعی خلاصه سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید. 
           </p>
 
           {/* CTA Buttons */}
