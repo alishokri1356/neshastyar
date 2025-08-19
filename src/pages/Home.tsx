@@ -189,7 +189,7 @@ const Home = () => {
           >
             <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
             <FileText className="h-5 w-5 ml-3 transition-transform group-hover:scale-110 duration-300" />
-            <span className="relative z-10 font-semibold">جلسات و برچسب ها</span>
+            <span className="relative z-10 font-semibold">نمایش لیست جلسات</span>
           </Button>
         </div>
 
