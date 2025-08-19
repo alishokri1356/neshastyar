@@ -47,8 +47,6 @@ const Landing = () => {
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
            یک پایگاه دانش قابل جستجو 
             از تمام مکالمات خود ایجاد کنید
-            <br />
-            <span className="text-primary">جلسات خود را ضبط، خلاصه‌سازی و آنالیز کنید</span>
           </h1>
 
           {/* Description */}
