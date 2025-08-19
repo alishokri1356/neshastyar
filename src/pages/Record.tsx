@@ -174,7 +174,7 @@ const Record = () => {
           <div className="space-y-4">
             <h1 className="text-3xl font-bold text-foreground">آماده ضبط</h1>
             <p className="text-muted-foreground max-w-md mx-auto">
-              روی دکمه زیر کلیک کنید تا ضبط جلسه را شروع کنید. اطمینان حاصل کنید که در محیط آرامی هستید تا کیفیت بهتری داشته باشید.
+              روی دکمه زیر کلیک کنید تا ضبط جلسه را شروع کنید. اگر جلسه از قبل ضبط شده ای دارید آن را انتخاب کنید.
             </p>
           </div>
 
