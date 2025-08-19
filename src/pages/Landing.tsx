@@ -63,7 +63,7 @@ const Landing = () => {
               onClick={() => navigate('/signup')}
               className="bg-primary hover:bg-primary/90 px-8 py-4 text-lg"
             >
-              شروع آزمایش رایگان ←
+              رایگان ثبت نام کنید ←
             </Button>
             <Button 
               variant="outline" 
