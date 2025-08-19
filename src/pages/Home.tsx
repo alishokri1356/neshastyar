@@ -251,7 +251,7 @@ const Home = () => {
             onClick={() => navigate('/record')}
           >
             <Mic2 className="h-6 w-6 ml-3" />
-            ضبط جلسه
+            شروع
           </Button>
         </div>
       </div>
