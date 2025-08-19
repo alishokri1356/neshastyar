@@ -124,16 +124,17 @@ const TagList = () => {
       <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Button 
-            variant="ghost" 
-            size="icon"
+            variant="ghost"
             onClick={() => navigate('/home')}
+            className="flex items-center gap-2"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
+            بازگشت به خانه
           </Button>
           
           <h1 className="text-lg font-semibold text-foreground">برچسب‌ها</h1>
           
-          <div className="w-10" /> {/* Spacer for centering */}
+          <div className="w-[100px]" /> {/* Spacer for centering */}
         </div>
       </header>
 
