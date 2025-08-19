@@ -20,10 +20,11 @@ const TagList = () => {
   const { user } = useAuthStore();
   const { toast } = useToast();
   const [tags, setTags] = useState<DatabaseTag[]>([]);
+  const [untaggedCount, setUntaggedCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTags = async () => {
+    const fetchTagsAndUntagged = async () => {
       try {
         if (!user) return;
 
@@ -59,14 +60,43 @@ const TagList = () => {
         })) || [];
 
         setTags(formattedTags);
+
+        // Fetch untagged meetings count
+        // Get all meetings for this user
+        const { data: allMeetings, error: meetingsError } = await supabase
+          .from('meetings')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (meetingsError) {
+          console.error('Error fetching meetings:', meetingsError);
+          return;
+        }
+
+        // Get all meeting IDs that have tags
+        const { data: taggedMeetingIds, error: tagsCountError } = await supabase
+          .from('meeting_tags')
+          .select('meeting_id')
+          .in('meeting_id', allMeetings?.map(m => m.id) || []);
+
+        if (tagsCountError) {
+          console.error('Error fetching tagged meetings:', tagsCountError);
+          return;
+        }
+
+        // Calculate untagged meetings count
+        const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
+        const untaggedMeetingsCount = allMeetings?.filter(meeting => !taggedIds.has(meeting.id)).length || 0;
+        
+        setUntaggedCount(untaggedMeetingsCount);
       } catch (error) {
-        console.error('Error fetching tags:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTags();
+    fetchTagsAndUntagged();
   }, [user, toast]);
 
   const handleTagClick = (tagId: string) => {
@@ -74,7 +104,7 @@ const TagList = () => {
   };
 
   const handleUntaggedClick = () => {
-    navigate('/meetings/untagged');
+    navigate('/tag/untagged');
   };
 
   if (loading) {
@@ -120,10 +150,17 @@ const TagList = () => {
                   <div className="w-4 h-4 rounded-full bg-muted-foreground/30 border border-muted-foreground/50" />
                   <div>
                     <h3 className="font-medium text-foreground">بدون برچسب</h3>
-                    <p className="text-sm text-muted-foreground">جلسات بدون برچسب</p>
+                    <p className="text-sm text-muted-foreground">
+                      {untaggedCount} جلسه
+                    </p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center space-x-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {untaggedCount}
+                  </Badge>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
             </CardContent>
           </Card>
