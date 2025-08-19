@@ -441,7 +441,7 @@ const TagSelection = () => {
 
       toast({
         title: "جلسه ذخیره شد",
-        description: "جلسه ذخیره شد و تولید خلاصه خودکار با موفقیت آغاز شد",
+        description: "خلاصه جلسه پس از پردازش به ایمیل شما ارسال خواهد شد.",
       });
 
       console.log('Navigating to home page...');
