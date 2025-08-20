@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { useMeetingStore } from '@/store/useMeetingStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import { Mic2, LogOut, Plus, Calendar, Clock, FileText } from 'lucide-react';
 
 interface DatabaseTag {
@@ -24,83 +25,94 @@ interface DatabaseMeeting {
   status: string;
   audio_file_name: string;
   title?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  duration?: number;
+  [key: string]: any; // Allow additional properties
 }
 
 const Home = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
-  const [tags, setTags] = useState<DatabaseTag[]>([]);
-  const [meetings, setMeetings] = useState<DatabaseMeeting[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch data from database
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (!user) return;
+  // Fetch tags with auto-refresh every 10 seconds
+  const { data: tags = [], isLoading: tagsLoading } = useQuery({
+    queryKey: ['tags', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
 
-        // Fetch tags with meeting counts
-        const { data: tagsData, error: tagsError } = await supabase
-          .from('tags')
-          .select(`
-            id,
-            name,
-            color,
-            meeting_tags (
-              meeting_id
-            )
-          `)
-          .eq('user_id', user.id);
+      const { data: tagsData, error: tagsError } = await supabase
+        .from('tags')
+        .select(`
+          id,
+          name,
+          color,
+          meeting_tags (
+            meeting_id
+          )
+        `)
+        .eq('user_id', user.id);
 
-        if (tagsError) {
-          console.error('Error fetching tags:', tagsError);
-          toast({
-            title: "خطا در بارگذاری برچسب‌ها",
-            description: tagsError.message,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Transform tags data to include meeting count
-        const formattedTags = tagsData?.map(tag => ({
-          id: tag.id,
-          name: tag.name,
-          color: tag.color,
-          meetingCount: tag.meeting_tags?.length || 0
-        })) || [];
-
-        setTags(formattedTags);
-
-        // Fetch recent meetings
-        const { data: meetingsData, error: meetingsError } = await supabase
-          .from('meetings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (meetingsError) {
-          console.error('Error fetching meetings:', meetingsError);
-          toast({
-            title: "خطا در بارگذاری جلسات",
-            description: meetingsError.message,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setMeetings(meetingsData || []);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+      if (tagsError) {
+        console.error('Error fetching tags:', tagsError);
+        toast({
+          title: "خطا در بارگذاری برچسب‌ها",
+          description: tagsError.message,
+          variant: "destructive",
+        });
+        throw tagsError;
       }
-    };
 
-    fetchData();
-  }, [user, toast]);
+      // Transform tags data to include meeting count
+      return tagsData?.map(tag => ({
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        meetingCount: tag.meeting_tags?.length || 0
+      })) || [];
+    },
+    enabled: !!user,
+    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  // Fetch meetings with auto-refresh every 10 seconds
+  const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
+    queryKey: ['meetings', user?.id, 'recent'],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data: meetingsData, error: meetingsError } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (meetingsError) {
+        console.error('Error fetching meetings:', meetingsError);
+        toast({
+          title: "خطا در بارگذاری جلسات",
+          description: meetingsError.message,
+          variant: "destructive",
+        });
+        throw meetingsError;
+      }
+
+      return meetingsData || [];
+    },
+    enabled: !!user,
+    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  const loading = tagsLoading || meetingsLoading;
 
   const handleTagClick = (tagId: string) => {
     if (tagId === 'no-tags') {
@@ -209,7 +221,7 @@ const Home = () => {
                       <div className="flex-1">
                         <h4 className="font-medium text-foreground">
                           {(() => {
-                            const title = meeting.title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
+                            const title = (meeting as any).title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
                             const displayTitle = title && title.length > 30 ? title.substring(0, 27) + '...' : title;
                             return displayTitle;
                           })()}
