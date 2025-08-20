@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,154 +15,137 @@ const TagDetail = () => {
   const { tags } = useMeetingStore();
   const { toast } = useToast();
   
-  const [meetings, setMeetings] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [tag, setTag] = useState<any>(null);
-
-  // Fetch tag and its meetings from database
-  useEffect(() => {
-    const fetchTagAndMeetings = async () => {
-      if (!tagId) return;
+  // Fetch tag and its meetings from database with auto-refresh
+  const { data: tagAndMeetings, isLoading } = useQuery({
+    queryKey: ['tag-detail', tagId],
+    queryFn: async () => {
+      if (!tagId) return null;
       
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
 
-        // Handle untagged meetings case
-        if (tagId === 'untagged') {
-          setTag({
-            id: 'untagged',
-            name: 'بدون برچسب',
-            color: '#6B7280',
-            userId: user.id
-          });
+      // Handle untagged meetings case
+      if (tagId === 'untagged') {
+        const tag = {
+          id: 'untagged',
+          name: 'بدون برچسب',
+          color: '#6B7280',
+          userId: user.id
+        };
 
-          // Get all meetings for this user
-          const { data: allMeetings, error: meetingsError } = await supabase
-            .from('meetings')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+        // Get all meetings for this user
+        const { data: allMeetings, error: meetingsError } = await supabase
+          .from('meetings')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (meetingsError) {
+          console.error('Error fetching meetings:', meetingsError);
+          throw new Error(meetingsError.message);
+        }
+
+        // Get all meeting IDs that have tags
+        const { data: taggedMeetingIds, error: tagsError } = await supabase
+          .from('meeting_tags')
+          .select('meeting_id')
+          .in('meeting_id', allMeetings?.map(m => m.id) || []);
+
+        if (tagsError) {
+          console.error('Error fetching tagged meetings:', tagsError);
+          throw new Error(tagsError.message);
+        }
+
+        // Filter out meetings that have tags
+        const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
+        const untaggedMeetings = allMeetings?.filter(meeting => !taggedIds.has(meeting.id)) || [];
+
+        // Transform the data to match the expected format
+        const transformedMeetings = untaggedMeetings.map((meeting: any) => ({
+          id: meeting.id,
+          fileName: meeting.title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+          date: new Date(meeting.meeting_date),
+          summary: meeting.summary || '',
+          status: meeting.status,
+          duration: meeting.duration || 0,
+          tags: [],
+          userId: user.id
+        }));
+
+        return { tag, meetings: transformedMeetings };
+      } else {
+        // Handle regular tag case
+        // Fetch tag details
+        const { data: tagData, error: tagError } = await supabase
+          .from('tags')
+          .select('*')
+          .eq('id', tagId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (tagError) {
+          console.error('Error fetching tag:', tagError);
+          throw new Error(tagError.message);
+        }
+
+        if (tagData) {
+          const tag = {
+            id: tagData.id,
+            name: tagData.name,
+            color: tagData.color,
+            userId: tagData.user_id
+          };
+
+          // Fetch meetings associated with this tag
+          const { data: meetingsData, error: meetingsError } = await supabase
+            .from('meeting_tags')
+              .select(`
+                meetings (
+                  id,
+                  meeting_date,
+                  audio_file_name,
+                  title,
+                  summary,
+                  status,
+                  duration
+                )
+              `)
+            .eq('tag_id', tagId);
 
           if (meetingsError) {
             console.error('Error fetching meetings:', meetingsError);
-            toast({
-              title: "خطا در بارگذاری جلسات",
-              description: meetingsError.message,
-              variant: "destructive",
-            });
-            return;
+            throw new Error(meetingsError.message);
           }
-
-          // Get all meeting IDs that have tags
-          const { data: taggedMeetingIds, error: tagsError } = await supabase
-            .from('meeting_tags')
-            .select('meeting_id')
-            .in('meeting_id', allMeetings?.map(m => m.id) || []);
-
-          if (tagsError) {
-            console.error('Error fetching tagged meetings:', tagsError);
-            toast({
-              title: "خطا در بارگذاری جلسات برچسب‌دار",
-              description: tagsError.message,
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Filter out meetings that have tags
-          const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
-          const untaggedMeetings = allMeetings?.filter(meeting => !taggedIds.has(meeting.id)) || [];
 
           // Transform the data to match the expected format
-          const transformedMeetings = untaggedMeetings.map((meeting: any) => ({
-            id: meeting.id,
-            fileName: meeting.title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
-            date: new Date(meeting.meeting_date),
-            summary: meeting.summary || '',
-            status: meeting.status,
-            duration: meeting.duration || 0,
-            tags: [],
-            userId: user.id
-          }));
+          const transformedMeetings = meetingsData
+            ?.map(item => item.meetings)
+            .filter(Boolean)
+            .map((meeting: any) => ({
+              id: meeting.id,
+              fileName: (meeting as any).title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+              date: new Date(meeting.meeting_date),
+              summary: meeting.summary || '',
+              status: meeting.status,
+              duration: meeting.duration || 0,
+              tags: [],
+              userId: user.id
+            })) || [];
 
-          setMeetings(transformedMeetings);
-        } else {
-          // Handle regular tag case
-          // Fetch tag details
-          const { data: tagData, error: tagError } = await supabase
-            .from('tags')
-            .select('*')
-            .eq('id', tagId)
-            .eq('user_id', user.id)
-            .single();
-
-          if (tagError) {
-            console.error('Error fetching tag:', tagError);
-            return;
-          }
-
-          if (tagData) {
-            setTag({
-              id: tagData.id,
-              name: tagData.name,
-              color: tagData.color,
-              userId: tagData.user_id
-            });
-
-            // Fetch meetings associated with this tag
-            const { data: meetingsData, error: meetingsError } = await supabase
-              .from('meeting_tags')
-                .select(`
-                  meetings (
-                    id,
-                    meeting_date,
-                    audio_file_name,
-                    title,
-                    summary,
-                    status,
-                    duration
-                  )
-                `)
-              .eq('tag_id', tagId);
-
-            if (meetingsError) {
-              console.error('Error fetching meetings:', meetingsError);
-              toast({
-                title: "خطا در بارگذاری جلسات",
-                description: meetingsError.message,
-                variant: "destructive",
-              });
-              return;
-            }
-
-            // Transform the data to match the expected format
-            const transformedMeetings = meetingsData
-              ?.map(item => item.meetings)
-              .filter(Boolean)
-              .map((meeting: any) => ({
-                id: meeting.id,
-                fileName: (meeting as any).title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
-                date: new Date(meeting.meeting_date),
-                summary: meeting.summary || '',
-                status: meeting.status,
-                duration: meeting.duration || 0,
-                tags: [],
-                userId: user.id
-              })) || [];
-
-            setMeetings(transformedMeetings);
-          }
+          return { tag, meetings: transformedMeetings };
         }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setIsLoading(false);
       }
-    };
+      return null;
+    },
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    enabled: !!tagId,
+  });
 
-    fetchTagAndMeetings();
-  }, [tagId, toast]);
+  const tag = (tagAndMeetings as any)?.tag || null;
+  const meetings = (tagAndMeetings as any)?.meetings || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {

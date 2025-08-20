@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +21,7 @@ const MeetingDetail = () => {
   const { tags, addTag } = useMeetingStore();
   
   const [meeting, setMeeting] = useState<any>(null);
-  const [allUserTags, setAllUserTags] = useState<any[]>([]);
+  const [localAllUserTags, setLocalAllUserTags] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -32,83 +33,102 @@ const MeetingDetail = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
 
-  // Fetch meeting and all user tags from database
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!meetingId) return;
+  // Fetch meeting and all user tags from database with auto-refresh
+  const { data: meetingData, isLoading: meetingLoading } = useQuery({
+    queryKey: ['meeting', meetingId],
+    queryFn: async () => {
+      if (!meetingId) return null;
       
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
 
-        // Fetch all user tags
-        const { data: allTags, error: allTagsError } = await supabase
-          .from('tags')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+      const { data: meetingData, error: meetingError } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('id', meetingId)
+        .eq('user_id', user.id)
+        .single();
 
-        if (allTagsError) {
-          console.error('Error fetching user tags:', allTagsError);
-        } else {
-          setAllUserTags(allTags || []);
-        }
-
-        // Fetch meeting details
-        const { data: meetingData, error: meetingError } = await supabase
-          .from('meetings')
-          .select('*')
-          .eq('id', meetingId)
-          .eq('user_id', user.id)
-          .single();
-
-        if (meetingError) {
-          console.error('Error fetching meeting:', meetingError);
-          setIsLoading(false);
-          return;
-        }
-
-        if (meetingData) {
-          // Fetch meeting tags
-          const { data: tagData, error: tagError } = await supabase
-            .from('meeting_tags')
-            .select(`
-              tags (
-                id,
-                name,
-                color
-              )
-            `)
-            .eq('meeting_id', meetingId);
-
-          const tags = tagData?.map(item => item.tags).filter(Boolean) || [];
-
-          const transformedMeeting = {
-            id: meetingData.id,
-            fileName: meetingData.audio_file_name || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
-            title: (meetingData as any).title || meetingData.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
-            date: new Date(meetingData.meeting_date),
-            summary: meetingData.summary || '',
-            status: meetingData.status,
-            tags: tags,
-            userId: meetingData.user_id,
-            audioUrl: meetingData.audio_file_name ? await getAudioUrl(meetingData.audio_file_name, user.id) : null
-          };
-
-          setMeeting(transformedMeeting);
-          setMeetingTags(tags);
-          setSummary(transformedMeeting.summary);
-          setEditedTitle(transformedMeeting.title);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setIsLoading(false);
+      if (meetingError) {
+        console.error('Error fetching meeting:', meetingError);
+        return null;
       }
-    };
 
-    fetchData();
-  }, [meetingId]);
+      if (meetingData) {
+        // Fetch meeting tags
+        const { data: tagData, error: tagError } = await supabase
+          .from('meeting_tags')
+          .select(`
+            tags (
+              id,
+              name,
+              color
+            )
+          `)
+          .eq('meeting_id', meetingId);
+
+        const tags = tagData?.map(item => item.tags).filter(Boolean) || [];
+
+        const transformedMeeting = {
+          id: meetingData.id,
+          fileName: meetingData.audio_file_name || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
+          title: (meetingData as any).title || meetingData.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
+          date: new Date(meetingData.meeting_date),
+          summary: meetingData.summary || '',
+          status: meetingData.status,
+          tags: tags,
+          userId: meetingData.user_id,
+          audioUrl: meetingData.audio_file_name ? await getAudioUrl(meetingData.audio_file_name, user.id) : null
+        };
+
+        return transformedMeeting;
+      }
+      return null;
+    },
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    enabled: !!meetingId
+  });
+
+  const { data: allUserTags = [] } = useQuery({
+    queryKey: ['user-tags'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data: allTags, error: allTagsError } = await supabase
+        .from('tags')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (allTagsError) {
+        console.error('Error fetching user tags:', allTagsError);
+        return [];
+      }
+      return allTags || [];
+    },
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0
+  });
+
+  // Update local states when data changes
+  useEffect(() => {
+    if (meetingData) {
+      setMeeting(meetingData);
+      setMeetingTags(meetingData.tags);
+      setSummary(meetingData.summary);
+      setEditedTitle(meetingData.title);
+    }
+  }, [meetingData]);
+
+  useEffect(() => {
+    setLocalAllUserTags(allUserTags);
+  }, [allUserTags]);
 
   // Real-time subscription to listen for meeting updates
   useEffect(() => {
@@ -182,7 +202,7 @@ const MeetingDetail = () => {
     }
   };
 
-  if (isLoading) {
+  if (meetingLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto">
@@ -267,7 +287,7 @@ const MeetingDetail = () => {
         const updatedTags = [...meetingTags, newTag];
         setMeetingTags(updatedTags);
         setMeeting(prev => ({ ...prev, tags: updatedTags }));
-        setAllUserTags(prev => [...prev, newTag]); // Add to all user tags as well
+        setLocalAllUserTags(prev => [...prev, newTag]); // Add to all user tags as well
         
         setNewTagName('');
         setShowAddTag(false);
@@ -751,7 +771,7 @@ const MeetingDetail = () => {
                   برچسب‌های موجود:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {allUserTags
+                  {localAllUserTags
                     .filter(tag => !meetingTags.some(mt => mt.id === tag.id))
                     .map((tag) => (
                       <button
