@@ -368,10 +368,10 @@ const TagSelection = () => {
       try {
         console.log('=== AUTO-TRIGGERING SUMMARY GENERATION (MEETINGDETAIL METHOD) ===');
         
-        // Update meeting status to "در حال پردازش"
+        // Update meeting status to "ارسال درخواست پردازش"
         const { error: statusError } = await supabase
           .from('meetings')
-          .update({ status: 'در حال پردازش' })
+          .update({ status: 'ارسال درخواست پردازش' })
           .eq('id', meetingData.id);
 
         if (statusError) throw statusError;
@@ -424,7 +424,7 @@ const TagSelection = () => {
         
         toast({
           title: "تولید خلاصه آغاز شد",
-          description: "تولید خلاصه خودکار شروع شد. زمانی که آماده شد به شما اطلاع داده خواهد شد.",
+          description: "تولید خلاصه خودکار شروع شد. زمانی که آماده شد به شما ایمیل شماارسال خواهد شد.",
         });
       } catch (error) {
         console.error('=== SUMMARY GENERATION EXCEPTION ===');

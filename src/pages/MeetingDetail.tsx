@@ -388,16 +388,16 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
-      // Update meeting status to "در حال پردازش"
+      // Update meeting status to "ارسال درخواست پردازش"
       const { error: statusError } = await supabase
         .from('meetings')
-        .update({ status: 'در حال پردازش' })
+        .update({ status: 'ارسال درخواست پردازش' })
         .eq('id', meeting.id);
 
       if (statusError) throw statusError;
 
       // Update local state
-      setMeeting(prev => ({ ...prev, status: 'در حال پردازش' }));
+      setMeeting(prev => ({ ...prev, status: 'ارسال درخواست پردازش' }));
 
       // Get current user email
       const { data: { user } } = await supabase.auth.getUser();
@@ -447,7 +447,7 @@ const MeetingDetail = () => {
       }
 
       toast({
-        title: "تولید خلاصه آغاز شد",
+        title: "درخواست تولید اتوماتیک خلاصه ارسال شد",
         description: "خلاصه جلسه پی از تکمیل به ایمیل شما ارسال خواهد شد.",
       });
     } catch (error) {
