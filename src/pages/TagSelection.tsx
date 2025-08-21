@@ -41,7 +41,7 @@ const TagSelection = () => {
     console.log('TagSelection - Full recording data:', recordingData);
   }, []); // Empty dependency array to run only once
 
-  // Fetch user's tags from database on component mount
+  // Fetch user\'s tags from database on component mount
   useEffect(() => {
     const fetchTags = async () => {
       try {
@@ -500,13 +500,20 @@ const TagSelection = () => {
         {recordingData && (
           <Card className="bg-gradient-card border-0 shadow-soft">
             <CardContent className="p-6">
-              <h3 className="font-semibold text-foreground mb-2">ضبط تکمیل شد</h3>
+              <h3 className="font-semibold text-foreground mb-2">
+                {recordingData.fileName ? `فایل انتخاب شده: ${recordingData.fileName}` : 'ضبط تکمیل شد'}
+              </h3>
               <p className="text-sm text-muted-foreground mb-2">
                 مدت زمان: {Math.floor((recordingData.duration || 0) / 1000 / 60)}:{Math.floor(((recordingData.duration || 0) / 1000) % 60).toString().padStart(2, '0')}
               </p>
               <p className="text-xs text-muted-foreground/70 font-mono">
                 فایل: {recordingData.audioBlob ? `${recordingData.audioBlob.size} بایت (${recordingData.audioBlob.type})` : 'داده فایل موجود نیست'}
               </p>
+              {recordingData.audioBlob && (
+                <div className="mt-4">
+                  <audio controls src={URL.createObjectURL(recordingData.audioBlob)} className="w-full" />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
