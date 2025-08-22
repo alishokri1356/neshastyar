@@ -24,7 +24,6 @@ const MeetingDetail = () => {
   const [localAllUserTags, setLocalAllUserTags] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
-  const [isPlaying, setIsPlaying] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [showAddTag, setShowAddTag] = useState(false);
@@ -639,29 +638,13 @@ const MeetingDetail = () => {
               <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center space-x-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-20"
-                >
-                  {isPlaying ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-                <audio
+              <audio
                   controls
                   src={meeting.audioUrl}
                   className="flex-1"
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
                 >
                   Your browser does not support the audio element.
                 </audio>
-              </div>
             </CardContent>
           </Card>
         )}

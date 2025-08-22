@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { Mic, Pause, Square, Play, Upload } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Record = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const MAX_FILE_SIZE_BYTES = 49 * 1024 * 1024; // 49 MB
   const {
     isRecording,
     isPaused,
@@ -82,7 +85,11 @@ const Record = () => {
       startRecording();
     } catch (error) {
       console.error('Error accessing microphone:', error);
-      alert('Unable to access microphone. Please check permissions.');
+      toast({
+        title: "خطا در دسترسی به میکروفون",
+        description: "امکان دسترسی به میکروفون وجود ندارد. لطفاً مجوزها را بررسی کنید.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -114,6 +121,15 @@ const Record = () => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+      toast({
+        title: "خطا در آپلود فایل",
+        description: "حجم فایل بیشتر از 50 مگابایت است. لطفاً فایل کوچکتری انتخاب کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Define supported audio MIME types for mobile devices
     const supportedAudioTypes = [
@@ -153,10 +169,18 @@ const Record = () => {
       
       audio.onerror = () => {
         URL.revokeObjectURL(audio.src);
-        alert('فایل صوتی نامعتبر است یا قابل پخش نیست');
+        toast({
+          title: "خطا در پخش فایل صوتی",
+          description: "فایل صوتی نامعتبر است یا قابل پخش نیست.",
+          variant: "destructive",
+        });
       };
     } else {
-      alert('لطفاً یک فایل صوتی معتبر انتخاب کنید (MP3, WAV, AAC, M4A, OGG)');
+      toast({
+        title: "فرمت فایل نامعتبر",
+        description: "لطفاً یک فایل صوتی معتبر انتخاب کنید (MP3, WAV, AAC, M4A, OGG, WebM, 3GP, AMR, FLAC)",
+        variant: "destructive",
+      });
     }
   };
 
