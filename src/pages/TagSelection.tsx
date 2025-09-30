@@ -13,6 +13,9 @@ import type { Tag as TagType } from '@/store/useMeetingStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 
+// Get API base URL from environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -272,7 +275,7 @@ const TagSelection = () => {
       const formData = new FormData();
       formData.append('audio', recordingData.audioBlob, fileName);
 
-      const uploadResponse = await fetch('http://localhost:3001/api/upload/audio', {
+      const uploadResponse = await fetch(`${API_BASE_URL}/upload/audio`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token || session.token}`
