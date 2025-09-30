@@ -60,6 +60,15 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Database Configuration
+
+The application connects to a MySQL database with the following configuration:
+
+- **Host**: 195.248.240.30
+- **Database**: modiryar
+- **User**: modiryar_app
+- **Password**: Terraworld2020
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/8fe9e635-58e4-4abd-a5bc-c99567287ceb) and click on Share -> Publish.
