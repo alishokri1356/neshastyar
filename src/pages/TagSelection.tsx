@@ -356,10 +356,11 @@ const TagSelection = () => {
         console.log('=== AUTO-TRIGGERING SUMMARY GENERATION (MEETINGDETAIL METHOD) ===');
         
         // Update meeting status to "ارسال درخواست پردازش"
-        const { error: statusError } = await mysqlClient
+        const updateResult = await mysqlClient
           .from('meetings')
-          .update({ status: 'ارسال درخواست پردازش' })
-          .eq('id', meetingData.id);
+          .update({ status: 'ارسال درخواست پردازش' });
+        
+        const { error: statusError } = await updateResult.eq('id', meetingData.id);
 
         if (statusError) throw statusError;
 

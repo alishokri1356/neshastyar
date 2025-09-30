@@ -1,6 +1,17 @@
 const db = require('../config/database');
 const authService = require('./authService');
 
+// Helper function to convert ISO datetime to MySQL format
+function toMySQLDateTime(date) {
+  if (!date) return null;
+  
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  
+  // Format: YYYY-MM-DD HH:MM:SS
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 class MeetingService {
   // Get meetings for a user
   async getMeetings(userId, options = {}) {
@@ -49,6 +60,11 @@ class MeetingService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
+    // Convert dates to MySQL format
+    const meetingDate = meetingData.meeting_date 
+      ? toMySQLDateTime(meetingData.meeting_date) 
+      : toMySQLDateTime(now);
+    
     const values = [
       id,
       userId,
@@ -58,12 +74,12 @@ class MeetingService {
       meetingData.audio_duration || 0,
       meetingData.audio_format || null,
       meetingData.title || null,
-      meetingData.meeting_date || now,
+      meetingDate,
       meetingData.status || 'pending',
       meetingData.summary || null,
       meetingData.storage_type || 'local',
-      now,
-      now
+      toMySQLDateTime(now),
+      toMySQLDateTime(now)
     ];
 
     await db.query(sql, values);
