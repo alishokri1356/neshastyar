@@ -12,10 +12,8 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  const [showResendButton, setShowResendButton] = useState(false);
   
-  const { login, initialize, isAuthenticated, resendConfirmation } = useAuthStore();
+  const { login, initialize, isAuthenticated } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -41,53 +39,13 @@ const Login = () => {
       });
       navigate('/');
     } catch (error) {
-      const errorMessage = (error as Error).message;
-      
-      if (errorMessage.includes('Email not confirmed')) {
-        setShowResendButton(true);
-        toast({
-          title: "ایمیل تأیید نشده",
-          description: "لطفاً ایمیل خود را بررسی کنید و بر روی لینک تأیید کلیک کنید، یا بر روی 'ارسال مجدد تأیید' در زیر کلیک کنید.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "خطا",
-          description: "ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "خطا",
+        description: "ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    if (!email) {
-      toast({
-        title: "خطا",
-        description: "لطفاً ابتدا آدرس ایمیل خود را وارد کنید.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsResending(true);
-    try {
-      await resendConfirmation(email);
-      toast({
-        title: "ایمیل تأیید ارسال شد",
-        description: "لطفاً ایمیل خود را برای لینک تأیید جدید بررسی کنید.",
-      });
-      setShowResendButton(false);
-    } catch (error) {
-      toast({
-        title: "خطا",
-        description: "ارسال مجدد ایمیل تأیید ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -162,20 +120,6 @@ const Login = () => {
                 {isLoading ? "در حال ورود..." : "ورود"}
               </Button>
             </form>
-            
-            {showResendButton && (
-              <div className="mt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleResendConfirmation}
-                  disabled={isResending}
-                >
-                  {isResending ? "در حال ارسال..." : "ارسال مجدد ایمیل تأیید"}
-                </Button>
-              </div>
-            )}
             
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">

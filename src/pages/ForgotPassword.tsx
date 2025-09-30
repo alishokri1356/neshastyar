@@ -9,33 +9,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Mic2, Sparkles, ArrowLeft } from 'lucide-react';
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
-  
-  const { resetPassword } = useAuthStore();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    try {
-      await resetPassword(email);
-      setEmailSent(true);
-      toast({
-        title: "Reset link sent!",
-        description: "Check your email for password reset instructions.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send reset email. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    toast({
+      title: "امکان بازیابی رمز عبور وجود ندارد",
+      description: "لطفاً با پشتیبانی تماس بگیرید برای تغییر رمز عبور.",
+      variant: "destructive",
+    });
   };
 
   return (
@@ -57,56 +40,18 @@ const ForgotPassword = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">بازیابی رمز عبور</CardTitle>
             <CardDescription className="text-center">
-              {emailSent 
-                ? "دستورالعمل بازیابی رمز عبور به ایمیل شما ارسال شد"
-                : "آدرس ایمیل خود را وارد کنید تا دستورالعمل بازیابی دریافت کنید"
-              }
+              بازیابی رمز عبور در حال حاضر غیرفعال است
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!emailSent ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">ایمیل</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="transition-all focus:ring-primary/20"
-                  />
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  className="w-full" 
-                  disabled={isLoading}
-                  size="lg"
-                >
-                  {isLoading ? "در حال ارسال..." : "ارسال لینک بازیابی"}
-                </Button>
-              </form>
-            ) : (
-              <div className="text-center space-y-4">
-                <div className="p-4 bg-success/10 border border-success/20 rounded-lg">
-                  <p className="text-success font-medium">ایمیل با موفقیت ارسال شد!</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    لطفاً صندوق ورودی خود را بررسی کنید و دستورالعمل‌ها را برای بازیابی رمز عبور دنبال کنید.
-                  </p>
-                </div>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={() => setEmailSent(false)}
-                >
-                  ارسال ایمیل دیگر
-                </Button>
+            <div className="text-center space-y-4">
+              <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+                <p className="text-warning font-medium">بازیابی رمز عبور غیرفعال است</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  لطفاً برای تغییر رمز عبور با پشتیبانی تماس بگیرید.
+                </p>
               </div>
-            )}
+            </div>
             
             <div className="text-center mt-6">
               <Link 
