@@ -1,5 +1,8 @@
 project_id = "xfbxbbepvtwpuhuxtsyy"
 
+[functions.test-mysql]
+verify_jwt = false
+
 [functions.auth-login]
 verify_jwt = false
 
