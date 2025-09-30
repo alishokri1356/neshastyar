@@ -1,0 +1,45 @@
+=== COPY AND PASTE THESE COMMANDS IN YOUR VPS ===
+
+# You are currently logged in as root@195.248.240.30
+# You are in /var/www/modiryar.teraxr.com (WRONG LOCATION)
+
+# 1. Go to home directory
+cd /root
+
+# 2. Create modiryar directory
+mkdir -p modiryar
+cd modiryar
+
+# 3. Clone the project
+git clone https://github.com/alishokri1356/modiryar.git .
+
+# 4. Verify clone worked
+ls -la
+
+# 5. Make deployment script executable
+chmod +x deploy.sh
+
+# 6. Install PM2 globally (if not installed)
+npm install -g pm2
+
+# 7. Setup PM2 to start on boot
+pm2 startup
+
+# 8. Run the deployment script
+./deploy.sh
+
+=== END OF COMMANDS ===
+
+After running these commands, the script will:
+- Install backend dependencies
+- Create uploads directory
+- Start backend with PM2
+- Build frontend
+- Copy frontend to /var/www/modiryar.teraxr.com
+
+IMPORTANT: Don't forget to run the database migration in phpMyAdmin!
+URL: http://phpmyadmin.teraxr.com/local
+Database: modiryar
+Table: meetings
+SQL: See SETUP_VPS.md
+

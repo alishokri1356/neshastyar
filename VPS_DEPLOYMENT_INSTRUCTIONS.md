@@ -44,7 +44,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 1. **Push the deployment script to your repo:**
    ```bash
    # On your local machine
-   git add deploy-to-vps.sh
+   git add deploy.sh
    git commit -m "Add deployment script"
    git push origin main
    ```
@@ -59,8 +59,8 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
    ```bash
    cd /var/www/modiryar.teraxr.com
    git pull origin main
-   chmod +x deploy-to-vps.sh
-   ./deploy-to-vps.sh
+   chmod +x deploy.sh
+   ./deploy.sh
    ```
 
 4. **Done!** The script will:
