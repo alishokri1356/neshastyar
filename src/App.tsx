@@ -18,6 +18,8 @@ import TagSelection from "./pages/TagSelection";
 import NotFound from "./pages/NotFound";
 import UntaggedMeetings from "./pages/UntaggedMeetings";
 import TagList from "./pages/TagList";
+import VerifyEmail from "./pages/VerifyEmail";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +49,8 @@ const App = () => {
             <Route path="/tag-selection" element={<TagSelection />} />
             <Route path="/meetings/untagged" element={<UntaggedMeetings />} />
             <Route path="/tags" element={<TagList />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -1,5 +1,5 @@
 // MySQL client wrapper that mimics Supabase API
-const SUPABASE_URL = "https://xfbxbbepvtwpuhuxtsyy.supabase.co";
+const API_BASE_URL = "http://localhost:3001/api";
 
 class MySQLClient {
   private session: { token: string; expiresAt: string } | null = null;
@@ -17,7 +17,7 @@ class MySQLClient {
       return {};
     }
     return {
-      'authorization': `Bearer ${this.session.token}`,
+      'Authorization': `Bearer ${this.session.access_token || this.session.token}`,
     };
   }
 
@@ -33,7 +33,7 @@ class MySQLClient {
   // Auth methods
   auth = {
     signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -45,12 +45,12 @@ class MySQLClient {
         return { data: { user: null, session: null }, error: data };
       }
 
-      this.saveSession(data.session);
-      return { data: { user: data.user, session: data.session }, error: null };
+      this.saveSession(data.data.session);
+      return { data: { user: data.data.user, session: data.data.session }, error: null };
     },
 
     signUp: async ({ email, password, options }: any) => {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-signup`, {
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name: options?.data?.name }),
@@ -62,8 +62,8 @@ class MySQLClient {
         return { data: { user: null, session: null }, error: data };
       }
 
-      this.saveSession(data.session);
-      return { data: { user: data.user, session: data.session }, error: null };
+      this.saveSession(data.data.session);
+      return { data: { user: data.data.user, session: data.data.session }, error: null };
     },
 
     signOut: async () => {
@@ -71,7 +71,7 @@ class MySQLClient {
         return { error: null };
       }
 
-      await fetch(`${SUPABASE_URL}/functions/v1/auth-logout`, {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         headers: {
           ...this.getAuthHeaders(),
@@ -88,7 +88,7 @@ class MySQLClient {
         return { data: { session: null }, error: null };
       }
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-verify`, {
+      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
         method: 'POST',
         headers: {
           ...this.getAuthHeaders(),
@@ -102,7 +102,29 @@ class MySQLClient {
       }
 
       const data = await response.json();
-      return { data: { session: data.session }, error: null };
+      return { data: { session: data.data.session }, error: null };
+    },
+
+    getUser: async () => {
+      if (!this.session) {
+        return { data: { user: null }, error: null };
+      }
+
+      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+        method: 'POST',
+        headers: {
+          ...this.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        this.saveSession(null);
+        return { data: { user: null }, error: null };
+      }
+
+      const data = await response.json();
+      return { data: { user: data.data.session?.user }, error: null };
     },
 
     onAuthStateChange: (callback: (event: string, session: any) => void) => {
@@ -119,17 +141,20 @@ class MySQLClient {
 
   // Database methods
   from(table: string) {
-    return {
+    const baseQuery = {
       select: async (columns = '*', options: any = {}) => {
-        const endpoint = table === 'meetings' ? 'meetings-api' : 
-                        table === 'tags' ? 'tags-api' : 
-                        table === 'meeting_tags' ? 'meeting-tags-api' : null;
-
-        if (!endpoint) {
+        let url = '';
+        
+        if (table === 'meetings') {
+          url = `${API_BASE_URL}/meetings`;
+        } else if (table === 'tags') {
+          url = `${API_BASE_URL}/tags`;
+        } else if (table === 'meeting_tags') {
+          url = `${API_BASE_URL}/meeting-tags`;
+        } else {
           return { data: null, error: { message: 'Table not supported' } };
         }
 
-        let url = `${SUPABASE_URL}/functions/v1/${endpoint}`;
         const params = new URLSearchParams();
 
         if (options.eq) {
@@ -139,7 +164,18 @@ class MySQLClient {
         }
 
         if (table === 'tags' && options.withCount) {
-          params.append('with_count', 'true');
+          params.append('withCount', 'true');
+        }
+
+        if (options.orderBy) {
+          params.append('orderBy', options.orderBy);
+          if (options.orderDirection) {
+            params.append('orderDirection', options.orderDirection);
+          }
+        }
+
+        if (options.limit) {
+          params.append('limit', String(options.limit));
         }
 
         if (params.toString()) {
@@ -159,16 +195,76 @@ class MySQLClient {
         return { data, error: null };
       },
 
-      insert: async (values: any) => {
-        const endpoint = table === 'meetings' ? 'meetings-api' : 
-                        table === 'tags' ? 'tags-api' : 
-                        table === 'meeting_tags' ? 'meeting-tags-api' : null;
+      // Add support for .single() method
+      single: async () => {
+        const result = await baseQuery.select('*', {});
+        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+          return { data: result.data[0], error: null };
+        } else {
+          return { data: null, error: { message: 'No data found' } };
+        }
+      },
 
-        if (!endpoint) {
+      // Add support for .order() method
+      order: (column: string, options: { ascending?: boolean } = {}) => {
+        return {
+          ...baseQuery,
+          select: async (columns = '*', selectOptions: any = {}) => {
+            const orderOptions = {
+              ...selectOptions,
+              orderBy: column,
+              orderDirection: options.ascending ? 'ASC' : 'DESC'
+            };
+            return baseQuery.select(columns, orderOptions);
+          }
+        };
+      },
+
+      // Add support for .limit() method
+      limit: (count: number) => {
+        return {
+          ...baseQuery,
+          select: async (columns = '*', selectOptions: any = {}) => {
+            const limitOptions = {
+              ...selectOptions,
+              limit: count
+            };
+            return baseQuery.select(columns, limitOptions);
+          }
+        };
+      },
+
+      // Add support for .eq() method
+      eq: (column: string, value: any) => {
+        return {
+          ...baseQuery,
+          select: async (columns = '*', selectOptions: any = {}) => {
+            const eqOptions = {
+              ...selectOptions,
+              eq: {
+                ...selectOptions.eq,
+                [column]: value
+              }
+            };
+            return baseQuery.select(columns, eqOptions);
+          }
+        };
+      },
+
+      insert: async (values: any) => {
+        let url = '';
+        
+        if (table === 'meetings') {
+          url = `${API_BASE_URL}/meetings`;
+        } else if (table === 'tags') {
+          url = `${API_BASE_URL}/tags`;
+        } else if (table === 'meeting_tags') {
+          url = `${API_BASE_URL}/meeting-tags`;
+        } else {
           return { data: null, error: { message: 'Table not supported' } };
         }
 
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/${endpoint}`, {
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             ...this.getAuthHeaders(),
@@ -189,24 +285,24 @@ class MySQLClient {
       update: async (values: any) => {
         return {
           eq: async (column: string, value: any) => {
-            const endpoint = table === 'meetings' ? 'meetings-api' : 
-                            table === 'tags' ? 'tags-api' : null;
-
-            if (!endpoint) {
+            let url = '';
+            
+            if (table === 'meetings') {
+              url = `${API_BASE_URL}/meetings/${value}`;
+            } else if (table === 'tags') {
+              url = `${API_BASE_URL}/tags/${value}`;
+            } else {
               return { data: null, error: { message: 'Table not supported' } };
             }
 
-            const response = await fetch(
-              `${SUPABASE_URL}/functions/v1/${endpoint}?${column}=${value}`,
-              {
-                method: 'PUT',
-                headers: {
-                  ...this.getAuthHeaders(),
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(values),
-              }
-            );
+            const response = await fetch(url, {
+              method: 'PUT',
+              headers: {
+                ...this.getAuthHeaders(),
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(values),
+            });
 
             const data = await response.json();
             
@@ -222,21 +318,22 @@ class MySQLClient {
       delete: async () => {
         return {
           eq: async (column: string, value: any) => {
-            const endpoint = table === 'meetings' ? 'meetings-api' : 
-                            table === 'tags' ? 'tags-api' : 
-                            table === 'meeting_tags' ? 'meeting-tags-api' : null;
-
-            if (!endpoint) {
+            let url = '';
+            
+            if (table === 'meetings') {
+              url = `${API_BASE_URL}/meetings/${value}`;
+            } else if (table === 'tags') {
+              url = `${API_BASE_URL}/tags/${value}`;
+            } else if (table === 'meeting_tags') {
+              url = `${API_BASE_URL}/meeting-tags`;
+            } else {
               return { error: { message: 'Table not supported' } };
             }
 
-            const response = await fetch(
-              `${SUPABASE_URL}/functions/v1/${endpoint}?${column}=${value}`,
-              {
-                method: 'DELETE',
-                headers: this.getAuthHeaders(),
-              }
-            );
+            const response = await fetch(url, {
+              method: 'DELETE',
+              headers: this.getAuthHeaders(),
+            });
 
             const data = await response.json();
             
@@ -249,6 +346,8 @@ class MySQLClient {
         };
       },
     };
+
+    return baseQuery;
   }
 }
 

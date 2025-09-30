@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Plus, Check, Tag, X } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
-import { supabase } from '@/integrations/supabase/client';
+import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 
 const TagSelection = () => {
@@ -41,49 +41,47 @@ const TagSelection = () => {
     console.log('TagSelection - Full recording data:', recordingData);
   }, []); // Empty dependency array to run only once
 
-  // Fetch user\'s tags from database on component mount
+  // Fetch user's tags from database on component mount
   useEffect(() => {
     const fetchTags = async () => {
       try {
         console.log('TagSelection - Fetching user...');
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const { data: { session } } = await mysqlClient.auth.getSession();
         
-        console.log('TagSelection - Auth result:', { user: !!user, authError });
+        console.log('TagSelection - Auth result:', { session: !!session });
         
-        if (authError) {
-          console.error('TagSelection - Auth error:', authError);
-          toast({
-            title: "خطای احراز هویت",
-            description: "لطفاً برای مشاهده برچسب‌های خود وارد شوید",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        if (!user) {
+        if (!session) {
           console.log('TagSelection - No authenticated user found');
           toast({
             title: "وارد نشده‌اید",
             description: "لطفاً برای مشاهده برچسب‌های خود وارد شوید",
             variant: "destructive",
           });
+          navigate('/login');
           return;
         }
 
-        console.log('TagSelection - Fetching tags for user:', user.id);
-        const { data, error } = await supabase
+        console.log('TagSelection - Fetching tags for user:', session.user.id);
+        const { data, error } = await mysqlClient
           .from('tags')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .select('*');
 
         console.log('TagSelection - Tags fetch result:', { data, error });
 
         if (error) {
           console.error('TagSelection - Tags fetch error:', error);
+          
+          // Check if it's an authentication error
+          if (error.message?.includes('Access token required') || error.message?.includes('Unauthorized')) {
+            console.log('TagSelection - Authentication error, redirecting to login');
+            navigate('/login');
+            return;
+          }
+          
           toast({
             title: "خطا در بارگذاری برچسب‌ها",
-            description: error.message,
+            description: error.message || "بارگزاری برچسب ها نا موفق بود",
             variant: "destructive",
           });
           return;
@@ -100,21 +98,34 @@ const TagSelection = () => {
           }));
           setTags(formattedTags);
         } else {
-          console.log('TagSelection - No tags found for user');
-          setTags([]); // Explicitly set empty array
+          console.log('TagSelection - No tags found for user - this is normal for new users');
+          setTags([]); // Explicitly set empty array - this is normal!
         }
       } catch (error) {
         console.error('TagSelection - Error fetching tags:', error);
-        toast({
-          title: "خطای غیرمنتظره",
-          description: "بارگذاری برچسب‌ها ناموفق بود",
-          variant: "destructive",
-        });
+        
+        // Check if it's a network error or authentication issue
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          toast({
+            title: "خطا در اتصال",
+            description: "خطا در اتصال به سرور. لطفاً اتصال اینترنت خود را بررسی کنید.",
+            variant: "destructive",
+          });
+        } else if (error.message?.includes('Access token required') || error.message?.includes('Unauthorized')) {
+          console.log('TagSelection - Authentication error in catch, redirecting to login');
+          navigate('/login');
+        } else {
+          toast({
+            title: "خطای غیرمنتظره",
+            description: "بارگذاری برچسب‌ها ناموفق بود",
+            variant: "destructive",
+          });
+        }
       }
     };
 
     fetchTags();
-  }, [setTags, toast]);
+  }, [setTags, toast, navigate]);
 
   const tagColors = [
     '#3B82F6', // Blue
@@ -142,9 +153,9 @@ const TagSelection = () => {
     if (newTagName.trim()) {
       try {
         // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await mysqlClient.auth.getSession();
         
-        if (!user) {
+        if (!session) {
           toast({
             title: "احراز هویت الزامی است",
             description: "لطفاً برای ایجاد برچسب وارد شوید",
@@ -154,20 +165,18 @@ const TagSelection = () => {
         }
 
         // Save tag to database
-        const { data, error } = await supabase
+        const { data, error } = await mysqlClient
           .from('tags')
           .insert({
             name: newTagName.trim(),
             color: newTagColor,
-            user_id: user.id
-          })
-          .select()
-          .single();
+            user_id: session.user.id
+          });
 
         if (error) {
           toast({
             title: "خطا در ایجاد برچسب",
-            description: error.message,
+            description: error.message || "ایجاد برچسب ناموفق بود",
             variant: "destructive",
           });
           return;
@@ -220,7 +229,8 @@ const TagSelection = () => {
 
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await mysqlClient.auth.getSession();
+      const user = session?.user;
       
       if (!user) {
         toast({
@@ -256,81 +266,58 @@ const TagSelection = () => {
         return;
       }
 
-      // Upload audio file to Supabase storage with duplicate handling
-      let uploadError = null;
-      let uploadSuccess = false;
+      // Upload audio file to backend
+      console.log('Uploading audio file:', fileName);
+      
+      const formData = new FormData();
+      formData.append('audio', recordingData.audioBlob, fileName);
 
-      // First try uploading with upsert: false
-      const uploadResult = await supabase.storage
-        .from('meeting-audio')
-        .upload(audioFilePath, recordingData.audioBlob, {
-          contentType: 'audio/wav',
-          upsert: false
-        });
-
-      if (uploadResult.error) {
-        // If file exists (409 Duplicate), try with upsert: true to overwrite
-        if (uploadResult.error.message?.includes('already exists') || uploadResult.error.message?.includes('Duplicate')) {
-          console.log('File exists, attempting to overwrite...');
-          const retryResult = await supabase.storage
-            .from('meeting-audio')
-            .upload(audioFilePath, recordingData.audioBlob, {
-              contentType: 'audio/wav',
-              upsert: true // This will overwrite the existing file
-            });
-          
-          uploadError = retryResult.error;
-          uploadSuccess = !retryResult.error;
-        } else {
-          uploadError = uploadResult.error;
-        }
-      } else {
-        uploadSuccess = true;
-      }
+      const uploadResponse = await fetch('http://localhost:3001/api/upload/audio', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token || session.token}`
+        },
+        body: formData
+      });
 
       clearInterval(progressInterval);
       
-      // Check if cancelled after upload
-      if (uploadCancelled) {
-        // Clean up uploaded file if it was uploaded
-        if (!uploadError) {
-          await supabase.storage
-            .from('meeting-audio')
-            .remove([audioFilePath]);
-        }
-        return;
-      }
-      
-      setUploadProgress(100);
-
-      if (uploadError) {
+      if (!uploadResponse.ok) {
+        const uploadError = await uploadResponse.json();
         toast({
-          title: "خطا در بارگذاری صوت",
-          description: uploadError.message,
+          title: "خطا در بارگذاری فایل",
+          description: uploadError.message || "بارگذاری فایل ناموفق بود",
           variant: "destructive",
         });
         return;
       }
 
+      const uploadResult = await uploadResponse.json();
+      console.log('File uploaded successfully:', uploadResult);
+      
+      setUploadProgress(100);
+
       // Create meeting in database
       console.log('Saving meeting with duration:', recordingData.duration);
       
       // Generate title from filename (remove extension)
-      const meetingTitle = fileName.replace(/\.(wav|mp3|m4a)$/i, '');
+      const meetingTitle = fileName.replace(/\.(wav|mp3|m4a|ogg)$/i, '');
       
-      const { data: meetingData, error: meetingError } = await supabase
+      const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
         .insert({
           meeting_date: new Date().toISOString(),
           user_id: user.id,
           summary: '',
           audio_file_name: fileName,
+          audio_file_path: uploadResult.data.relativePath,
+          audio_file_size: uploadResult.data.size,
+          audio_duration: Math.floor(recordingData.duration / 1000),
+          audio_format: uploadResult.data.format,
           title: meetingTitle,
           status: 'آماده پردازش',
-          duration: recordingData.duration || 0
-        })
-        .select()
-        .single();
+          storage_type: 'local'
+        });
 
       console.log('Meeting saved:', meetingData);
 
@@ -350,7 +337,7 @@ const TagSelection = () => {
           tag_id: tag.id
         }));
 
-        const { error: tagsError } = await supabase
+        const { error: tagsError } = await mysqlClient
           .from('meeting_tags')
           .insert(meetingTagsData);
 
@@ -369,7 +356,7 @@ const TagSelection = () => {
         console.log('=== AUTO-TRIGGERING SUMMARY GENERATION (MEETINGDETAIL METHOD) ===');
         
         // Update meeting status to "ارسال درخواست پردازش"
-        const { error: statusError } = await supabase
+        const { error: statusError } = await mysqlClient
           .from('meetings')
           .update({ status: 'ارسال درخواست پردازش' })
           .eq('id', meetingData.id);

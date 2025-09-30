@@ -9,6 +9,25 @@
 ## Tables Overview
 Total Tables: 5
 
+## ⚠️ **IMPORTANT: Email Verification Migration Required**
+
+The `users` table requires additional fields for email verification functionality. Run the following SQL migration:
+
+```sql
+-- Add email verification fields to users table
+ALTER TABLE `users` 
+ADD COLUMN `email_verified` BOOLEAN DEFAULT FALSE AFTER `name`,
+ADD COLUMN `email_verification_token` VARCHAR(255) NULL AFTER `email_verified`,
+ADD COLUMN `email_verification_expires` TIMESTAMP NULL AFTER `email_verification_token`,
+ADD COLUMN `password_reset_token` VARCHAR(255) NULL AFTER `email_verification_expires`,
+ADD COLUMN `password_reset_expires` TIMESTAMP NULL AFTER `password_reset_token`;
+
+-- Add indexes for performance
+ALTER TABLE `users` 
+ADD INDEX `idx_email_verification_token` (`email_verification_token`),
+ADD INDEX `idx_password_reset_token` (`password_reset_token`);
+```
+
 ## Table: `meeting_tags`
 
 **Row Count**: 0
@@ -189,6 +208,11 @@ CREATE TABLE `tags` (
 | email | varchar(255) | NO | UNI | NULL |  |
 | password_hash | varchar(255) | NO |  | NULL |  |
 | name | varchar(255) | YES |  | NULL |  |
+| email_verified | boolean | YES |  | FALSE |  |
+| email_verification_token | varchar(255) | YES | MUL | NULL |  |
+| email_verification_expires | timestamp | YES |  | NULL |  |
+| password_reset_token | varchar(255) | YES | MUL | NULL |  |
+| password_reset_expires | timestamp | YES |  | NULL |  |
 | created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 | updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
 
@@ -197,6 +221,8 @@ CREATE TABLE `tags` (
 - **PRIMARY** (UNIQUE): id
 - **email** (UNIQUE): email
 - **idx_email** (INDEX): email
+- **idx_email_verification_token** (INDEX): email_verification_token
+- **idx_password_reset_token** (INDEX): password_reset_token
 
 ### CREATE TABLE Statement
 
@@ -206,13 +232,96 @@ CREATE TABLE `users` (
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email_verified` boolean DEFAULT FALSE,
+  `email_verification_token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email_verification_expires` timestamp NULL DEFAULT NULL,
+  `password_reset_token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password_reset_expires` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
-  KEY `idx_email` (`email`)
+  KEY `idx_email` (`email`),
+  KEY `idx_email_verification_token` (`email_verification_token`),
+  KEY `idx_password_reset_token` (`password_reset_token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ```
+
+### Email Verification Fields Description
+
+- **`email_verified`**: Boolean flag indicating if the user's email has been verified
+- **`email_verification_token`**: Cryptographically secure token sent via email for verification
+- **`email_verification_expires`**: Timestamp when the verification token expires (24 hours)
+- **`password_reset_token`**: Token for password reset functionality
+- **`password_reset_expires`**: Timestamp when the password reset token expires (1 hour)
+
+### Security Notes
+
+- **Email verification is mandatory**: Users cannot access the application without verifying their email
+- **Token expiration**: All tokens have expiration times for security
+- **Indexed tokens**: Verification and reset tokens are indexed for fast lookups
+- **NULL handling**: Tokens are set to NULL after successful verification/reset
+
+---
+
+## API Endpoints Reference
+
+### Authentication Endpoints
+- `POST /api/auth/login` - User login (requires email verification)
+- `POST /api/auth/signup` - User registration (sends verification email)
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/verify` - Verify JWT token
+
+### Email Management Endpoints
+- `GET /api/auth/verify-email?token=xxx` - Verify email with token
+- `POST /api/auth/resend-verification-email` - Resend verification email
+- `POST /api/auth/request-password-reset` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
+
+### Protected Endpoints (Require Email Verification)
+All endpoints below require:
+1. Valid JWT token
+2. Verified email address (`email_verified = true`)
+
+#### Meetings
+- `GET /api/meetings` - Get user's meetings
+- `GET /api/meetings/untagged` - Get untagged meetings
+- `GET /api/meetings/:id` - Get specific meeting
+- `POST /api/meetings` - Create new meeting
+- `PUT /api/meetings/:id` - Update meeting
+- `DELETE /api/meetings/:id` - Delete meeting
+
+#### Tags
+- `GET /api/tags` - Get user's tags
+- `GET /api/tags/:id` - Get specific tag
+- `POST /api/tags` - Create new tag
+- `PUT /api/tags/:id` - Update tag
+- `DELETE /api/tags/:id` - Delete tag
+
+#### Meeting Tags
+- `GET /api/meeting-tags` - Get meeting-tag relationships
+- `POST /api/meeting-tags` - Create meeting-tag relationship
+- `DELETE /api/meeting-tags` - Remove meeting-tag relationship
+
+## Security Implementation
+
+### Email Verification Flow
+1. **Registration**: User registers → `email_verified = false` → Verification email sent
+2. **Email Verification**: User clicks link → Token validated → `email_verified = true`
+3. **Login**: User can only login if `email_verified = true`
+4. **API Access**: All protected routes check `email_verified` status
+
+### Token Management
+- **Verification Tokens**: 24-hour expiration, cryptographically secure
+- **Reset Tokens**: 1-hour expiration, cryptographically secure
+- **JWT Tokens**: 7-day expiration, signed with secret key
+- **Token Cleanup**: Tokens set to NULL after successful use
+
+### Database Security
+- **Password Hashing**: bcrypt with salt rounds
+- **Indexed Tokens**: Fast token lookups for verification
+- **Foreign Key Constraints**: Data integrity maintained
+- **Cascade Deletes**: Related data cleaned up on user deletion
 
 ---
 

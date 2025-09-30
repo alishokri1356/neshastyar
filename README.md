@@ -1,64 +1,186 @@
-# Welcome to your Lovable project
+# Modiryar - Meeting Management System
 
-## Project info
+## Project Overview
 
-**URL**: https://lovable.dev/projects/8fe9e635-58e4-4abd-a5bc-c99567287ceb
+Modiryar is a comprehensive meeting management system that allows users to record, transcribe, and organize meetings with AI-powered summaries and tagging capabilities.
 
-## How can I edit this code?
+## Architecture
 
-There are several ways of editing your application.
+This project uses a **full-stack architecture** with:
 
-**Use Lovable**
+### Frontend (React + TypeScript)
+- **Framework**: React with TypeScript
+- **Build Tool**: Vite
+- **UI Library**: shadcn-ui components
+- **Styling**: Tailwind CSS
+- **State Management**: Custom stores with Zustand
+- **Port**: Dynamic (8080-8085)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8fe9e635-58e4-4abd-a5bc-c99567287ceb) and start prompting.
+### Backend (Node.js + Express)
+- **Framework**: Express.js
+- **Language**: JavaScript (Node.js)
+- **Database**: MySQL
+- **Authentication**: JWT tokens
+- **Email Service**: Nodemailer with Gmail SMTP
+- **Port**: 3001
 
-Changes made via Lovable will be committed automatically to this repo.
+### Database
+- **Type**: MySQL
+- **Host**: 195.248.240.30
+- **Database**: modiryar
+- **User**: modiryar_app
 
-**Use your preferred IDE**
+## Key Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 🔐 **Security & Authentication**
+- **Email Verification Required**: Users must verify their email before accessing the app
+- **JWT Authentication**: Secure token-based authentication
+- **Password Hashing**: bcrypt for secure password storage
+- **CORS Protection**: Configured for multiple frontend ports
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 📧 **Email System**
+- **Email Verification**: Automatic verification emails on registration
+- **Password Reset**: Secure password reset via email
+- **Gmail SMTP**: Professional email delivery
+- **Persian Templates**: Beautiful RTL email templates
 
-Follow these steps:
+### 🎯 **Core Functionality**
+- **Meeting Recording**: Upload and manage audio files
+- **AI Summarization**: Automatic meeting summaries
+- **Tag Management**: Organize meetings with custom tags
+- **User Management**: Secure user registration and login
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+## Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
+- MySQL database access
+
+### Installation & Setup
+
+1. **Clone the repository**
+```bash
 git clone <YOUR_GIT_URL>
+cd modiryar
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. **Install frontend dependencies**
+```bash
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. **Setup backend**
+```bash
+cd backend
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+4. **Configure environment variables**
+```bash
+# Copy the example environment file
+cp env.example .env
+
+# Edit .env with your database and email settings
+```
+
+5. **Run database migration**
+```sql
+-- Add email verification fields to users table
+ALTER TABLE `users` 
+ADD COLUMN `email_verified` BOOLEAN DEFAULT FALSE AFTER `name`,
+ADD COLUMN `email_verification_token` VARCHAR(255) NULL AFTER `email_verified`,
+ADD COLUMN `email_verification_expires` TIMESTAMP NULL AFTER `email_verification_token`,
+ADD COLUMN `password_reset_token` VARCHAR(255) NULL AFTER `email_verification_expires`,
+ADD COLUMN `password_reset_expires` TIMESTAMP NULL AFTER `password_reset_token`;
+
+-- Add indexes for performance
+ALTER TABLE `users` 
+ADD INDEX `idx_email_verification_token` (`email_verification_token`),
+ADD INDEX `idx_password_reset_token` (`password_reset_token`);
+```
+
+6. **Start the application**
+```bash
+# Terminal 1: Start backend
+cd backend
+node src/server.js
+
+# Terminal 2: Start frontend
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Technologies Used
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Frontend
+- **Vite**: Fast build tool and dev server
+- **TypeScript**: Type-safe JavaScript
+- **React**: Component-based UI library
+- **shadcn-ui**: Modern UI component library
+- **Tailwind CSS**: Utility-first CSS framework
+- **Zustand**: Lightweight state management
 
-**Use GitHub Codespaces**
+### Backend
+- **Express.js**: Web application framework
+- **MySQL2**: MySQL database driver
+- **JWT**: JSON Web Token authentication
+- **bcrypt**: Password hashing
+- **Nodemailer**: Email sending
+- **Helmet**: Security middleware
+- **CORS**: Cross-origin resource sharing
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## API Endpoints
 
-## What technologies are used for this project?
+### Authentication
+- `POST /api/auth/login` - User login (requires email verification)
+- `POST /api/auth/signup` - User registration (sends verification email)
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/verify` - Verify JWT token
 
-This project is built with:
+### Email Management
+- `GET /api/auth/verify-email?token=xxx` - Verify email with token
+- `POST /api/auth/resend-verification-email` - Resend verification email
+- `POST /api/auth/request-password-reset` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Meetings (Protected - Requires Email Verification)
+- `GET /api/meetings` - Get user's meetings
+- `GET /api/meetings/untagged` - Get untagged meetings
+- `GET /api/meetings/:id` - Get specific meeting
+- `POST /api/meetings` - Create new meeting
+- `PUT /api/meetings/:id` - Update meeting
+- `DELETE /api/meetings/:id` - Delete meeting
+
+### Tags (Protected - Requires Email Verification)
+- `GET /api/tags` - Get user's tags
+- `GET /api/tags/:id` - Get specific tag
+- `POST /api/tags` - Create new tag
+- `PUT /api/tags/:id` - Update tag
+- `DELETE /api/tags/:id` - Delete tag
+
+### Meeting Tags (Protected - Requires Email Verification)
+- `GET /api/meeting-tags` - Get meeting-tag relationships
+- `POST /api/meeting-tags` - Create meeting-tag relationship
+- `DELETE /api/meeting-tags` - Remove meeting-tag relationship
+
+## Security Features
+
+### Email Verification System
+- **Mandatory Verification**: Users cannot access the app without email verification
+- **Token-based**: Cryptographically secure verification tokens
+- **Expiration**: Tokens expire after 24 hours
+- **Resend Capability**: Users can request new verification emails
+
+### Authentication Flow
+1. **Registration**: User registers → Verification email sent → No session created
+2. **Email Verification**: User clicks link → Email verified → Can now login
+3. **Login**: User logs in → Session created → Full app access
+4. **API Access**: All protected routes check email verification status
+
+### Password Security
+- **Hashing**: bcrypt with salt rounds
+- **Reset Flow**: Secure token-based password reset
+- **Expiration**: Reset tokens expire after 1 hour
 
 ## Database Configuration
 
@@ -68,6 +190,115 @@ The application connects to a MySQL database with the following configuration:
 - **Database**: modiryar
 - **User**: modiryar_app
 - **Password**: Terraworld2020
+- **Port**: 3306
+
+### Database Schema Documentation
+
+For detailed information about the database structure, tables, relationships, and schema, please refer to the [`Database Structure.md`](./Database%20Structure.md) file. This file contains:
+
+- Complete table definitions with column details
+- Indexes and foreign key relationships
+- CREATE TABLE statements for all tables
+- Current row counts for each table
+- **NEW**: Email verification fields and indexes
+
+**Important**: Use the `Database Structure.md` file to understand the current database schema when making any database-related changes or when working with the application's data layer.
+
+## Email Configuration
+
+The application uses Gmail SMTP for email confirmation functionality with the following settings:
+
+- **SMTP Host**: smtp.gmail.com
+- **SMTP Port**: 587
+- **SMTP User**: shokriali@gmail.com
+- **SMTP Password**: orslxvkgfzqfpgjx (Gmail App Password)
+- **Frontend URL**: https://modiryar.teraxr.com
+
+### Email Setup Notes
+
+- The SMTP password is a Gmail App Password, not the regular Gmail password
+- Gmail App Passwords are required for SMTP authentication when 2FA is enabled
+- The frontend URL is used for generating confirmation links in emails
+- These settings should be configured in the backend environment variables
+- **Email verification is mandatory** for app access
+
+## Environment Variables
+
+### Backend (.env)
+```env
+# Database Configuration
+DB_HOST=195.248.240.30
+DB_PORT=3306
+DB_NAME=modiryar
+DB_USER=modiryar_app
+DB_PASSWORD=Terraworld2020
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRES_IN=7d
+
+# CORS Configuration
+CORS_ORIGIN=http://localhost:5173
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Email Configuration (Gmail SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=shokriali@gmail.com
+SMTP_PASS=orslxvkgfzqfpgjx
+FRONTEND_URL=https://modiryar.teraxr.com
+```
+
+## Development
+
+### Running in Development Mode
+
+1. **Start Backend Server**
+```bash
+cd backend
+node src/server.js
+```
+
+2. **Start Frontend Development Server**
+```bash
+npm run dev
+```
+
+3. **Access the Application**
+- Frontend: http://localhost:8080-8085 (dynamic port)
+- Backend API: http://localhost:3001/api
+- Health Check: http://localhost:3001/health
+
+### Project Structure
+
+```
+modiryar/
+├── backend/                 # Node.js/Express backend
+│   ├── src/
+│   │   ├── config/         # Database configuration
+│   │   ├── controllers/     # API route handlers
+│   │   ├── middleware/     # Authentication & email verification
+│   │   ├── routes/         # API route definitions
+│   │   ├── services/       # Business logic
+│   │   └── server.js       # Main server file
+│   ├── migrations/         # Database migration scripts
+│   └── package.json
+├── src/                    # React frontend
+│   ├── components/         # React components
+│   ├── pages/             # Page components
+│   ├── store/             # State management
+│   ├── lib/               # Utilities & MySQL client
+│   └── integrations/      # External service integrations
+├── Database Structure.md   # Database documentation
+└── README.md              # This file
+```
 
 ## How can I deploy this project?
 
