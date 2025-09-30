@@ -1,5 +1,5 @@
 // MySQL client wrapper that mimics Supabase API
-const API_BASE_URL = "http://localhost:3001/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 class MySQLClient {
   private session: { token: string; expiresAt: string } | null = null;

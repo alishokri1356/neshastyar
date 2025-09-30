@@ -100,6 +100,7 @@ echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 
 # Create production environment file for frontend
 echo "--- Creating production environment ---"
+# Use the same domain with /api path (Nginx will proxy to backend)
 echo "VITE_API_URL=https://modiryar.teraxr.com/api" > .env.production
 
 # Build the final, optimized production-ready static files
