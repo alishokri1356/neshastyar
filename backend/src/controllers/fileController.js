@@ -129,6 +129,8 @@ class FileController {
       const { userId, filename } = req.params;
       const token = req.query.token;
 
+      console.log('🔍 Public audio request - userId:', userId, 'filename:', filename);
+
       if (!token) {
         return res.status(401).json({
           error: 'Unauthorized',
@@ -159,11 +161,16 @@ class FileController {
       }
 
       const filePath = path.join(__dirname, '../../uploads/audio', userId, filename);
+      console.log('🔍 Constructed file path:', filePath);
+      console.log('🔍 __dirname:', __dirname);
 
       // Check if file exists
       try {
         await fs.access(filePath);
+        console.log('✅ File exists at:', filePath);
       } catch (error) {
+        console.log('❌ File not found at:', filePath);
+        console.log('❌ Error:', error.message);
         return res.status(404).json({
           error: 'File not found',
           message: 'The requested audio file does not exist'
