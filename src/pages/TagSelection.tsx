@@ -353,7 +353,7 @@ const TagSelection = () => {
 
         // Approach 1: Try with no-cors first
         try {
-          await fetch('https://n8nnew.teraxr.com:5678/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+          await fetch('https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -367,7 +367,7 @@ const TagSelection = () => {
         // Approach 2: Try with dynamic image for GET request with query params
         try {
           const img = new Image();
-          const url = new URL('https://n8nnew.teraxr.com:5678/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
+          const url = new URL('https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
           url.searchParams.append('fileName', fileName);
           url.searchParams.append('userEmail', userEmail);
           url.searchParams.append('meetingId', meetingData.id);
