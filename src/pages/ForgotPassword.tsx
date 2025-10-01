@@ -28,7 +28,8 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/request-password-reset', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
