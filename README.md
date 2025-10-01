@@ -179,6 +179,20 @@ npm run dev
 - `GET /api/files/audio/:userId/:filename` - Download audio file
 - `DELETE /api/files/audio/:userId/:filename` - Delete audio file
 
+### Public Audio Download (No Authentication Required)
+- `GET /api/download/audio/:meetingId` - Download audio file by meeting ID (bypasses authorization)
+
+**Example Usage:**
+```bash
+# Download audio for a specific meeting
+curl http://localhost:3001/api/download/audio/5a325f95-5915-4d91-8050-5aea3fec3a74
+
+# Or access directly in browser
+http://localhost:3001/api/download/audio/5a325f95-5915-4d91-8050-5aea3fec3a74
+```
+
+**Note:** This endpoint allows external systems to download audio files without requiring authentication tokens. It automatically resolves file paths and handles cases where database records don't exactly match actual file names.
+
 ## Security Features
 
 ### Email Verification System
