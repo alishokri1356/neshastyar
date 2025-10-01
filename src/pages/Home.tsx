@@ -37,7 +37,7 @@ const Home = () => {
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
 
-  // Fetch tags with auto-refresh every 10 seconds
+  // Fetch tags once on load (no aggressive polling)
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
     queryKey: ['tags', user?.id],
     queryFn: async () => {
@@ -74,14 +74,12 @@ const Home = () => {
       })) || [];
     },
     enabled: !!user,
-    refetchInterval: 10000, // Refresh every 10 seconds
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch meetings with auto-refresh every 10 seconds
-  const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
+  // Fetch initial meetings on load
+  const { data: initialMeetings = [], isLoading: meetingsLoading } = useQuery({
     queryKey: ['meetings', user?.id, 'recent'],
     queryFn: async () => {
       if (!user) return [];
@@ -106,11 +104,54 @@ const Home = () => {
       return meetingsData || [];
     },
     enabled: !!user,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Poll for new meetings only (every 30 seconds)
+  const { data: newMeetings = [] } = useQuery({
+    queryKey: ['meetings', user?.id, 'new'],
+    queryFn: async () => {
+      if (!user || !initialMeetings.length) return [];
+
+      // Get the latest meeting's created_at timestamp
+      const latestMeetingTime = initialMeetings[0]?.created_at;
+      
+      const { data: meetingsData, error: meetingsError } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('user_id', user.id)
+        .gt('created_at', latestMeetingTime)
+        .order('created_at', { ascending: false });
+
+      if (meetingsError) {
+        console.error('Error fetching new meetings:', meetingsError);
+        return [];
+      }
+
+      return meetingsData || [];
+    },
+    enabled: !!user && initialMeetings.length > 0,
+    refetchInterval: 30000, // Check for new meetings every 30 seconds
     refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
     staleTime: 0,
   });
+
+  // Merge initial meetings with new ones
+  const meetings = React.useMemo(() => {
+    if (!newMeetings.length) return initialMeetings;
+    
+    // Combine and deduplicate meetings
+    const allMeetings = [...newMeetings, ...initialMeetings];
+    const uniqueMeetings = allMeetings.filter((meeting, index, self) => 
+      index === self.findIndex(m => m.id === meeting.id)
+    );
+    
+    // Sort by created_at and limit to 5
+    return uniqueMeetings
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 5);
+  }, [initialMeetings, newMeetings]);
 
   const loading = tagsLoading || meetingsLoading;
 
