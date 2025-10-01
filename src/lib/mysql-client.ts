@@ -294,9 +294,16 @@ class MySQLClient {
 
         // Return chainable object
         return {
-          select: async () => {
-            const result = await executeInsert();
-            return result;
+          select: () => {
+            return {
+              single: async () => {
+                const result = await executeInsert();
+                return result;
+              },
+              then: (resolve: any, reject: any) => {
+                executeInsert().then(resolve, reject);
+              }
+            };
           },
           then: (resolve: any, reject: any) => {
             executeInsert().then(resolve, reject);
