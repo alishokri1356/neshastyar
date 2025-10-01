@@ -311,68 +311,88 @@ class MySQLClient {
         };
       },
 
-      update: async (values: any) => {
-        return {
-          eq: async (column: string, value: any) => {
-            let url = '';
-            
-            if (table === 'meetings') {
-              url = `${API_BASE_URL}/meetings/${value}`;
-            } else if (table === 'tags') {
-              url = `${API_BASE_URL}/tags/${value}`;
-            } else {
-              return { data: null, error: { message: 'Table not supported' } };
-            }
+      update: (values: any) => {
+        const queryBuilder = {
+          eq: (column: string, value: any) => {
+            const executeUpdate = async () => {
+              let url = '';
+              
+              if (table === 'meetings') {
+                url = `${API_BASE_URL}/meetings/${value}`;
+              } else if (table === 'tags') {
+                url = `${API_BASE_URL}/tags/${value}`;
+              } else {
+                return { data: null, error: { message: 'Table not supported' } };
+              }
 
-            const response = await fetch(url, {
-              method: 'PUT',
-              headers: {
-                ...this.getAuthHeaders(),
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(values),
-            });
+              const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                  ...this.getAuthHeaders(),
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(values),
+              });
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-              return { data: null, error: data };
-            }
+              const data = await response.json();
+              
+              if (!response.ok) {
+                return { data: null, error: data };
+              }
 
-            return { data, error: null };
+              return { data, error: null };
+            };
+
+            return {
+              then: (resolve: any, reject: any) => {
+                executeUpdate().then(resolve, reject);
+              }
+            };
           },
         };
+
+        return queryBuilder;
       },
 
-      delete: async () => {
-        return {
-          eq: async (column: string, value: any) => {
-            let url = '';
-            
-            if (table === 'meetings') {
-              url = `${API_BASE_URL}/meetings/${value}`;
-            } else if (table === 'tags') {
-              url = `${API_BASE_URL}/tags/${value}`;
-            } else if (table === 'meeting_tags') {
-              url = `${API_BASE_URL}/meeting-tags`;
-            } else {
-              return { error: { message: 'Table not supported' } };
-            }
+      delete: () => {
+        const queryBuilder = {
+          eq: (column: string, value: any) => {
+            const executeDelete = async () => {
+              let url = '';
+              
+              if (table === 'meetings') {
+                url = `${API_BASE_URL}/meetings/${value}`;
+              } else if (table === 'tags') {
+                url = `${API_BASE_URL}/tags/${value}`;
+              } else if (table === 'meeting_tags') {
+                url = `${API_BASE_URL}/meeting-tags`;
+              } else {
+                return { error: { message: 'Table not supported' } };
+              }
 
-            const response = await fetch(url, {
-              method: 'DELETE',
-              headers: this.getAuthHeaders(),
-            });
+              const response = await fetch(url, {
+                method: 'DELETE',
+                headers: this.getAuthHeaders(),
+              });
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-              return { error: data };
-            }
+              const data = await response.json();
+              
+              if (!response.ok) {
+                return { error: data };
+              }
 
-            return { error: null };
+              return { error: null };
+            };
+
+            return {
+              then: (resolve: any, reject: any) => {
+                executeDelete().then(resolve, reject);
+              }
+            };
           },
         };
+
+        return queryBuilder;
       },
     };
 
