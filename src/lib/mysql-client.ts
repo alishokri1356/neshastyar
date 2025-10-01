@@ -260,7 +260,7 @@ class MySQLClient {
         return queryBuilder;
       },
 
-      insert: async (values: any) => {
+      insert: (values: any) => {
         let url = '';
         
         if (table === 'meetings') {
@@ -273,22 +273,35 @@ class MySQLClient {
           return { data: null, error: { message: 'Table not supported' } };
         }
 
-               const response = await fetch(url, {
-                 method: 'POST',
-                 headers: {
-                   ...this.getAuthHeaders(),
-                   'Content-Type': 'application/json',
-                 },
-                 body: JSON.stringify(values),
-               });
+        const executeInsert = async () => {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(values),
+          });
 
-               const data = await response.json();
-               
-               if (!response.ok) {
-                 return { data: null, error: data };
-               }
+          const data = await response.json();
+          
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
 
-        return { data, error: null };
+          return { data, error: null };
+        };
+
+        // Return chainable object
+        return {
+          select: async () => {
+            const result = await executeInsert();
+            return result;
+          },
+          then: (resolve: any, reject: any) => {
+            executeInsert().then(resolve, reject);
+          }
+        };
       },
 
       update: async (values: any) => {
