@@ -82,8 +82,12 @@ const Home = () => {
   const { data: initialMeetings = [], isLoading: meetingsLoading } = useQuery({
     queryKey: ['meetings', user?.id, 'recent'],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user) {
+        console.log('❌ No user found for meetings query');
+        return [];
+      }
 
+      console.log('🔍 Fetching meetings for user:', user.id);
       const { data: meetingsData, error: meetingsError } = await mysqlClient
         .from('meetings')
         .select('*')
@@ -92,7 +96,7 @@ const Home = () => {
         .limit(20);
 
       if (meetingsError) {
-        console.error('Error fetching meetings:', meetingsError);
+        console.error('❌ Error fetching meetings:', meetingsError);
         toast({
           title: "خطا در بارگذاری جلسات",
           description: meetingsError.message,
@@ -101,6 +105,7 @@ const Home = () => {
         throw meetingsError;
       }
 
+      console.log('✅ Meetings fetched successfully:', meetingsData?.length || 0, 'meetings');
       return meetingsData || [];
     },
     enabled: !!user,

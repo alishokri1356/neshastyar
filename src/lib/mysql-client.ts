@@ -18,10 +18,13 @@ class MySQLClient {
 
   private getAuthHeaders() {
     if (!this.session) {
+      console.log('🔧 No session found for auth headers');
       return {};
     }
+    const token = this.session.access_token || this.session.token;
+    console.log('🔧 Auth headers with token:', token ? 'Present' : 'Missing');
     return {
-      'Authorization': `Bearer ${this.session.access_token || this.session.token}`,
+      'Authorization': `Bearer ${token}`,
     };
   }
 
@@ -186,13 +189,17 @@ class MySQLClient {
           url += `?${params.toString()}`;
         }
 
+        const authHeaders = this.getAuthHeaders();
+        console.log('🔧 Making request to:', url, 'with headers:', authHeaders);
         const response = await fetch(url, {
-          headers: this.getAuthHeaders(),
+          headers: authHeaders,
         });
 
         const data = await response.json();
+        console.log('🔧 Response status:', response.status, 'data:', data);
         
         if (!response.ok) {
+          console.log('🔧 Request failed:', data);
           return { data: null, error: data };
         }
 

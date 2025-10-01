@@ -270,7 +270,9 @@ const TagSelection = () => {
       }
 
       // Upload audio file to backend
-      console.log('Uploading audio file:', fileName);
+      console.log('🔧 Uploading audio file:', fileName);
+      console.log('🔧 Upload URL:', `${API_BASE_URL}/upload/audio`);
+      console.log('🔧 User ID:', user.id);
       
       const formData = new FormData();
       formData.append('audio', recordingData.audioBlob, fileName);
@@ -283,6 +285,7 @@ const TagSelection = () => {
         body: formData
       });
 
+      console.log('🔧 Upload response status:', uploadResponse.status);
       clearInterval(progressInterval);
       
       if (!uploadResponse.ok) {
@@ -296,12 +299,12 @@ const TagSelection = () => {
       }
 
       const uploadResult = await uploadResponse.json();
-      console.log('File uploaded successfully:', uploadResult);
+      console.log('🔧 File uploaded successfully:', uploadResult);
       
       setUploadProgress(100);
 
       // Create meeting in database
-      console.log('Saving meeting with duration:', recordingData.duration);
+      console.log('🔧 Saving meeting with duration:', recordingData.duration);
       
       // Generate title from filename (remove extension)
       const meetingTitle = fileName.replace(/\.(wav|mp3|m4a|ogg)$/i, '');
@@ -322,9 +325,10 @@ const TagSelection = () => {
           storage_type: 'local'
         });
 
-      console.log('Meeting saved:', meetingData);
+      console.log('🔧 Meeting saved:', meetingData);
 
       if (meetingError) {
+        console.log('🔧 Meeting save error:', meetingError);
         toast({
           title: "خطا در ذخیره جلسه",
           description: meetingError.message,
@@ -438,7 +442,7 @@ const TagSelection = () => {
       console.log('Navigating to home page...');
       navigate('/home');
     } catch (error) {
-      console.error('Error saving meeting:', error);
+      console.error('🔧 Error saving meeting:', error);
       toast({
         title: "خطا",
         description: "ذخیره جلسه ناموفق بود",
