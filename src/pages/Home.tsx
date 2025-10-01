@@ -213,10 +213,8 @@ const Home = () => {
 
          // Group by tags
          const groupedByTags = sortedMeetings.reduce((acc, meeting) => {
-           // Get tags for this meeting
-           const meetingTags = tags.filter(tag => 
-             tag.meeting_tags?.some((mt: any) => mt.meeting_id === meeting.id)
-           );
+           // Get tags for this meeting (meeting.tags is already populated)
+           const meetingTags = meeting.tags || [];
            
            if (meetingTags.length === 0) {
              // Meetings without tags go to "بدون برچسب"
@@ -359,7 +357,24 @@ const Home = () => {
             {Object.entries(sortBy === 'date' ? meetingsByDate : meetingsByTags).map(([groupKey, groupMeetings]) => (
               <div key={groupKey} className="space-y-3">
                 {/* Group Header */}
-                <h4 className="text-sm font-medium text-muted-foreground px-2">
+                <h4 
+                  className={`text-sm font-medium px-2 ${
+                    sortBy === 'tags' 
+                      ? 'text-primary cursor-pointer hover:underline' 
+                      : 'text-muted-foreground'
+                  }`}
+                  onClick={sortBy === 'tags' ? () => {
+                    if (groupKey === 'بدون برچسب') {
+                      navigate('/meetings/untagged');
+                    } else {
+                      // Find the tag ID for this tag name
+                      const tag = tags.find(t => t.name === groupKey);
+                      if (tag) {
+                        navigate(`/tag/${tag.id}`);
+                      }
+                    }
+                  } : undefined}
+                >
                   {sortBy === 'date' ? groupKey : groupKey}
                 </h4>
                 
