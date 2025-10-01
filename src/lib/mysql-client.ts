@@ -246,7 +246,12 @@ class MySQLClient {
           },
           single: async () => {
             const result = await executeQuery();
-            return { data: result.data?.[0] || null, error: result.error };
+            // Handle both array and object responses
+            if (Array.isArray(result.data)) {
+              return { data: result.data[0] || null, error: result.error };
+            } else {
+              return { data: result.data || null, error: result.error };
+            }
           },
           then: (resolve: any, reject: any) => {
             executeQuery().then(resolve, reject);
