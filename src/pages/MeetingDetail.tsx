@@ -289,13 +289,29 @@ const MeetingDetail = () => {
           title: "برچسب اضافه شد",
           description: "برچسب جدید به جلسه اضافه شد.",
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error adding tag:', error);
-        toast({
-          title: "خطا",
-          description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
+        
+        // Handle specific error cases
+        if (error?.message?.includes('Relationship already exists') || error?.error === 'Relationship already exists') {
+          toast({
+            title: "برچسب قبلاً اضافه شده",
+            description: "این برچسب قبلاً به جلسه اضافه شده است.",
+            variant: "destructive",
+          });
+        } else if (error?.message?.includes('Tag already exists') || error?.error === 'Tag already exists') {
+          toast({
+            title: "برچسب قبلاً وجود دارد",
+            description: "برچسبی با این نام قبلاً ایجاد شده است.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "خطا",
+            description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
@@ -349,13 +365,23 @@ const MeetingDetail = () => {
           title: "برچسب اضافه شد",
           description: "برچسب به جلسه اضافه شد.",
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error adding tag:', error);
-        toast({
-          title: "خطا",
-          description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
+        
+        // Handle specific error cases
+        if (error?.message?.includes('Relationship already exists') || error?.error === 'Relationship already exists') {
+          toast({
+            title: "برچسب قبلاً اضافه شده",
+            description: "این برچسب قبلاً به جلسه اضافه شده است.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "خطا",
+            description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
