@@ -212,7 +212,130 @@ class FileController {
     }
   }
 
-  // DELETE /api/files/audio/:userId/:filename
+  // GET /api/download/audio/:meetingId - Public audio download by meeting ID (NO AUTH)
+  async downloadAudioByMeetingId(req, res) {
+    try {
+      const { meetingId } = req.params;
+      
+      console.log('🔍 Audio download request for meeting ID:', meetingId);
+
+      if (!meetingId) {
+        return res.status(400).json({
+          error: 'Meeting ID required',
+          message: 'Meeting ID is required to download audio file'
+        });
+      }
+
+      // Get meeting data from database
+      const db = require('../config/database');
+      const sql = 'SELECT * FROM meetings WHERE id = ?';
+      const meetings = await db.query(sql, [meetingId]);
+      
+      if (!meetings || meetings.length === 0) {
+        return res.status(404).json({
+          error: 'Meeting not found',
+          message: 'The requested meeting does not exist'
+        });
+      }
+
+      const meeting = meetings[0];
+      
+      // Check if meeting has audio file
+      if (!meeting.audio_file_path) {
+        return res.status(404).json({
+          error: 'Audio file not found',
+          message: 'This meeting does not have an associated audio file'
+        });
+      }
+
+      // Construct file path
+      const filePath = path.join(process.cwd(), meeting.audio_file_path);
+      console.log('🔍 Looking for file at:', filePath);
+
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+        console.log('✅ File exists at:', filePath);
+      } catch (error) {
+        console.log('❌ File not found at:', filePath);
+        
+        // Try to find a matching file in the user's directory
+        const userDir = path.join(process.cwd(), 'uploads', 'audio', meeting.user_id);
+        console.log('🔍 Searching in user directory:', userDir);
+        
+        try {
+          const files = await fs.readdir(userDir);
+          console.log('🔍 Files in directory:', files);
+          
+          // Find file that matches the audio_file_name pattern
+          const baseFileName = meeting.audio_file_name;
+          let matchingFile = files.find(file => {
+            // Extract the base name without timestamp prefix
+            const baseName = file.replace(/^\d+-/, ''); // Remove timestamp prefix
+            const originalBaseName = baseFileName;
+            
+            // Check if the base names match (ignoring timestamp prefixes)
+            return baseName === originalBaseName || 
+                   baseName.includes(originalBaseName.replace('.ogg', '')) ||
+                   originalBaseName.includes(baseName.replace('.ogg', ''));
+          });
+          
+          // If no exact match found, try to find any audio file for this user
+          if (!matchingFile && files.length > 0) {
+            console.log('🔍 No exact match found, using first available audio file');
+            matchingFile = files[0]; // Use the first available file
+          }
+          
+          if (matchingFile) {
+            const foundFilePath = path.join(userDir, matchingFile);
+            console.log('✅ Found file:', foundFilePath);
+            
+            // Set appropriate headers for file download
+            const fileName = meeting.audio_file_name || `meeting-${meetingId}.${meeting.audio_format?.split('/')[1] || 'ogg'}`;
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.setHeader('Content-Type', meeting.audio_format || 'application/octet-stream');
+            
+            if (meeting.audio_file_size) {
+              res.setHeader('Content-Length', meeting.audio_file_size);
+            }
+            
+            // Stream the file
+            return res.sendFile(foundFilePath);
+          } else {
+            console.log('❌ No audio files found for this user');
+            return res.status(404).json({
+              error: 'Audio file not found',
+              message: 'No audio files found for this meeting'
+            });
+          }
+        } catch (dirError) {
+          console.log('❌ Error reading directory:', dirError.message);
+          return res.status(404).json({
+            error: 'Audio file not found',
+            message: 'The audio file for this meeting could not be located'
+          });
+        }
+      }
+
+      // Set appropriate headers for file download
+      const fileName = meeting.audio_file_name || `meeting-${meetingId}.${meeting.audio_format?.split('/')[1] || 'ogg'}`;
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Type', meeting.audio_format || 'application/octet-stream');
+      
+      if (meeting.audio_file_size) {
+        res.setHeader('Content-Length', meeting.audio_file_size);
+      }
+
+      // Stream the file
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error('Audio download error:', error);
+      res.status(500).json({
+        error: 'Failed to download audio file',
+        message: 'An error occurred while downloading the audio file'
+      });
+    }
+  }
   async deleteAudio(req, res) {
     try {
       const { userId, filename } = req.params;
