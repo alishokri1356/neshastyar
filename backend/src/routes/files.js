@@ -5,7 +5,10 @@ const { requireEmailVerification } = require('../middleware/emailVerification');
 
 const router = express.Router();
 
-// All routes require authentication and email verification
+// Get audio file (public access with token) - NO AUTH MIDDLEWARE
+router.get('/audio/:userId/:filename', FileController.getPublicAudio);
+
+// All other routes require authentication and email verification
 router.use(authenticateToken);
 router.use(requireEmailVerification);
 
@@ -14,9 +17,6 @@ router.post('/upload/audio', upload.single('audio'), FileController.uploadAudio)
 
 // Get audio file
 router.get('/files/audio/:userId/:filename', FileController.getAudio);
-
-// Get audio file (public access with token)
-router.get('/audio/:userId/:filename', FileController.getPublicAudio);
 
 // Delete audio file
 router.delete('/files/audio/:userId/:filename', FileController.deleteAudio);
