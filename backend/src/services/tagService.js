@@ -40,8 +40,23 @@ class TagService {
     return tags[0] || null;
   }
 
+  // Get tag by name for a user
+  async getTagByName(userId, name) {
+    const sql = 'SELECT * FROM tags WHERE user_id = ? AND name = ?';
+    const tags = await db.query(sql, [userId, name]);
+    return tags[0] || null;
+  }
+
   // Create new tag
   async createTag(userId, tagData) {
+    // Check if tag name already exists for this user
+    const existingTag = await this.getTagByName(userId, tagData.name);
+    if (existingTag) {
+      const error = new Error(`Tag with name "${tagData.name}" already exists`);
+      error.code = 'ER_DUP_ENTRY';
+      throw error;
+    }
+
     const id = authService.generateId();
     const now = new Date();
 
@@ -65,6 +80,16 @@ class TagService {
 
   // Update tag
   async updateTag(id, userId, updates) {
+    // Check if name is being updated and if it already exists
+    if (updates.name) {
+      const existingTag = await this.getTagByName(userId, updates.name);
+      if (existingTag && existingTag.id !== id) {
+        const error = new Error(`Tag with name "${updates.name}" already exists`);
+        error.code = 'ER_DUP_ENTRY';
+        throw error;
+      }
+    }
+
     const allowedFields = ['name', 'color'];
     const updateFields = [];
     const values = [];

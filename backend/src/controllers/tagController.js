@@ -80,6 +80,15 @@ class TagController {
       res.status(201).json(tag);
     } catch (error) {
       console.error('Create tag error:', error);
+      
+      // Handle duplicate tag name error
+      if (error.code === 'ER_DUP_ENTRY' || error.message.includes('Duplicate entry')) {
+        return res.status(409).json({
+          error: 'Tag already exists',
+          message: `A tag with the name "${req.body.name}" already exists. Please choose a different name.`
+        });
+      }
+
       res.status(500).json({
         error: 'Failed to create tag',
         message: 'An error occurred while creating the tag'
@@ -105,6 +114,15 @@ class TagController {
       res.json(tag);
     } catch (error) {
       console.error('Update tag error:', error);
+      
+      // Handle duplicate tag name error
+      if (error.code === 'ER_DUP_ENTRY' || error.message.includes('Duplicate entry')) {
+        return res.status(409).json({
+          error: 'Tag name already exists',
+          message: `A tag with the name "${req.body.name}" already exists. Please choose a different name.`
+        });
+      }
+
       res.status(500).json({
         error: 'Failed to update tag',
         message: 'An error occurred while updating the tag'
