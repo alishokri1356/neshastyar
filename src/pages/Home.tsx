@@ -78,50 +78,40 @@ const Home = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch initial meetings on load
-  const { data: initialMeetings = [], isLoading: meetingsLoading } = useQuery({
-    queryKey: ['meetings', user?.id, 'recent'],
-    queryFn: async () => {
-      console.log('🔧 QUERYFN CALLED - user:', user?.id);
-      if (!user) {
-        console.log('❌ No user found for meetings query');
-        return [];
-      }
+       // Fetch initial meetings on load
+       const { data: initialMeetings = [], isLoading: meetingsLoading } = useQuery({
+         queryKey: ['meetings', user?.id, 'recent'],
+         queryFn: async () => {
+           if (!user) {
+             return [];
+           }
 
-      console.log('🔍 Fetching meetings for user:', user.id);
-      try {
-        const { data: meetingsData, error: meetingsError } = await mysqlClient
-          .from('meetings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(20);
+           try {
+             const { data: meetingsData, error: meetingsError } = await mysqlClient
+               .from('meetings')
+               .select('*')
+               .eq('user_id', user.id)
+               .order('created_at', { ascending: false })
+               .limit(20);
 
-        console.log('🔧 QUERYFN RESULT - data:', meetingsData, 'error:', meetingsError);
+             if (meetingsError) {
+               toast({
+                 title: "خطا در بارگذاری جلسات",
+                 description: meetingsError.message,
+                 variant: "destructive",
+               });
+               throw meetingsError;
+             }
 
-        if (meetingsError) {
-          console.error('❌ Error fetching meetings:', meetingsError);
-          toast({
-            title: "خطا در بارگذاری جلسات",
-            description: meetingsError.message,
-            variant: "destructive",
-          });
-          throw meetingsError;
-        }
-
-        console.log('✅ Meetings fetched successfully:', meetingsData?.length || 0, 'meetings');
-        console.log('🔧 Raw meetings data:', meetingsData);
-        console.log('🔧 meetingsData type:', typeof meetingsData, 'isArray:', Array.isArray(meetingsData));
-        return meetingsData || [];
-      } catch (error) {
-        console.error('🔧 QUERYFN ERROR:', error);
-        throw error;
-      }
-    },
-    enabled: !!user,
-    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
-    refetchOnWindowFocus: false,
-  });
+             return meetingsData || [];
+           } catch (error) {
+             throw error;
+           }
+         },
+         enabled: !!user,
+         staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+         refetchOnWindowFocus: false,
+       });
 
   // Poll for new meetings only (every 30 seconds)
   const { data: newMeetings = [] } = useQuery({
@@ -152,48 +142,43 @@ const Home = () => {
     staleTime: 0,
   });
 
-  // Merge initial meetings with new ones and group by date
-  const { meetings, meetingsByDate } = React.useMemo(() => {
-    console.log('🔧 Processing meetings - initialMeetings:', initialMeetings.length, 'newMeetings:', newMeetings.length);
-    if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {} };
-    
-    // Combine and deduplicate meetings
-    const allMeetings = [...newMeetings, ...initialMeetings];
-    const uniqueMeetings = allMeetings.filter((meeting, index, self) => 
-      index === self.findIndex(m => m.id === meeting.id)
-    );
-    
-    // Sort by created_at
-    const sortedMeetings = uniqueMeetings
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
-    // Group by date
-    const grouped = sortedMeetings.reduce((acc, meeting) => {
-      const date = new Date(meeting.meeting_date || meeting.created_at);
-      const dateKey = date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric' 
-      });
-      
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(meeting);
-      return acc;
-    }, {} as Record<string, DatabaseMeeting[]>);
-    
-    console.log('🔧 Final processed meetings:', sortedMeetings.length, 'grouped keys:', Object.keys(grouped));
-    return { 
-      meetings: sortedMeetings, 
-      meetingsByDate: grouped 
-    };
-  }, [initialMeetings, newMeetings]);
+       // Merge initial meetings with new ones and group by date
+       const { meetings, meetingsByDate } = React.useMemo(() => {
+         if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {} };
+         
+         // Combine and deduplicate meetings
+         const allMeetings = [...newMeetings, ...initialMeetings];
+         const uniqueMeetings = allMeetings.filter((meeting, index, self) => 
+           index === self.findIndex(m => m.id === meeting.id)
+         );
+         
+         // Sort by created_at
+         const sortedMeetings = uniqueMeetings
+           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+         
+         // Group by date
+         const grouped = sortedMeetings.reduce((acc, meeting) => {
+           const date = new Date(meeting.meeting_date || meeting.created_at);
+           const dateKey = date.toLocaleDateString('en-US', { 
+             weekday: 'short', 
+             month: 'short', 
+             day: 'numeric' 
+           });
+           
+           if (!acc[dateKey]) {
+             acc[dateKey] = [];
+           }
+           acc[dateKey].push(meeting);
+           return acc;
+         }, {} as Record<string, DatabaseMeeting[]>);
+         
+         return { 
+           meetings: sortedMeetings, 
+           meetingsByDate: grouped 
+         };
+       }, [initialMeetings, newMeetings]);
 
   const loading = tagsLoading || meetingsLoading;
-  
-  // Debug: Log the query results
-  console.log('🔧 Query results - initialMeetings:', initialMeetings, 'length:', initialMeetings?.length);
 
   const handleTagClick = (tagId: string) => {
     if (tagId === 'no-tags') {
@@ -271,52 +256,10 @@ const Home = () => {
             جلسات شما در زیر نمایش داده شده است.
           </p>
           
-          {/* Create Sample Meetings Button - Only show if no meetings */}
-          {Object.keys(meetingsByDate).length === 0 && (
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-                    const response = await fetch(`${API_BASE_URL}/meetings/create-sample`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${user?.session?.access_token || user?.session?.token}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({ user_id: user?.id }),
-                    });
-                    
-                    if (response.ok) {
-                      toast({
-                        title: "جلسات نمونه ایجاد شد",
-                        description: "جلسات نمونه با موفقیت اضافه شدند",
-                      });
-                      // Refresh the page to show new meetings
-                      window.location.reload();
-                    } else {
-                      throw new Error('Failed to create sample meetings');
-                    }
-                  } catch (error) {
-                    console.error('Error creating sample meetings:', error);
-                    toast({
-                      title: "خطا در ایجاد جلسات نمونه",
-                      description: "خطایی در ایجاد جلسات نمونه رخ داد",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              >
-                ایجاد جلسات نمونه
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Meetings List - Grouped by Date */}
-        {console.log('🔧 Rendering check - meetingsByDate keys:', Object.keys(meetingsByDate), 'length:', Object.keys(meetingsByDate).length)}
-        {Object.keys(meetingsByDate).length > 0 && (
+       {Object.keys(meetingsByDate).length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-foreground">جلسات</h3>

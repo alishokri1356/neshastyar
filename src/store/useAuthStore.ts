@@ -30,28 +30,24 @@ export const useAuthStore = create<AuthState>()(
       session: null,
       isAuthenticated: false,
 
-      initialize: async () => {
-        // Check for existing session
-        console.log('🔧 Initializing auth store...');
-        const { data } = await mysqlClient.auth.getSession();
-        console.log('🔧 Session data:', data);
-        
-        if (data.session) {
-          console.log('🔧 Session found, user:', data.session.user);
-          set({
-            session: data.session,
-            user: data.session.user || null,
-            isAuthenticated: !!data.session.user,
-          });
-        } else {
-          console.log('🔧 No session found');
-          set({
-            session: null,
-            user: null,
-            isAuthenticated: false,
-          });
-        }
-      },
+  initialize: async () => {
+    // Check for existing session
+    const { data } = await mysqlClient.auth.getSession();
+    
+    if (data.session) {
+      set({
+        session: data.session,
+        user: data.session.user || null,
+        isAuthenticated: !!data.session.user,
+      });
+    } else {
+      set({
+        session: null,
+        user: null,
+        isAuthenticated: false,
+      });
+    }
+  },
 
       login: async (email: string, password: string) => {
         const { data, error } = await mysqlClient.auth.signInWithPassword({

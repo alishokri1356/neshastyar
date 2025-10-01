@@ -133,7 +133,6 @@ const MeetingDetail = () => {
   useEffect(() => {
     if (!meetingId) return;
 
-    console.log('Setting up real-time subscription for meeting:', meetingId);
 
     const subscription = mysqlClient
       .channel(`meeting-updates-${meetingId}`) // Use unique channel name
@@ -146,31 +145,25 @@ const MeetingDetail = () => {
           filter: `id=eq.${meetingId}`
         },
         (payload) => {
-          console.log('🔥 Meeting updated in real-time:', payload);
-          console.log('🔥 Payload new:', payload.new);
           const updatedMeeting = payload.new as any;
           
           // Update the meeting state with new data
           setMeeting((prev: any) => {
-            console.log('🔥 Previous meeting state:', prev);
             const newState = {
               ...prev,
               summary: updatedMeeting.summary || '',
               status: updatedMeeting.status,
               title: updatedMeeting.title || prev.title
             };
-            console.log('🔥 New meeting state:', newState);
             return newState;
           });
           
           // Update summary in the textarea
           setSummary(updatedMeeting.summary || '');
           
-          console.log('🔥 Updated meeting state with status:', updatedMeeting.status);
           
           // Show notification when AI processing is complete
           if ((updatedMeeting.status === 'Need Review' || updatedMeeting.status === 'خلاصه شده') && updatedMeeting.summary) {
-            console.log('🔥 Showing completion toast for status:', updatedMeeting.status);
             toast({
               title: "خلاصه تولید شد",
               description: "خلاصه جلسه با موفقیت تولید شد و آماده بررسی است.",
@@ -179,11 +172,9 @@ const MeetingDetail = () => {
         }
       )
       .subscribe((status) => {
-        console.log('🔥 Subscription status:', status);
       });
 
     return () => {
-      console.log('🔥 Cleaning up real-time subscription for meeting:', meetingId);
       mysqlClient.removeChannel(subscription);
     };
   }, [meetingId, toast]);
@@ -402,11 +393,6 @@ const MeetingDetail = () => {
       const { data: { user } } = await mysqlClient.auth.getUser();
       const userEmail = user?.email || '';
       
-      console.log('Sending request to webhook with data:', { 
-        fileName: meeting.fileName, 
-        userEmail: userEmail,
-        meetingId: meeting.id
-      });
       
       // Try multiple approaches to ensure the request gets through
       const requestData = {
@@ -426,9 +412,7 @@ const MeetingDetail = () => {
           },
           body: JSON.stringify(requestData)
         });
-        console.log('no-cors request sent');
       } catch (e) {
-        console.log('no-cors failed, trying alternative');
       }
 
       // Approach 2: Try with dynamic image for GET request with query params
@@ -440,9 +424,7 @@ const MeetingDetail = () => {
         url.searchParams.append('userEmail', userEmail);
         url.searchParams.append('meetingId', meeting.id);
         img.src = url.toString();
-        console.log('Image request sent to:', url.toString());
       } catch (e) {
-        console.log('Image approach failed');
       }
 
       toast({

@@ -27,7 +27,5 @@ router.put('/:id', meetingController.updateMeeting);
 // DELETE /api/meetings/:id
 router.delete('/:id', meetingController.deleteMeeting);
 
-// POST /api/meetings/create-sample - Create sample meetings for testing
-router.post('/create-sample', meetingController.createSampleMeetings);
 
 module.exports = router;

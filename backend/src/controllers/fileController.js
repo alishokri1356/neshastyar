@@ -72,7 +72,6 @@ class FileController {
         filename: req.file.filename
       };
 
-      console.log('File uploaded successfully:', fileInfo);
 
       res.json({
         data: fileInfo,

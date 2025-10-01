@@ -32,29 +32,14 @@ const TagSelection = () => {
 
   const recordingData = location.state as { duration: number; audioBlob: Blob | null; fileName?: string } | null;
   
-  // Debug logging (only log once per component mount)
-  useEffect(() => {
-    console.log('TagSelection - Recording data received:', {
-      hasState: !!location.state,
-      duration: recordingData?.duration,
-      hasBlobData: !!recordingData?.audioBlob,
-      blobSize: recordingData?.audioBlob?.size
-    });
-
-    console.log('TagSelection - Full recording data:', recordingData);
-  }, []); // Empty dependency array to run only once
 
   // Fetch user's tags from database on component mount
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        console.log('TagSelection - Fetching user...');
         const { data: { session } } = await mysqlClient.auth.getSession();
         
-        console.log('TagSelection - Auth result:', { session: !!session });
-        
         if (!session) {
-          console.log('TagSelection - No authenticated user found');
           toast({
             title: "وارد نشده‌اید",
             description: "لطفاً برای مشاهده برچسب‌های خود وارد شوید",
@@ -64,20 +49,17 @@ const TagSelection = () => {
           return;
         }
 
-        console.log('TagSelection - Fetching tags for user:', session.user.id);
         const { data, error } = await mysqlClient
           .from('tags')
           .order('created_at', { ascending: false })
           .select('*');
 
-        console.log('TagSelection - Tags fetch result:', { data, error });
 
         if (error) {
           console.error('TagSelection - Tags fetch error:', error);
           
           // Check if it's an authentication error
           if (error.message?.includes('Access token required') || error.message?.includes('Unauthorized')) {
-            console.log('TagSelection - Authentication error, redirecting to login');
             navigate('/login');
             return;
           }
@@ -92,7 +74,6 @@ const TagSelection = () => {
 
         // Set fetched tags directly (they already have IDs)
         if (data && data.length > 0) {
-          console.log('TagSelection - Found tags:', data.length);
           const formattedTags = data.map(tag => ({
             id: tag.id,
             name: tag.name,
@@ -101,7 +82,6 @@ const TagSelection = () => {
           }));
           setTags(formattedTags);
         } else {
-          console.log('TagSelection - No tags found for user - this is normal for new users');
           setTags([]); // Explicitly set empty array - this is normal!
         }
       } catch (error) {
@@ -115,7 +95,6 @@ const TagSelection = () => {
             variant: "destructive",
           });
         } else if (error.message?.includes('Access token required') || error.message?.includes('Unauthorized')) {
-          console.log('TagSelection - Authentication error in catch, redirecting to login');
           navigate('/login');
         } else {
           toast({
@@ -270,9 +249,6 @@ const TagSelection = () => {
       }
 
       // Upload audio file to backend
-      console.log('🔧 Uploading audio file:', fileName);
-      console.log('🔧 Upload URL:', `${API_BASE_URL}/upload/audio`);
-      console.log('🔧 User ID:', user.id);
       
       const formData = new FormData();
       formData.append('audio', recordingData.audioBlob, fileName);
@@ -285,8 +261,7 @@ const TagSelection = () => {
         body: formData
       });
 
-      console.log('🔧 Upload response status:', uploadResponse.status);
-      clearInterval(progressInterval);
+           clearInterval(progressInterval);
       
       if (!uploadResponse.ok) {
         const uploadError = await uploadResponse.json();
@@ -298,13 +273,11 @@ const TagSelection = () => {
         return;
       }
 
-      const uploadResult = await uploadResponse.json();
-      console.log('🔧 File uploaded successfully:', uploadResult);
+           const uploadResult = await uploadResponse.json();
       
       setUploadProgress(100);
 
       // Create meeting in database
-      console.log('🔧 Saving meeting with duration:', recordingData.duration);
       
       // Generate title from filename (remove extension)
       const meetingTitle = fileName.replace(/\.(wav|mp3|m4a|ogg)$/i, '');
@@ -325,10 +298,7 @@ const TagSelection = () => {
           storage_type: 'local'
         });
 
-      console.log('🔧 Meeting saved:', meetingData);
-
-      if (meetingError) {
-        console.log('🔧 Meeting save error:', meetingError);
+           if (meetingError) {
         toast({
           title: "خطا در ذخیره جلسه",
           description: meetingError.message,
@@ -360,7 +330,6 @@ const TagSelection = () => {
 
       // Auto-trigger summary generation using the exact same method as MeetingDetail (WORKING METHOD)
       try {
-        console.log('=== AUTO-TRIGGERING SUMMARY GENERATION (MEETINGDETAIL METHOD) ===');
         
         // Update meeting status to "ارسال درخواست پردازش"
         const updateResult = await mysqlClient
@@ -374,11 +343,6 @@ const TagSelection = () => {
         // Get current user email
         const userEmail = user?.email || '';
         
-        console.log('Auto-triggering summary generation with data:', { 
-          fileName: fileName, 
-          userEmail: userEmail,
-          meetingId: meetingData.id
-        });
         
         // Try multiple approaches to ensure the request gets through (same as MeetingDetail)
         const requestData = {
@@ -397,9 +361,7 @@ const TagSelection = () => {
             },
             body: JSON.stringify(requestData)
           });
-          console.log('Auto-summary no-cors request sent');
         } catch (e) {
-          console.log('Auto-summary no-cors failed, trying alternative');
         }
 
         // Approach 2: Try with dynamic image for GET request with query params
@@ -410,12 +372,9 @@ const TagSelection = () => {
           url.searchParams.append('userEmail', userEmail);
           url.searchParams.append('meetingId', meetingData.id);
           img.src = url.toString();
-          console.log('Auto-summary image request sent to:', url.toString());
         } catch (e) {
-          console.log('Auto-summary image approach failed');
         }
 
-        console.log('=== AUTO-SUMMARY GENERATION TRIGGERED SUCCESSFULLY ===');
         
         toast({
           title: "تولید خلاصه آغاز شد",
@@ -439,10 +398,8 @@ const TagSelection = () => {
         description: "خلاصه جلسه پس از پردازش به ایمیل شما ارسال خواهد شد.",
       });
 
-      console.log('Navigating to home page...');
       navigate('/home');
-    } catch (error) {
-      console.error('🔧 Error saving meeting:', error);
+         } catch (error) {
       toast({
         title: "خطا",
         description: "ذخیره جلسه ناموفق بود",

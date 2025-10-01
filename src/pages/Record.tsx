@@ -64,13 +64,10 @@ const Record = () => {
 
       // Handle recording completion
       mediaRecorder.onstop = () => {
-        console.log('Recording stopped, chunks collected:', chunksRef.current.length);
         const audioBlob = chunksRef.current.length > 0 
           ? new Blob(chunksRef.current, { type: 'audio/wav' }) 
           : null;
         
-        console.log('Audio blob created:', audioBlob?.size || 'null');
-        console.log('Final duration captured:', recordingDuration);
         
         // Navigate to tag selection with recording data
         navigate('/tag-selection', { 

@@ -1,10 +1,6 @@
 // MySQL client wrapper that provides a database API
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-// Debug: Log the API URL being used
-console.log('🔧 API_BASE_URL:', API_BASE_URL);
-console.log('🔧 VITE_API_URL env var:', import.meta.env.VITE_API_URL);
-
 class MySQLClient {
   private session: { token: string; expiresAt: string } | null = null;
 
@@ -18,11 +14,9 @@ class MySQLClient {
 
   private getAuthHeaders() {
     if (!this.session) {
-      console.log('🔧 No session found for auth headers');
       return {};
     }
     const token = (this.session as any).access_token || this.session.token;
-    console.log('🔧 Auth headers with token:', token ? 'Present' : 'Missing');
     return {
       'Authorization': `Bearer ${token}`,
     };
@@ -191,19 +185,16 @@ class MySQLClient {
           url += `?${params.toString()}`;
         }
 
-        const authHeaders = this.getAuthHeaders();
-        console.log('🔧 Making request to:', url, 'with headers:', authHeaders);
-        const response = await fetch(url, {
-          headers: authHeaders,
-        });
+               const authHeaders = this.getAuthHeaders();
+               const response = await fetch(url, {
+                 headers: authHeaders,
+               });
 
-        const data = await response.json();
-        console.log('🔧 Response status:', response.status, 'data:', data);
+               const data = await response.json();
         
-        if (!response.ok) {
-          console.log('🔧 Request failed:', data);
-          return { data: null, error: data };
-        }
+               if (!response.ok) {
+                 return { data: null, error: data };
+               }
 
         // Backend returns array directly, not wrapped in { data: array }
         return { data, error: null };
@@ -252,23 +243,20 @@ class MySQLClient {
           return { data: null, error: { message: 'Table not supported' } };
         }
 
-        console.log('🔧 INSERT request to:', url, 'with data:', values);
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            ...this.getAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(values),
-        });
+               const response = await fetch(url, {
+                 method: 'POST',
+                 headers: {
+                   ...this.getAuthHeaders(),
+                   'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify(values),
+               });
 
-        const data = await response.json();
-        console.log('🔧 INSERT response status:', response.status, 'data:', data);
-        
-        if (!response.ok) {
-          console.log('🔧 INSERT request failed:', data);
-          return { data: null, error: data };
-        }
+               const data = await response.json();
+               
+               if (!response.ok) {
+                 return { data: null, error: data };
+               }
 
         return { data, error: null };
       },

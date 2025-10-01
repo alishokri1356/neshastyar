@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Modiryar is a comprehensive meeting management system that allows users to record, transcribe, and organize meetings with AI-powered summaries and tagging capabilities.
+Modiryar is a comprehensive meeting management system that allows users to record, transcribe, and organize meetings with AI-powered summaries and tagging capabilities. The system features a modern React frontend with a Node.js/Express backend, providing secure user authentication, email verification, and robust audio file management.
 
 ## Architecture
 
@@ -14,14 +14,18 @@ This project uses a **full-stack architecture** with:
 - **UI Library**: shadcn-ui components
 - **Styling**: Tailwind CSS
 - **State Management**: Custom stores with Zustand
+- **Data Fetching**: React Query for API calls and caching
 - **Port**: Dynamic (8080-8085)
+- **API Client**: Custom MySQL client wrapper (Supabase-compatible API)
 
 ### Backend (Node.js + Express)
 - **Framework**: Express.js
 - **Language**: JavaScript (Node.js)
-- **Database**: MySQL
-- **Authentication**: JWT tokens
+- **Database**: MySQL with mysql2 driver
+- **Authentication**: JWT tokens with email verification
 - **Email Service**: Nodemailer with Gmail SMTP
+- **File Upload**: Multer for audio file handling
+- **Security**: Helmet, CORS, rate limiting
 - **Port**: 3001
 
 ### Database
@@ -45,10 +49,12 @@ This project uses a **full-stack architecture** with:
 - **Persian Templates**: Beautiful RTL email templates
 
 ### 🎯 **Core Functionality**
-- **Meeting Recording**: Upload and manage audio files
+- **Meeting Recording**: Upload and manage audio files (MP3, WAV, OGG, WebM, M4A)
 - **AI Summarization**: Automatic meeting summaries
-- **Tag Management**: Organize meetings with custom tags
-- **User Management**: Secure user registration and login
+- **Tag Management**: Organize meetings with custom tags and colors
+- **User Management**: Secure user registration and login with email verification
+- **File Management**: Secure audio file storage with user isolation
+- **Real-time Updates**: Optimized data fetching with React Query
 
 ## Getting Started
 
@@ -119,15 +125,19 @@ npm run dev
 - **shadcn-ui**: Modern UI component library
 - **Tailwind CSS**: Utility-first CSS framework
 - **Zustand**: Lightweight state management
+- **React Query**: Data fetching, caching, and synchronization
+- **React Router**: Client-side routing
 
 ### Backend
 - **Express.js**: Web application framework
-- **MySQL2**: MySQL database driver
+- **MySQL2**: MySQL database driver with connection pooling
 - **JWT**: JSON Web Token authentication
 - **bcrypt**: Password hashing
-- **Nodemailer**: Email sending
+- **Nodemailer**: Email sending with Gmail SMTP
+- **Multer**: File upload handling
 - **Helmet**: Security middleware
 - **CORS**: Cross-origin resource sharing
+- **Express Rate Limit**: API rate limiting
 
 ## API Endpoints
 
@@ -144,10 +154,11 @@ npm run dev
 - `POST /api/auth/reset-password` - Reset password with token
 
 ### Meetings (Protected - Requires Email Verification)
-- `GET /api/meetings` - Get user's meetings
+- `GET /api/meetings` - Get user's meetings (with pagination and filtering)
 - `GET /api/meetings/untagged` - Get untagged meetings
 - `GET /api/meetings/:id` - Get specific meeting
 - `POST /api/meetings` - Create new meeting
+- `POST /api/meetings/create-sample` - Create sample meetings for testing
 - `PUT /api/meetings/:id` - Update meeting
 - `DELETE /api/meetings/:id` - Delete meeting
 
@@ -162,6 +173,11 @@ npm run dev
 - `GET /api/meeting-tags` - Get meeting-tag relationships
 - `POST /api/meeting-tags` - Create meeting-tag relationship
 - `DELETE /api/meeting-tags` - Remove meeting-tag relationship
+
+### File Upload (Protected - Requires Email Verification)
+- `POST /api/upload/audio` - Upload audio file (multipart/form-data, max 500MB)
+- `GET /api/files/audio/:userId/:filename` - Download audio file
+- `DELETE /api/files/audio/:userId/:filename` - Delete audio file
 
 ## Security Features
 
@@ -300,14 +316,43 @@ modiryar/
 └── README.md              # This file
 ```
 
-## How can I deploy this project?
+## Recent Updates & Fixes
 
-Simply open [Lovable](https://lovable.dev/projects/8fe9e635-58e4-4abd-a5bc-c99567287ceb) and click on Share -> Publish.
+### ✅ **Database Query Optimization (October 2025)**
+- **Fixed MySQL query execution**: Changed from `pool.execute()` to `pool.query()` to resolve `ER_WRONG_ARGUMENTS` errors
+- **Improved parameter handling**: Proper integer conversion for LIMIT clauses
+- **Enhanced error handling**: Better debugging and error reporting
 
-## Can I connect a custom domain to my Lovable project?
+### ✅ **Frontend Performance Improvements**
+- **Optimized data fetching**: Implemented React Query for efficient API calls and caching
+- **Reduced polling frequency**: Changed from 10-second to 30-second intervals for new meetings
+- **Improved user experience**: Better loading states and error handling
 
-Yes, you can!
+### ✅ **API Client Enhancement**
+- **Chainable query builder**: Implemented Supabase-compatible API for MySQL backend
+- **Better error handling**: Comprehensive error logging and debugging
+- **Type safety**: Improved TypeScript support for database operations
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Deployment
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Production Deployment
+The application is currently deployed on a VPS with the following configuration:
+- **Domain**: https://modiryar.teraxr.com
+- **Backend**: Node.js with PM2 process manager
+- **Frontend**: Static files served via Nginx
+- **Database**: MySQL on remote server
+- **File Storage**: Local filesystem with user isolation
+
+### Development Setup
+For local development, see the "Getting Started" section above.
+
+## Troubleshooting
+
+### Common Issues
+1. **Database Connection Errors**: Ensure MySQL server is running and credentials are correct
+2. **Email Verification Issues**: Check Gmail SMTP settings and app password
+3. **File Upload Errors**: Verify upload directory permissions and file size limits
+4. **Authentication Issues**: Ensure JWT secret is properly configured
+
+### Debug Mode
+Enable debug logging by setting `NODE_ENV=development` in the backend environment variables.

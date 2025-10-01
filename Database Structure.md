@@ -59,6 +59,21 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 **Status**: ✅ Migrations have been applied to the database
 
+### Migration 3: Database Query Optimization (October 2025)
+
+**Issue Fixed**: MySQL `ER_WRONG_ARGUMENTS` error when using `pool.execute()` with certain parameter types.
+
+**Solution Applied**:
+- Changed database query method from `pool.execute()` to `pool.query()` in `backend/src/config/database.js`
+- Improved parameter type handling for LIMIT clauses
+- Enhanced error logging and debugging
+
+**Files Modified**:
+- `backend/src/config/database.js` - Updated query method
+- `backend/src/services/meetingService.js` - Added debug logging and parameter validation
+
+**Status**: ✅ Database query optimization completed and deployed
+
 ---
 
 ## Table: `meeting_tags`
@@ -105,7 +120,7 @@ CREATE TABLE `meeting_tags` (
 
 ## Table: `meetings`
 
-**Row Count**: 0
+**Row Count**: 2 (as of October 1, 2025)
 
 ### Columns
 
@@ -279,7 +294,7 @@ CREATE TABLE `tags` (
 
 ## Table: `users`
 
-**Row Count**: 0
+**Row Count**: 1 (as of October 1, 2025)
 
 ### Columns
 
@@ -356,10 +371,11 @@ CREATE TABLE `users` (
 - `DELETE /api/files/audio/:userId/:filename` - Delete audio file
 
 ### Meeting Endpoints (Protected - Requires Email Verification)
-- `GET /api/meetings` - Get all user's meetings
+- `GET /api/meetings` - Get all user's meetings (with pagination and filtering)
 - `GET /api/meetings/untagged` - Get untagged meetings
 - `GET /api/meetings/:id` - Get specific meeting
 - `POST /api/meetings` - Create new meeting with audio metadata
+- `POST /api/meetings/create-sample` - Create sample meetings for testing
 - `PUT /api/meetings/:id` - Update meeting
 - `DELETE /api/meetings/:id` - Delete meeting
 
@@ -465,7 +481,7 @@ CREATE TABLE `users` (
 
 ---
 
-**Last Updated**: September 30, 2025  
-**Migration Status**: ✅ Audio storage fields added  
-**Version**: 2.0 (with audio file storage)
+**Last Updated**: October 1, 2025  
+**Migration Status**: ✅ Audio storage fields added, Database query optimization completed  
+**Version**: 2.1 (with audio file storage and query fixes)
 
