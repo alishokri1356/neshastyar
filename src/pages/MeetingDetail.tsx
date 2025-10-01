@@ -36,10 +36,20 @@ const MeetingDetail = () => {
   const { data: meetingData, isLoading: meetingLoading } = useQuery({
     queryKey: ['meeting', meetingId],
     queryFn: async () => {
-      if (!meetingId) return null;
+      if (!meetingId) {
+        console.log('🔍 No meetingId provided');
+        return null;
+      }
+      
+      console.log('🔍 Fetching meeting with ID:', meetingId);
       
       const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) return null;
+      if (!user) {
+        console.log('🔍 No user found');
+        return null;
+      }
+
+      console.log('🔍 User ID:', user.id);
 
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
@@ -47,6 +57,8 @@ const MeetingDetail = () => {
         .eq('id', meetingId)
         .eq('user_id', user.id)
         .single();
+
+      console.log('🔍 Meeting query result:', { meetingData, meetingError });
 
       if (meetingError) {
         console.error('Error fetching meeting:', meetingError);

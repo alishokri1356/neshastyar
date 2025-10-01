@@ -152,10 +152,12 @@ class MySQLClient {
           // Check if we're querying by ID (single meeting)
           if (queryOptions.eq?.id) {
             url = `${API_BASE_URL}/meetings/${queryOptions.eq.id}`;
+            console.log('🔍 Using ID route:', url);
             // Clear query options since we're using the ID in the URL
             queryOptions = {};
           } else {
             url = `${API_BASE_URL}/meetings`;
+            console.log('🔍 Using general route:', url);
           }
         } else if (table === 'tags') {
           url = `${API_BASE_URL}/tags`;
@@ -193,11 +195,14 @@ class MySQLClient {
         }
 
                const authHeaders = this.getAuthHeaders();
+               console.log('🔍 Making request to:', url, 'with headers:', authHeaders);
                const response = await fetch(url, {
                  headers: authHeaders,
                });
 
+               console.log('🔍 Response status:', response.status);
                const data = await response.json();
+               console.log('🔍 Response data:', data);
         
                if (!response.ok) {
                  return { data: null, error: data };
