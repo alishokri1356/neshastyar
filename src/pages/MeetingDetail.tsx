@@ -129,63 +129,15 @@ const MeetingDetail = () => {
     setLocalAllUserTags(allUserTags);
   }, [allUserTags]);
 
-  // Real-time subscription to listen for meeting updates
-  useEffect(() => {
-    if (!meetingId) return;
-
-
-    const subscription = mysqlClient
-      .channel(`meeting-updates-${meetingId}`) // Use unique channel name
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'meetings',
-          filter: `id=eq.${meetingId}`
-        },
-        (payload) => {
-          const updatedMeeting = payload.new as any;
-          
-          // Update the meeting state with new data
-          setMeeting((prev: any) => {
-            const newState = {
-              ...prev,
-              summary: updatedMeeting.summary || '',
-              status: updatedMeeting.status,
-              title: updatedMeeting.title || prev.title
-            };
-            return newState;
-          });
-          
-          // Update summary in the textarea
-          setSummary(updatedMeeting.summary || '');
-          
-          
-          // Show notification when AI processing is complete
-          if ((updatedMeeting.status === 'Need Review' || updatedMeeting.status === 'خلاصه شده') && updatedMeeting.summary) {
-            toast({
-              title: "خلاصه تولید شد",
-              description: "خلاصه جلسه با موفقیت تولید شد و آماده بررسی است.",
-            });
-          }
-        }
-      )
-      .subscribe((status) => {
-      });
-
-    return () => {
-      mysqlClient.removeChannel(subscription);
-    };
-  }, [meetingId, toast]);
+  // Note: Real-time subscriptions are not implemented in the MySQL client
+  // The component will rely on React Query's refetchInterval for updates
 
   const getAudioUrl = async (fileName: string, userId: string) => {
     try {
-      const { data } = await mysqlClient.storage
-        .from('meeting-audio')
-        .createSignedUrl(`${userId}/${fileName}`, 3600); // 1 hour expiry
-      
-      return data?.signedUrl || null;
+      // For now, return a direct URL to the audio file
+      // In a production environment, you might want to implement signed URLs
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      return `${API_BASE_URL}/audio/${userId}/${fileName}`;
     } catch (error) {
       console.error('Error getting audio URL:', error);
       return null;
