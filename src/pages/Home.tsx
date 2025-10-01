@@ -112,7 +112,7 @@ const Home = () => {
                  try {
                    // Fetch meeting tags directly with JOIN query
                    const { data: tags, error: tagError } = await mysqlClient
-                     .from('meeting-tags')
+                     .from('meeting_tags')
                      .select('*')
                      .eq('meeting_id', meeting.id);
 
@@ -161,7 +161,7 @@ const Home = () => {
           try {
             // Fetch meeting tags directly with JOIN query
             const { data: tags, error: tagError } = await mysqlClient
-              .from('meeting-tags')
+              .from('meeting_tags')
               .select('*')
               .eq('meeting_id', meeting.id);
 

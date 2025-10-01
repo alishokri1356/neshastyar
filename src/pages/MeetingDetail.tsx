@@ -68,7 +68,7 @@ const MeetingDetail = () => {
       if (meetingData) {
         // Fetch meeting tags directly with JOIN query
         const { data: tags, error: tagError } = await mysqlClient
-          .from('meeting-tags')
+          .from('meeting_tags')
           .select('*')
           .eq('meeting_id', meetingId);
 
@@ -339,7 +339,7 @@ const MeetingDetail = () => {
   };
 
   const handleAddExistingTag = async (tag: any) => {
-    const tagExists = meetingTags.some(t => t.id === tag.id);
+    const tagExists = meetingTags && meetingTags.some(t => t.id === tag.id);
     if (!tagExists) {
       try {
         const { error } = await mysqlClient
@@ -766,10 +766,10 @@ const MeetingDetail = () => {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {localAllUserTags
-                    .filter(tag => !meetingTags.some(mt => mt.id === tag.id))
+                    .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
                     .length > 0 ? (
                     localAllUserTags
-                      .filter(tag => !meetingTags.some(mt => mt.id === tag.id))
+                      .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
                       .map((tag) => (
                         <button
                           key={tag.id}
