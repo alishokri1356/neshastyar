@@ -66,19 +66,36 @@ const MeetingDetail = () => {
       }
 
       if (meetingData) {
-        // Fetch meeting tags
+        // Fetch meeting tags separately
         const { data: tagData, error: tagError } = await mysqlClient
           .from('meeting_tags')
-          .select(`
-            tags (
-              id,
-              name,
-              color
-            )
-          `)
+          .select('tag_id')
           .eq('meeting_id', meetingId);
 
-        const tags = tagData?.map(item => item.tags).filter(Boolean) || [];
+        console.log('🔍 Meeting tags data:', tagData, tagError);
+
+        let tags = [];
+        if (tagData && tagData.length > 0) {
+          // Fetch tag details for each tag_id individually
+          const tagPromises = tagData.map(async (item) => {
+            const { data: tagDetail, error: tagDetailError } = await mysqlClient
+              .from('tags')
+              .select('id, name, color')
+              .eq('id', item.tag_id)
+              .single();
+            
+            if (tagDetailError) {
+              console.error('Error fetching tag detail:', tagDetailError);
+              return null;
+            }
+            return tagDetail;
+          });
+
+          const tagDetails = await Promise.all(tagPromises);
+          tags = tagDetails.filter(Boolean);
+
+          console.log('🔍 Tag details:', tags);
+        }
 
         const transformedMeeting = {
           id: meetingData.id,
