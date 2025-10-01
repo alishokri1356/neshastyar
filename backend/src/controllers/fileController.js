@@ -6,7 +6,7 @@ const fs = require('fs').promises;
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const userId = req.user.sub;
-    const uploadDir = path.join(process.cwd(), 'backend/uploads/audio', userId);
+    const uploadDir = path.join(process.cwd(), 'uploads/audio', userId);
     
     try {
       // Create directory if it doesn't exist
@@ -100,7 +100,7 @@ class FileController {
         });
       }
 
-      const filePath = path.join(process.cwd(), 'backend/uploads/audio', userId, filename);
+      const filePath = path.join(process.cwd(), 'uploads/audio', userId, filename);
 
       // Check if file exists
       try {
@@ -160,21 +160,45 @@ class FileController {
         });
       }
 
-      const filePath = path.join(process.cwd(), 'backend/uploads/audio', userId, filename);
-      console.log('🔍 Constructed file path:', filePath);
+      const uploadDir = path.join(process.cwd(), 'uploads/audio', userId);
+      console.log('🔍 Upload directory:', uploadDir);
       console.log('🔍 process.cwd():', process.cwd());
 
-      // Check if file exists
+      // First try the exact filename
+      let filePath = path.join(uploadDir, filename);
+      console.log('🔍 Trying exact filename:', filePath);
+
       try {
         await fs.access(filePath);
         console.log('✅ File exists at:', filePath);
       } catch (error) {
-        console.log('❌ File not found at:', filePath);
-        console.log('❌ Error:', error.message);
-        return res.status(404).json({
-          error: 'File not found',
-          message: 'The requested audio file does not exist'
-        });
+        console.log('❌ Exact filename not found, searching for timestamped version...');
+        
+        // If exact filename not found, look for timestamped version
+        try {
+          const files = await fs.readdir(uploadDir);
+          console.log('🔍 Files in directory:', files);
+          
+          // Find file that ends with the requested filename
+          const matchingFile = files.find(file => file.endsWith(filename));
+          
+          if (matchingFile) {
+            filePath = path.join(uploadDir, matchingFile);
+            console.log('✅ Found timestamped file:', filePath);
+          } else {
+            console.log('❌ No matching file found');
+            return res.status(404).json({
+              error: 'File not found',
+              message: 'The requested audio file does not exist'
+            });
+          }
+        } catch (dirError) {
+          console.log('❌ Error reading directory:', dirError.message);
+          return res.status(404).json({
+            error: 'File not found',
+            message: 'The requested audio file does not exist'
+          });
+        }
       }
 
       // Stream the file
@@ -202,7 +226,7 @@ class FileController {
         });
       }
 
-      const filePath = path.join(process.cwd(), 'backend/uploads/audio', userId, filename);
+      const filePath = path.join(process.cwd(), 'uploads/audio', userId, filename);
 
       // Check if file exists and delete it
       try {
