@@ -1,6 +1,6 @@
 # Modiryar Backend API
 
-This is the standalone backend API for the Modiryar meeting management system, replacing the Supabase Edge Functions.
+This is the standalone backend API for the Modiryar meeting management system.
 
 ## Features
 

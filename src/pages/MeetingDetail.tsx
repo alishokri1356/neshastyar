@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-import { supabase } from '@/integrations/supabase/client';
+import { mysqlClient } from '@/lib/mysql-client';
 
 const MeetingDetail = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -38,10 +38,10 @@ const MeetingDetail = () => {
     queryFn: async () => {
       if (!meetingId) return null;
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) return null;
 
-      const { data: meetingData, error: meetingError } = await supabase
+      const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
         .select('*')
         .eq('id', meetingId)
@@ -55,7 +55,7 @@ const MeetingDetail = () => {
 
       if (meetingData) {
         // Fetch meeting tags
-        const { data: tagData, error: tagError } = await supabase
+        const { data: tagData, error: tagError } = await mysqlClient
           .from('meeting_tags')
           .select(`
             tags (
@@ -94,10 +94,10 @@ const MeetingDetail = () => {
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['user-tags'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) return [];
 
-      const { data: allTags, error: allTagsError } = await supabase
+      const { data: allTags, error: allTagsError } = await mysqlClient
         .from('tags')
         .select('*')
         .eq('user_id', user.id)
@@ -135,7 +135,7 @@ const MeetingDetail = () => {
 
     console.log('Setting up real-time subscription for meeting:', meetingId);
 
-    const subscription = supabase
+    const subscription = mysqlClient
       .channel(`meeting-updates-${meetingId}`) // Use unique channel name
       .on(
         'postgres_changes',
@@ -184,13 +184,13 @@ const MeetingDetail = () => {
 
     return () => {
       console.log('🔥 Cleaning up real-time subscription for meeting:', meetingId);
-      supabase.removeChannel(subscription);
+      mysqlClient.removeChannel(subscription);
     };
   }, [meetingId, toast]);
 
   const getAudioUrl = async (fileName: string, userId: string) => {
     try {
-      const { data } = await supabase.storage
+      const { data } = await mysqlClient.storage
         .from('meeting-audio')
         .createSignedUrl(`${userId}/${fileName}`, 3600); // 1 hour expiry
       
@@ -232,7 +232,7 @@ const MeetingDetail = () => {
 
   const handleSaveSummary = async () => {
     try {
-      const { error } = await supabase
+      const { error } = await mysqlClient
         .from('meetings')
         .update({ summary })
         .eq('id', meeting.id);
@@ -257,11 +257,11 @@ const MeetingDetail = () => {
   const handleAddTag = async () => {
     if (newTagName.trim()) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await mysqlClient.auth.getUser();
         if (!user) return;
 
         // Create new tag in database
-        const { data: newTag, error: tagError } = await supabase
+        const { data: newTag, error: tagError } = await mysqlClient
           .from('tags')
           .insert({
             name: newTagName.trim(),
@@ -274,7 +274,7 @@ const MeetingDetail = () => {
         if (tagError) throw tagError;
 
         // Link tag to meeting
-        const { error: linkError } = await supabase
+        const { error: linkError } = await mysqlClient
           .from('meeting_tags')
           .insert({
             meeting_id: meeting.id,
@@ -308,7 +308,7 @@ const MeetingDetail = () => {
 
   const handleRemoveTag = async (tagId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await mysqlClient
         .from('meeting_tags')
         .delete()
         .eq('meeting_id', meeting.id)
@@ -338,7 +338,7 @@ const MeetingDetail = () => {
     const tagExists = meetingTags.some(t => t.id === tag.id);
     if (!tagExists) {
       try {
-        const { error } = await supabase
+        const { error } = await mysqlClient
           .from('meeting_tags')
           .insert({
             meeting_id: meeting.id,
@@ -388,7 +388,7 @@ const MeetingDetail = () => {
   const handleAutoGenerateSummary = async () => {
     try {
       // Update meeting status to "ارسال درخواست پردازش"
-      const { error: statusError } = await supabase
+      const { error: statusError } = await mysqlClient
         .from('meetings')
         .update({ status: 'ارسال درخواست پردازش' })
         .eq('id', meeting.id);
@@ -399,7 +399,7 @@ const MeetingDetail = () => {
       setMeeting(prev => ({ ...prev, status: 'ارسال درخواست پردازش' }));
 
       // Get current user email
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       const userEmail = user?.email || '';
       
       console.log('Sending request to webhook with data:', { 
@@ -465,13 +465,13 @@ const MeetingDetail = () => {
     
     setIsDeleting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // Delete audio file from storage if it exists
       if (meeting.audioUrl) {
         const fileName = meeting.fileName.includes('.') ? meeting.fileName : `${meeting.fileName}.wav`;
-        const { error: storageError } = await supabase.storage
+        const { error: storageError } = await mysqlClient.storage
           .from('meeting-audio')
           .remove([`${user.id}/${fileName}`]);
         
@@ -481,7 +481,7 @@ const MeetingDetail = () => {
       }
 
       // Delete meeting_tags relationships
-      const { error: tagsError } = await supabase
+      const { error: tagsError } = await mysqlClient
         .from('meeting_tags')
         .delete()
         .eq('meeting_id', meeting.id);
@@ -489,7 +489,7 @@ const MeetingDetail = () => {
       if (tagsError) throw tagsError;
 
       // Delete meeting record
-      const { error: meetingError } = await supabase
+      const { error: meetingError } = await mysqlClient
         .from('meetings')
         .delete()
         .eq('id', meeting.id)
@@ -532,7 +532,7 @@ const MeetingDetail = () => {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await mysqlClient
         .from('meetings')
         .update({ title: editedTitle.trim() } as any)
         .eq('id', meeting.id);

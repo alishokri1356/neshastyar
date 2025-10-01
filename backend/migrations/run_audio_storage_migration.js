@@ -84,7 +84,7 @@ async function runMigration() {
     if (!existingColumns.includes('storage_type')) {
       await connection.execute(`
         ALTER TABLE meetings 
-        ADD COLUMN storage_type ENUM('local', 's3', 'supabase', 'other') DEFAULT 'local' COMMENT 'Storage location'
+        ADD COLUMN storage_type ENUM('local', 's3', 'other') DEFAULT 'local' COMMENT 'Storage location'
       `);
       console.log('✅ Added storage_type column');
     } else {

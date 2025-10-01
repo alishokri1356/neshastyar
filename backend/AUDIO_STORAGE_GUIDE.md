@@ -58,10 +58,10 @@ await s3.upload({
 - Requires AWS account
 - Network latency for uploads
 
-#### Option C: Supabase Storage (Good Alternative)
+#### Option C: Cloud Storage (Good Alternative)
 ```javascript
-// Use Supabase client
-await supabase.storage
+// Use cloud storage client
+await storageClient
   .from('meeting-audio')
   .upload(audioFilePath, audioBlob);
 ```
@@ -348,7 +348,7 @@ For 1000 users uploading 100MB files monthly:
 
 ## Recommended Solution
 
-**For Production**: Use **AWS S3** or **Supabase Storage**
+**For Production**: Use **AWS S3** or **Cloud Storage**
 **For Development**: Use **Local Filesystem**
 
 Start with local filesystem for development, then migrate to S3 for production.

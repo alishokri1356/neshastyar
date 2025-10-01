@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Calendar, FileText, Clock, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 
 const TagDetail = () => {
@@ -21,7 +21,7 @@ const TagDetail = () => {
     queryFn: async () => {
       if (!tagId) return null;
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) return null;
 
       // Handle untagged meetings case
@@ -34,7 +34,7 @@ const TagDetail = () => {
         };
 
         // Get all meetings for this user
-        const { data: allMeetings, error: meetingsError } = await supabase
+        const { data: allMeetings, error: meetingsError } = await mysqlClient
           .from('meetings')
           .select('*')
           .eq('user_id', user.id)
@@ -46,7 +46,7 @@ const TagDetail = () => {
         }
 
         // Get all meeting IDs that have tags
-        const { data: taggedMeetingIds, error: tagsError } = await supabase
+        const { data: taggedMeetingIds, error: tagsError } = await mysqlClient
           .from('meeting_tags')
           .select('meeting_id')
           .in('meeting_id', allMeetings?.map(m => m.id) || []);
@@ -76,7 +76,7 @@ const TagDetail = () => {
       } else {
         // Handle regular tag case
         // Fetch tag details
-        const { data: tagData, error: tagError } = await supabase
+        const { data: tagData, error: tagError } = await mysqlClient
           .from('tags')
           .select('*')
           .eq('id', tagId)
@@ -97,7 +97,7 @@ const TagDetail = () => {
           };
 
           // Fetch meetings associated with this tag
-          const { data: meetingsData, error: meetingsError } = await supabase
+          const { data: meetingsData, error: meetingsError } = await mysqlClient
             .from('meeting_tags')
               .select(`
                 meetings (
@@ -171,10 +171,10 @@ const TagDetail = () => {
     if (!tagId) return;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
+      const { error } = await mysqlClient
         .from('tags')
         .delete()
         .eq('id', tagId)

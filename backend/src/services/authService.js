@@ -38,7 +38,7 @@ class AuthService {
     return uuidv4();
   }
 
-  // Create session token (similar to Supabase session)
+  // Create session token
   createSession(user) {
     const token = this.generateToken({ 
       sub: user.id, 

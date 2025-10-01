@@ -1,4 +1,4 @@
-// MySQL client wrapper that mimics Supabase API
+// MySQL client wrapper that provides a database API
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 // Debug: Log the API URL being used

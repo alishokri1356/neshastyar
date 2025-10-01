@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { mysqlClient } from '@/lib/mysql-client';
 
 const DeleteConfirmation = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -23,13 +23,13 @@ const DeleteConfirmation = () => {
       if (!meetingId) return;
       
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await mysqlClient.auth.getUser();
         if (!user) {
           navigate('/login');
           return;
         }
 
-        const { data: meetingData, error } = await supabase
+        const { data: meetingData, error } = await mysqlClient
           .from('meetings')
           .select('*')
           .eq('id', meetingId)
@@ -59,13 +59,13 @@ const DeleteConfirmation = () => {
     
     setIsDeleting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // Delete audio file from storage if it exists
       if (meeting.audio_file_name) {
         const fileName = meeting.audio_file_name.includes('.') ? meeting.audio_file_name : `${meeting.audio_file_name}.wav`;
-        const { error: storageError } = await supabase.storage
+        const { error: storageError } = await mysqlClient.storage
           .from('meeting-audio')
           .remove([`${user.id}/${fileName}`]);
         
@@ -75,7 +75,7 @@ const DeleteConfirmation = () => {
       }
 
       // Delete meeting_tags relationships
-      const { error: tagsError } = await supabase
+      const { error: tagsError } = await mysqlClient
         .from('meeting_tags')
         .delete()
         .eq('meeting_id', meeting.id);
@@ -83,7 +83,7 @@ const DeleteConfirmation = () => {
       if (tagsError) throw tagsError;
 
       // Delete meeting record
-      const { error: meetingError } = await supabase
+      const { error: meetingError } = await mysqlClient
         .from('meetings')
         .delete()
         .eq('id', meeting.id)

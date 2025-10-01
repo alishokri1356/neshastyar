@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '@/integrations/supabase/client';
+import { mysqlClient } from '@/lib/mysql-client';
 
 export interface User {
   id: string;
@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
 
       initialize: async () => {
         // Check for existing session
-        const { data } = await supabase.auth.getSession();
+        const { data } = await mysqlClient.auth.getSession();
         
         if (data.session) {
           set({
@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       login: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await mysqlClient.auth.signInWithPassword({
           email,
           password,
         });
@@ -71,7 +71,7 @@ export const useAuthStore = create<AuthState>()(
           throw new Error('Passwords do not match');
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await mysqlClient.auth.signUp({
           email,
           password,
           options: {}
@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        await supabase.auth.signOut();
+        await mysqlClient.auth.signOut();
         set({
           user: null,
           session: null,

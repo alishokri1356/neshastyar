@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
-import { supabase } from '@/integrations/supabase/client';
+import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowRight, ChevronLeft, Tag } from 'lucide-react';
 
@@ -29,7 +29,7 @@ const TagList = () => {
         if (!user) return;
 
         // Fetch tags with meeting counts
-        const { data: tagsData, error: tagsError } = await supabase
+        const { data: tagsData, error: tagsError } = await mysqlClient
           .from('tags')
           .select(`
             id,
@@ -63,7 +63,7 @@ const TagList = () => {
 
         // Fetch untagged meetings count
         // Get all meetings for this user
-        const { data: allMeetings, error: meetingsError } = await supabase
+        const { data: allMeetings, error: meetingsError } = await mysqlClient
           .from('meetings')
           .select('id')
           .eq('user_id', user.id);
@@ -74,7 +74,7 @@ const TagList = () => {
         }
 
         // Get all meeting IDs that have tags
-        const { data: taggedMeetingIds, error: tagsCountError } = await supabase
+        const { data: taggedMeetingIds, error: tagsCountError } = await mysqlClient
           .from('meeting_tags')
           .select('meeting_id')
           .in('meeting_id', allMeetings?.map(m => m.id) || []);

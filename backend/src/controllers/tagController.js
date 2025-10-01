@@ -4,9 +4,19 @@ class TagController {
   // GET /api/tags
   async getTags(req, res) {
     try {
-      const userId = req.user.sub;
+      // Get user ID from JWT token or query parameter
+      const userId = req.user?.sub || req.query.user_id;
+      
+      if (!userId) {
+        return res.status(400).json({
+          error: 'User ID required',
+          message: 'User ID is required to fetch tags'
+        });
+      }
+
       const { withCount, orderBy, orderDirection } = req.query;
 
+      console.log('Fetching tags for user:', userId);
       let tags;
       if (withCount === 'true') {
         tags = await tagService.getTagsWithCount(userId);
@@ -16,6 +26,7 @@ class TagController {
         if (orderDirection) options.orderDirection = orderDirection;
         tags = await tagService.getTags(userId, options);
       }
+      console.log('Found tags:', tags.length);
 
       res.json(tags);
     } catch (error) {
