@@ -24,16 +24,18 @@ class MeetingService {
       params.push(options.status);
     }
 
-    if (options.limit) {
-      sql += ' LIMIT ?';
-      params.push(options.limit);
-    }
-
+    // Add ORDER BY clause (must come before LIMIT)
     if (options.orderBy) {
       const direction = options.orderDirection || 'DESC';
       sql += ` ORDER BY ${options.orderBy} ${direction}`;
     } else {
       sql += ' ORDER BY created_at DESC';
+    }
+
+    // Add LIMIT clause (must come after ORDER BY)
+    if (options.limit) {
+      sql += ' LIMIT ?';
+      params.push(options.limit);
     }
 
     return await db.query(sql, params);
