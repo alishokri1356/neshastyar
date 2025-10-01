@@ -66,9 +66,9 @@ const MeetingDetail = () => {
       }
 
       if (meetingData) {
-        // Fetch meeting tags separately
+        // Fetch meeting tags separately using the correct endpoint
         const { data: tagData, error: tagError } = await mysqlClient
-          .from('meeting_tags')
+          .from('meeting-tags')
           .select('tag_id')
           .eq('meeting_id', meetingId);
 

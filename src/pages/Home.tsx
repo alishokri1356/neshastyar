@@ -112,7 +112,7 @@ const Home = () => {
                  try {
                    // Fetch meeting tags
                    const { data: tagData, error: tagError } = await mysqlClient
-                     .from('meeting_tags')
+                     .from('meeting-tags')
                      .select('tag_id')
                      .eq('meeting_id', meeting.id);
 
@@ -182,7 +182,7 @@ const Home = () => {
           try {
             // Fetch meeting tags
             const { data: tagData, error: tagError } = await mysqlClient
-              .from('meeting_tags')
+              .from('meeting-tags')
               .select('tag_id')
               .eq('meeting_id', meeting.id);
 
