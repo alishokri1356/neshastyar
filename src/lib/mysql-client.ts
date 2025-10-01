@@ -149,7 +149,14 @@ class MySQLClient {
         let url = '';
         
         if (table === 'meetings') {
-          url = `${API_BASE_URL}/meetings`;
+          // Check if we're querying by ID (single meeting)
+          if (queryOptions.eq?.id && Object.keys(queryOptions.eq).length === 1) {
+            url = `${API_BASE_URL}/meetings/${queryOptions.eq.id}`;
+            // Clear query options since we're using the ID in the URL
+            queryOptions = {};
+          } else {
+            url = `${API_BASE_URL}/meetings`;
+          }
         } else if (table === 'tags') {
           url = `${API_BASE_URL}/tags`;
         } else if (table === 'meeting_tags') {
