@@ -35,8 +35,14 @@ class MeetingService {
     // Add LIMIT clause (must come after ORDER BY)
     if (options.limit) {
       sql += ' LIMIT ?';
-      params.push(parseInt(options.limit));
+      const limitValue = parseInt(options.limit);
+      console.log('🔧 DEBUG: options.limit =', options.limit, 'parsed =', limitValue, 'type =', typeof limitValue);
+      params.push(limitValue);
     }
+
+    console.log('🔧 DEBUG: Final SQL =', sql);
+    console.log('🔧 DEBUG: Final params =', params);
+    console.log('🔧 DEBUG: Params types =', params.map(p => typeof p));
 
     return await db.query(sql, params);
   }
