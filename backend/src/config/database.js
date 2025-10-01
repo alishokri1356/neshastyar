@@ -33,7 +33,8 @@ class Database {
 
   async query(sql, params = []) {
     try {
-      const [rows] = await this.pool.execute(sql, params);
+      // Use query() instead of execute() to avoid prepared statement issues
+      const [rows] = await this.pool.query(sql, params);
       return rows;
     } catch (error) {
       console.error('Database query error:', error);
