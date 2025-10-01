@@ -134,9 +134,16 @@ const MeetingDetail = () => {
 
   const getAudioUrl = async (fileName: string, userId: string) => {
     try {
-      // Return the correct backend route for audio files
+      // Get the current session token
+      const { data: { session } } = await mysqlClient.auth.getSession();
+      if (!session) {
+        console.error('No session found for audio access');
+        return null;
+      }
+
+      const token = session.access_token || session.token;
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      return `${API_BASE_URL}/files/audio/${userId}/${fileName}`;
+      return `${API_BASE_URL}/audio/${userId}/${fileName}?token=${token}`;
     } catch (error) {
       console.error('Error getting audio URL:', error);
       return null;

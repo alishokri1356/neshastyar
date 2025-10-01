@@ -123,6 +123,64 @@ class FileController {
     }
   }
 
+  // GET /api/audio/:userId/:filename - Public audio access with token
+  async getPublicAudio(req, res) {
+    try {
+      const { userId, filename } = req.params;
+      const token = req.query.token;
+
+      if (!token) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Access token required'
+        });
+      }
+
+      // Verify the token (simple approach - in production use proper JWT verification)
+      const jwt = require('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+      
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const requestingUserId = decoded.sub;
+
+        // Security check: users can only access their own files
+        if (userId !== requestingUserId) {
+          return res.status(403).json({
+            error: 'Access denied',
+            message: 'You can only access your own files'
+          });
+        }
+      } catch (jwtError) {
+        return res.status(401).json({
+          error: 'Invalid token',
+          message: 'Access token is invalid or expired'
+        });
+      }
+
+      const filePath = path.join(__dirname, '../../uploads/audio', userId, filename);
+
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        return res.status(404).json({
+          error: 'File not found',
+          message: 'The requested audio file does not exist'
+        });
+      }
+
+      // Stream the file
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error('Public audio retrieval error:', error);
+      res.status(500).json({
+        error: 'Failed to retrieve file',
+        message: error.message
+      });
+    }
+  }
+
   // DELETE /api/files/audio/:userId/:filename
   async deleteAudio(req, res) {
     try {

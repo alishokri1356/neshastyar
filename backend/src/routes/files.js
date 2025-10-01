@@ -15,6 +15,9 @@ router.post('/upload/audio', upload.single('audio'), FileController.uploadAudio)
 // Get audio file
 router.get('/files/audio/:userId/:filename', FileController.getAudio);
 
+// Get audio file (public access with token)
+router.get('/audio/:userId/:filename', FileController.getPublicAudio);
+
 // Delete audio file
 router.delete('/files/audio/:userId/:filename', FileController.deleteAudio);
 
