@@ -203,6 +203,7 @@ class MySQLClient {
           return { data: null, error: data };
         }
 
+        // Backend returns array directly, not wrapped in { data: array }
         return { data, error: null };
       },
 

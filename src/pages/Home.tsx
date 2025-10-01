@@ -107,6 +107,7 @@ const Home = () => {
 
       console.log('✅ Meetings fetched successfully:', meetingsData?.length || 0, 'meetings');
       console.log('🔧 Raw meetings data:', meetingsData);
+      console.log('🔧 meetingsData type:', typeof meetingsData, 'isArray:', Array.isArray(meetingsData));
       return meetingsData || [];
     },
     enabled: !!user,
@@ -182,6 +183,9 @@ const Home = () => {
   }, [initialMeetings, newMeetings]);
 
   const loading = tagsLoading || meetingsLoading;
+  
+  // Debug: Log the query results
+  console.log('🔧 Query results - initialMeetings:', initialMeetings, 'length:', initialMeetings?.length);
 
   const handleTagClick = (tagId: string) => {
     if (tagId === 'no-tags') {
