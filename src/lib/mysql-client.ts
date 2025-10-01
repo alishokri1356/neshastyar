@@ -85,10 +85,13 @@ class MySQLClient {
     },
 
     getSession: async () => {
+      console.log('🔍 getSession called, current session:', this.session);
       if (!this.session) {
+        console.log('🔍 No session in memory');
         return { data: { session: null }, error: null };
       }
 
+      console.log('🔍 Verifying session with backend...');
       const response = await fetch(`${API_BASE_URL}/auth/verify`, {
         method: 'POST',
         headers: {
@@ -97,12 +100,15 @@ class MySQLClient {
         },
       });
 
+      console.log('🔍 Verify response status:', response.status);
       if (!response.ok) {
+        console.log('🔍 Session verification failed');
         this.saveSession(null);
         return { data: { session: null }, error: null };
       }
 
       const data = await response.json();
+      console.log('🔍 Verify response data:', data);
       return { data: { session: data.data.session }, error: null };
     },
 
