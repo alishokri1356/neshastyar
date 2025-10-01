@@ -36,6 +36,9 @@ const Home = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
+  
+  // State for sorting
+  const [sortBy, setSortBy] = React.useState<'date' | 'tags'>('date');
 
   // Fetch tags once on load (no aggressive polling)
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
@@ -142,9 +145,9 @@ const Home = () => {
     staleTime: 0,
   });
 
-       // Merge initial meetings with new ones and group by date
-       const { meetings, meetingsByDate } = React.useMemo(() => {
-         if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {} };
+       // Merge initial meetings with new ones and group by date or tags
+       const { meetings, meetingsByDate, meetingsByTags } = React.useMemo(() => {
+         if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {}, meetingsByTags: {} };
          
          // Combine and deduplicate meetings
          const allMeetings = [...newMeetings, ...initialMeetings];
@@ -157,7 +160,7 @@ const Home = () => {
            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
          
          // Group by date
-         const grouped = sortedMeetings.reduce((acc, meeting) => {
+         const groupedByDate = sortedMeetings.reduce((acc, meeting) => {
            const date = new Date(meeting.meeting_date || meeting.created_at);
            const dateKey = date.toLocaleDateString('en-US', { 
              weekday: 'short', 
@@ -171,12 +174,40 @@ const Home = () => {
            acc[dateKey].push(meeting);
            return acc;
          }, {} as Record<string, DatabaseMeeting[]>);
+
+         // Group by tags
+         const groupedByTags = sortedMeetings.reduce((acc, meeting) => {
+           // Get tags for this meeting
+           const meetingTags = tags.filter(tag => 
+             tag.meeting_tags?.some((mt: any) => mt.meeting_id === meeting.id)
+           );
+           
+           if (meetingTags.length === 0) {
+             // Meetings without tags go to "بدون برچسب"
+             const noTagKey = 'بدون برچسب';
+             if (!acc[noTagKey]) {
+               acc[noTagKey] = [];
+             }
+             acc[noTagKey].push(meeting);
+           } else {
+             // Group by each tag
+             meetingTags.forEach(tag => {
+               if (!acc[tag.name]) {
+                 acc[tag.name] = [];
+               }
+               acc[tag.name].push(meeting);
+             });
+           }
+           
+           return acc;
+         }, {} as Record<string, DatabaseMeeting[]>);
          
          return { 
            meetings: sortedMeetings, 
-           meetingsByDate: grouped 
+           meetingsByDate: groupedByDate,
+           meetingsByTags: groupedByTags
          };
-       }, [initialMeetings, newMeetings]);
+       }, [initialMeetings, newMeetings, tags]);
 
   const loading = tagsLoading || meetingsLoading;
 
@@ -252,14 +283,32 @@ const Home = () => {
           <h2 className="text-3xl font-bold text-foreground">
              {user?.email?.split('@')[0]} خوش آمدید
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            جلسات شما در زیر نمایش داده شده است.
-          </p>
           
+          {/* Sorting Buttons */}
+          <div className="flex justify-center gap-2">
+            <Button
+              variant={sortBy === 'date' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSortBy('date')}
+              className="flex items-center gap-2"
+            >
+              <Calendar className="h-4 w-4" />
+              مرتب‌سازی بر اساس تاریخ
+            </Button>
+            <Button
+              variant={sortBy === 'tags' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSortBy('tags')}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              مرتب‌سازی بر اساس برچسب
+            </Button>
+          </div>
         </div>
 
-        {/* Meetings List - Grouped by Date */}
-       {Object.keys(meetingsByDate).length > 0 && (
+        {/* Meetings List - Grouped by Date or Tags */}
+       {Object.keys(sortBy === 'date' ? meetingsByDate : meetingsByTags).length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-foreground">جلسات</h3>
@@ -271,16 +320,16 @@ const Home = () => {
               </div>
             </div>
             
-            {Object.entries(meetingsByDate).map(([dateKey, dateMeetings]) => (
-              <div key={dateKey} className="space-y-3">
-                {/* Date Header */}
+            {Object.entries(sortBy === 'date' ? meetingsByDate : meetingsByTags).map(([groupKey, groupMeetings]) => (
+              <div key={groupKey} className="space-y-3">
+                {/* Group Header */}
                 <h4 className="text-sm font-medium text-muted-foreground px-2">
-                  {dateKey}
+                  {sortBy === 'date' ? groupKey : groupKey}
                 </h4>
                 
-                {/* Meetings for this date */}
+                {/* Meetings for this group */}
                 <div className="space-y-2">
-                  {dateMeetings.map((meeting) => {
+                  {groupMeetings.map((meeting) => {
                     const title = (meeting as any).title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
                     const duration = meeting.audio_duration || meeting.duration || 0;
                     const durationText = duration > 0 ? `${Math.round(duration / 60)} min` : '';
