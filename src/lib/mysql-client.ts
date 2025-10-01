@@ -7,8 +7,12 @@ class MySQLClient {
   constructor() {
     // Load session from localStorage
     const stored = localStorage.getItem('mysql_session');
+    console.log('🔍 Loading session from localStorage:', stored);
     if (stored) {
       this.session = JSON.parse(stored);
+      console.log('🔍 Session loaded:', this.session);
+    } else {
+      console.log('🔍 No session found in localStorage');
     }
   }
 
@@ -23,11 +27,14 @@ class MySQLClient {
   }
 
   private saveSession(session: { token: string; expiresAt: string } | null) {
+    console.log('🔍 Saving session:', session);
     this.session = session;
     if (session) {
       localStorage.setItem('mysql_session', JSON.stringify(session));
+      console.log('🔍 Session saved to localStorage');
     } else {
       localStorage.removeItem('mysql_session');
+      console.log('🔍 Session removed from localStorage');
     }
   }
 
