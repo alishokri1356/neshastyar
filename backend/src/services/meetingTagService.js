@@ -31,8 +31,8 @@ class MeetingTagService {
     const meetingSql = 'SELECT id FROM meetings WHERE id = ? AND user_id = ?';
     const tagSql = 'SELECT id FROM tags WHERE id = ? AND user_id = ?';
     
-    const [meetings] = await db.query(meetingSql, [meetingId, userId]);
-    const [tags] = await db.query(tagSql, [tagId, userId]);
+    const meetings = await db.query(meetingSql, [meetingId, userId]);
+    const tags = await db.query(tagSql, [tagId, userId]);
 
     if (meetings.length === 0) {
       throw new Error('Meeting not found or access denied');
@@ -44,7 +44,7 @@ class MeetingTagService {
 
     // Check if relationship already exists
     const existingSql = 'SELECT id FROM meeting_tags WHERE meeting_id = ? AND tag_id = ?';
-    const [existing] = await db.query(existingSql, [meetingId, tagId]);
+    const existing = await db.query(existingSql, [meetingId, tagId]);
 
     if (existing.length > 0) {
       throw new Error('Meeting-tag relationship already exists');
