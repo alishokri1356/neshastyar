@@ -66,41 +66,13 @@ const MeetingDetail = () => {
       }
 
       if (meetingData) {
-        // Fetch meeting tags separately using the correct endpoint
-        const { data: tagData, error: tagError } = await mysqlClient
+        // Fetch meeting tags directly with JOIN query
+        const { data: tags, error: tagError } = await mysqlClient
           .from('meeting-tags')
-          .select('tag_id')
+          .select('*')
           .eq('meeting_id', meetingId);
 
-        console.log('🔍 Meeting tags data:', tagData, tagError);
-
-        let tags = [];
-        if (tagData && tagData.length > 0) {
-          // Get unique tag IDs to avoid duplicates
-          const uniqueTagIds = [...new Set(tagData.map(item => item.tag_id))];
-          console.log('🔍 Unique tag IDs:', uniqueTagIds);
-          
-          // Fetch tag details for each unique tag_id
-          const tagPromises = uniqueTagIds.map(async (tagId) => {
-            const { data: tagDetail, error: tagDetailError } = await mysqlClient
-              .from('tags')
-              .select('id, name, color')
-              .eq('id', tagId)
-              .single();
-            
-            if (tagDetailError) {
-              console.error('Error fetching tag detail for ID:', tagId, tagDetailError);
-              return null;
-            }
-            console.log('🔍 Fetched tag detail for ID:', tagId, tagDetail);
-            return tagDetail;
-          });
-
-          const tagDetails = await Promise.all(tagPromises);
-          tags = tagDetails.filter(Boolean);
-
-          console.log('🔍 Final tag details:', tags);
-        }
+        console.log('🔍 Meeting tags data:', tags, tagError);
 
         const transformedMeeting = {
           id: meetingData.id,

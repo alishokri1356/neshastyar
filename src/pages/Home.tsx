@@ -110,32 +110,11 @@ const Home = () => {
              const meetingsWithTags = await Promise.all(
                (meetingsData || []).map(async (meeting) => {
                  try {
-                   // Fetch meeting tags
-                   const { data: tagData, error: tagError } = await mysqlClient
+                   // Fetch meeting tags directly with JOIN query
+                   const { data: tags, error: tagError } = await mysqlClient
                      .from('meeting-tags')
-                     .select('tag_id')
+                     .select('*')
                      .eq('meeting_id', meeting.id);
-
-                   let tags = [];
-                   if (tagData && tagData.length > 0) {
-                     // Fetch tag details for each tag_id
-                     const tagPromises = tagData.map(async (item) => {
-                       const { data: tagDetail, error: tagDetailError } = await mysqlClient
-                         .from('tags')
-                         .select('id, name, color')
-                         .eq('id', item.tag_id)
-                         .single();
-                       
-                       if (tagDetailError) {
-                         console.error('Error fetching tag detail:', tagDetailError);
-                         return null;
-                       }
-                       return tagDetail;
-                     });
-
-                     const tagDetails = await Promise.all(tagPromises);
-                     tags = tagDetails.filter(Boolean);
-                   }
 
                    return { ...meeting, tags };
                  } catch (error) {
@@ -180,32 +159,11 @@ const Home = () => {
       const meetingsWithTags = await Promise.all(
         (meetingsData || []).map(async (meeting) => {
           try {
-            // Fetch meeting tags
-            const { data: tagData, error: tagError } = await mysqlClient
+            // Fetch meeting tags directly with JOIN query
+            const { data: tags, error: tagError } = await mysqlClient
               .from('meeting-tags')
-              .select('tag_id')
+              .select('*')
               .eq('meeting_id', meeting.id);
-
-            let tags = [];
-            if (tagData && tagData.length > 0) {
-              // Fetch tag details for each tag_id
-              const tagPromises = tagData.map(async (item) => {
-                const { data: tagDetail, error: tagDetailError } = await mysqlClient
-                  .from('tags')
-                  .select('id, name, color')
-                  .eq('id', item.tag_id)
-                  .single();
-                
-                if (tagDetailError) {
-                  console.error('Error fetching tag detail:', tagDetailError);
-                  return null;
-                }
-                return tagDetail;
-              });
-
-              const tagDetails = await Promise.all(tagPromises);
-              tags = tagDetails.filter(Boolean);
-            }
 
             return { ...meeting, tags };
           } catch (error) {

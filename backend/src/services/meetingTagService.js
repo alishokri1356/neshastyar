@@ -4,16 +4,21 @@ const authService = require('./authService');
 class MeetingTagService {
   // Get meeting-tag relationships
   async getMeetingTags(userId, options = {}) {
-    let sql = 'SELECT * FROM meeting_tags WHERE 1=1';
+    let sql = `
+      SELECT tags.* 
+      FROM tags 
+      JOIN meeting_tags ON tags.id = meeting_tags.tag_id 
+      WHERE 1=1
+    `;
     const params = [];
 
     if (options.meeting_id) {
-      sql += ' AND meeting_id = ?';
+      sql += ' AND meeting_tags.meeting_id = ?';
       params.push(options.meeting_id);
     }
 
     if (options.tag_id) {
-      sql += ' AND tag_id = ?';
+      sql += ' AND meeting_tags.tag_id = ?';
       params.push(options.tag_id);
     }
 
