@@ -21,7 +21,7 @@ class MySQLClient {
       console.log('🔧 No session found for auth headers');
       return {};
     }
-    const token = this.session.access_token || this.session.token;
+    const token = (this.session as any).access_token || this.session.token;
     console.log('🔧 Auth headers with token:', token ? 'Present' : 'Missing');
     return {
       'Authorization': `Bearer ${token}`,
@@ -148,8 +148,10 @@ class MySQLClient {
 
   // Database methods
   from(table: string) {
-    const baseQuery = {
-      select: async (columns = '*', options: any = {}) => {
+    let queryOptions: any = {};
+
+    const executeQuery = async () => {
+      try {
         let url = '';
         
         if (table === 'meetings') {
@@ -164,25 +166,25 @@ class MySQLClient {
 
         const params = new URLSearchParams();
 
-        if (options.eq) {
-          Object.entries(options.eq).forEach(([key, value]) => {
+        if (queryOptions.eq) {
+          Object.entries(queryOptions.eq).forEach(([key, value]) => {
             params.append(key, String(value));
           });
         }
 
-        if (table === 'tags' && options.withCount) {
+        if (table === 'tags' && queryOptions.withCount) {
           params.append('withCount', 'true');
         }
 
-        if (options.orderBy) {
-          params.append('orderBy', options.orderBy);
-          if (options.orderDirection) {
-            params.append('orderDirection', options.orderDirection);
+        if (queryOptions.orderBy) {
+          params.append('orderBy', queryOptions.orderBy);
+          if (queryOptions.orderDirection) {
+            params.append('orderDirection', queryOptions.orderDirection);
           }
         }
 
-        if (options.limit) {
-          params.append('limit', String(options.limit));
+        if (queryOptions.limit) {
+          params.append('limit', String(queryOptions.limit));
         }
 
         if (params.toString()) {
@@ -205,62 +207,36 @@ class MySQLClient {
 
         // Backend returns array directly, not wrapped in { data: array }
         return { data, error: null };
-      },
+      } catch (error) {
+        return { data: null, error };
+      }
+    };
 
-      // Add support for .single() method
-      single: async () => {
-        const result = await baseQuery.select('*', {});
-        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-          return { data: result.data[0], error: null };
-        } else {
-          return { data: null, error: { message: 'No data found' } };
-        }
-      },
-
-      // Add support for .order() method
-      order: (column: string, options: { ascending?: boolean } = {}) => {
-        return {
-          ...baseQuery,
-          select: async (columns = '*', selectOptions: any = {}) => {
-            const orderOptions = {
-              ...selectOptions,
-              orderBy: column,
-              orderDirection: options.ascending ? 'ASC' : 'DESC'
-            };
-            return baseQuery.select(columns, orderOptions);
+    const baseQuery = {
+      select: (columns = '*') => {
+        const queryBuilder = {
+          eq: (column: string, value: any) => {
+            queryOptions.eq = { ...queryOptions.eq, [column]: value };
+            return queryBuilder;
+          },
+          order: (column: string, options: { ascending?: boolean } = {}) => {
+            queryOptions.orderBy = column;
+            queryOptions.orderDirection = options.ascending ? 'asc' : 'desc';
+            return queryBuilder;
+          },
+          limit: (count: number) => {
+            queryOptions.limit = count;
+            return queryBuilder;
+          },
+          single: async () => {
+            const result = await executeQuery();
+            return { data: result.data?.[0] || null, error: result.error };
+          },
+          then: (resolve: any, reject: any) => {
+            executeQuery().then(resolve, reject);
           }
         };
-      },
-
-      // Add support for .limit() method
-      limit: (count: number) => {
-        return {
-          ...baseQuery,
-          select: async (columns = '*', selectOptions: any = {}) => {
-            const limitOptions = {
-              ...selectOptions,
-              limit: count
-            };
-            return baseQuery.select(columns, limitOptions);
-          }
-        };
-      },
-
-      // Add support for .eq() method
-      eq: (column: string, value: any) => {
-        return {
-          ...baseQuery,
-          select: async (columns = '*', selectOptions: any = {}) => {
-            const eqOptions = {
-              ...selectOptions,
-              eq: {
-                ...selectOptions.eq,
-                [column]: value
-              }
-            };
-            return baseQuery.select(columns, eqOptions);
-          }
-        };
+        return queryBuilder;
       },
 
       insert: async (values: any) => {

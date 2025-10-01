@@ -82,33 +82,41 @@ const Home = () => {
   const { data: initialMeetings = [], isLoading: meetingsLoading } = useQuery({
     queryKey: ['meetings', user?.id, 'recent'],
     queryFn: async () => {
+      console.log('🔧 QUERYFN CALLED - user:', user?.id);
       if (!user) {
         console.log('❌ No user found for meetings query');
         return [];
       }
 
       console.log('🔍 Fetching meetings for user:', user.id);
-      const { data: meetingsData, error: meetingsError } = await mysqlClient
-        .from('meetings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      try {
+        const { data: meetingsData, error: meetingsError } = await mysqlClient
+          .from('meetings')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-      if (meetingsError) {
-        console.error('❌ Error fetching meetings:', meetingsError);
-        toast({
-          title: "خطا در بارگذاری جلسات",
-          description: meetingsError.message,
-          variant: "destructive",
-        });
-        throw meetingsError;
+        console.log('🔧 QUERYFN RESULT - data:', meetingsData, 'error:', meetingsError);
+
+        if (meetingsError) {
+          console.error('❌ Error fetching meetings:', meetingsError);
+          toast({
+            title: "خطا در بارگذاری جلسات",
+            description: meetingsError.message,
+            variant: "destructive",
+          });
+          throw meetingsError;
+        }
+
+        console.log('✅ Meetings fetched successfully:', meetingsData?.length || 0, 'meetings');
+        console.log('🔧 Raw meetings data:', meetingsData);
+        console.log('🔧 meetingsData type:', typeof meetingsData, 'isArray:', Array.isArray(meetingsData));
+        return meetingsData || [];
+      } catch (error) {
+        console.error('🔧 QUERYFN ERROR:', error);
+        throw error;
       }
-
-      console.log('✅ Meetings fetched successfully:', meetingsData?.length || 0, 'meetings');
-      console.log('🔧 Raw meetings data:', meetingsData);
-      console.log('🔧 meetingsData type:', typeof meetingsData, 'isArray:', Array.isArray(meetingsData));
-      return meetingsData || [];
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
