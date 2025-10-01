@@ -6,7 +6,7 @@ const fs = require('fs').promises;
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const userId = req.user.sub;
-    const uploadDir = path.join(__dirname, '../../uploads/audio', userId);
+    const uploadDir = path.join(process.cwd(), 'backend/uploads/audio', userId);
     
     try {
       // Create directory if it doesn't exist
@@ -100,7 +100,7 @@ class FileController {
         });
       }
 
-      const filePath = path.join(__dirname, '../../uploads/audio', userId, filename);
+      const filePath = path.join(process.cwd(), 'backend/uploads/audio', userId, filename);
 
       // Check if file exists
       try {
@@ -160,9 +160,9 @@ class FileController {
         });
       }
 
-      const filePath = path.join(__dirname, '../../uploads/audio', userId, filename);
+      const filePath = path.join(process.cwd(), 'backend/uploads/audio', userId, filename);
       console.log('🔍 Constructed file path:', filePath);
-      console.log('🔍 __dirname:', __dirname);
+      console.log('🔍 process.cwd():', process.cwd());
 
       // Check if file exists
       try {
@@ -202,7 +202,7 @@ class FileController {
         });
       }
 
-      const filePath = path.join(__dirname, '../../uploads/audio', userId, filename);
+      const filePath = path.join(process.cwd(), 'backend/uploads/audio', userId, filename);
 
       // Check if file exists and delete it
       try {
