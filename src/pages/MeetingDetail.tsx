@@ -134,10 +134,9 @@ const MeetingDetail = () => {
 
   const getAudioUrl = async (fileName: string, userId: string) => {
     try {
-      // For now, return a direct URL to the audio file
-      // In a production environment, you might want to implement signed URLs
+      // Return the correct backend route for audio files
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      return `${API_BASE_URL}/audio/${userId}/${fileName}`;
+      return `${API_BASE_URL}/files/audio/${userId}/${fileName}`;
     } catch (error) {
       console.error('Error getting audio URL:', error);
       return null;
