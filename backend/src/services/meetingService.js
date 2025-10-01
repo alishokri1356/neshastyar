@@ -35,7 +35,7 @@ class MeetingService {
     // Add LIMIT clause (must come after ORDER BY)
     if (options.limit) {
       sql += ' LIMIT ?';
-      params.push(options.limit);
+      params.push(parseInt(options.limit));
     }
 
     return await db.query(sql, params);
