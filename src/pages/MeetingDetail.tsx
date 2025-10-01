@@ -96,11 +96,37 @@ const MeetingDetail = () => {
       }
       return null;
     },
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes - no auto-refresh to avoid interrupting audio
     enabled: !!meetingId
+  });
+
+  // Separate query for status updates (with auto-refresh)
+  const { data: statusData } = useQuery({
+    queryKey: ['meeting-status', meetingId],
+    queryFn: async () => {
+      if (!meetingId) return null;
+      
+      const { data: { user } } = await mysqlClient.auth.getUser();
+      if (!user) return null;
+
+      const { data: meetingData, error: meetingError } = await mysqlClient
+        .from('meetings')
+        .select('status, summary')
+        .eq('id', meetingId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (meetingError || !meetingData) return null;
+      
+      return {
+        status: meetingData.status,
+        summary: meetingData.summary || ''
+      };
+    },
+    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchIntervalInBackground: true,
+    enabled: !!meetingId && !!meetingData
   });
 
   const { data: allUserTags = [] } = useQuery({
@@ -140,6 +166,13 @@ const MeetingDetail = () => {
   useEffect(() => {
     setLocalAllUserTags(allUserTags);
   }, [allUserTags]);
+
+  // Update summary when status data changes (for auto-refresh)
+  useEffect(() => {
+    if (statusData?.summary && statusData.summary !== summary) {
+      setSummary(statusData.summary);
+    }
+  }, [statusData?.summary]);
 
   // Note: Real-time subscriptions are not implemented in the MySQL client
   // The component will rely on React Query's refetchInterval for updates
@@ -576,8 +609,8 @@ const MeetingDetail = () => {
   })}
 </p>
               </div>
-              <Badge className={getStatusColor(meeting.status)}>
-                {meeting.status}
+              <Badge className={getStatusColor(statusData?.status || meeting?.status || '')}>
+                {statusData?.status || meeting?.status || ''}
               </Badge>
             </div>
           </CardHeader>
@@ -624,7 +657,7 @@ const MeetingDetail = () => {
           </CardHeader>
           <CardContent>
             <Textarea
-              value={summary}
+              value={statusData?.summary || summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="خلاصه جلسه را وارد کنید..."
               className="min-h-[200px] resize-none"
