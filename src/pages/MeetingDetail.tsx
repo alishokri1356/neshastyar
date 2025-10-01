@@ -76,25 +76,30 @@ const MeetingDetail = () => {
 
         let tags = [];
         if (tagData && tagData.length > 0) {
-          // Fetch tag details for each tag_id individually
-          const tagPromises = tagData.map(async (item) => {
+          // Get unique tag IDs to avoid duplicates
+          const uniqueTagIds = [...new Set(tagData.map(item => item.tag_id))];
+          console.log('🔍 Unique tag IDs:', uniqueTagIds);
+          
+          // Fetch tag details for each unique tag_id
+          const tagPromises = uniqueTagIds.map(async (tagId) => {
             const { data: tagDetail, error: tagDetailError } = await mysqlClient
               .from('tags')
               .select('id, name, color')
-              .eq('id', item.tag_id)
+              .eq('id', tagId)
               .single();
             
             if (tagDetailError) {
-              console.error('Error fetching tag detail:', tagDetailError);
+              console.error('Error fetching tag detail for ID:', tagId, tagDetailError);
               return null;
             }
+            console.log('🔍 Fetched tag detail for ID:', tagId, tagDetail);
             return tagDetail;
           });
 
           const tagDetails = await Promise.all(tagPromises);
           tags = tagDetails.filter(Boolean);
 
-          console.log('🔍 Tag details:', tags);
+          console.log('🔍 Final tag details:', tags);
         }
 
         const transformedMeeting = {

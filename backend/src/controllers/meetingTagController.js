@@ -13,6 +13,8 @@ class MeetingTagController {
 
       const meetingTags = await meetingTagService.getMeetingTags(userId, options);
 
+      console.log('🔍 Meeting tags for user:', userId, 'options:', options, 'result:', meetingTags);
+
       res.json(meetingTags);
     } catch (error) {
       console.error('Get meeting tags error:', error);
