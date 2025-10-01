@@ -150,7 +150,7 @@ class MySQLClient {
         
         if (table === 'meetings') {
           // Check if we're querying by ID (single meeting)
-          if (queryOptions.eq?.id && Object.keys(queryOptions.eq).length === 1) {
+          if (queryOptions.eq?.id) {
             url = `${API_BASE_URL}/meetings/${queryOptions.eq.id}`;
             // Clear query options since we're using the ID in the URL
             queryOptions = {};
