@@ -425,7 +425,7 @@ const MeetingDetail = () => {
       };
 
       // Approach 1: Try with no-cors first
-/*
+
       try {
         await fetch('https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
           method: 'POST',
@@ -437,8 +437,8 @@ const MeetingDetail = () => {
         });
       } catch (e) {
       }
-
-*/      // Approach 2: Try with dynamic image for GET request with query params
+/*
+      // Approach 2: Try with dynamic image for GET request with query params
       try {
         const img = new Image();
 //        const url = new URL('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
@@ -449,7 +449,7 @@ const MeetingDetail = () => {
         img.src = url.toString();
       } catch (e) {
       }
-
+*/
       toast({
         title: "درخواست تولید اتوماتیک خلاصه ارسال شد",
         description: "خلاصه جلسه پی از تکمیل به ایمیل شما ارسال خواهد شد.",
