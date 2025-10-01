@@ -275,6 +275,7 @@ class MySQLClient {
           return { data: null, error: { message: 'Table not supported' } };
         }
 
+        console.log('🔧 INSERT request to:', url, 'with data:', values);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -285,8 +286,10 @@ class MySQLClient {
         });
 
         const data = await response.json();
+        console.log('🔧 INSERT response status:', response.status, 'data:', data);
         
         if (!response.ok) {
+          console.log('🔧 INSERT request failed:', data);
           return { data: null, error: data };
         }
 
