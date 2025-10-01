@@ -106,7 +106,46 @@ const Home = () => {
                throw meetingsError;
              }
 
-             return meetingsData || [];
+             // Fetch tags for each meeting
+             const meetingsWithTags = await Promise.all(
+               (meetingsData || []).map(async (meeting) => {
+                 try {
+                   // Fetch meeting tags
+                   const { data: tagData, error: tagError } = await mysqlClient
+                     .from('meeting_tags')
+                     .select('tag_id')
+                     .eq('meeting_id', meeting.id);
+
+                   let tags = [];
+                   if (tagData && tagData.length > 0) {
+                     // Fetch tag details for each tag_id
+                     const tagPromises = tagData.map(async (item) => {
+                       const { data: tagDetail, error: tagDetailError } = await mysqlClient
+                         .from('tags')
+                         .select('id, name, color')
+                         .eq('id', item.tag_id)
+                         .single();
+                       
+                       if (tagDetailError) {
+                         console.error('Error fetching tag detail:', tagDetailError);
+                         return null;
+                       }
+                       return tagDetail;
+                     });
+
+                     const tagDetails = await Promise.all(tagPromises);
+                     tags = tagDetails.filter(Boolean);
+                   }
+
+                   return { ...meeting, tags };
+                 } catch (error) {
+                   console.error('Error fetching tags for meeting:', meeting.id, error);
+                   return { ...meeting, tags: [] };
+                 }
+               })
+             );
+
+             return meetingsWithTags;
            } catch (error) {
              throw error;
            }
@@ -137,7 +176,46 @@ const Home = () => {
         return [];
       }
 
-      return meetingsData || [];
+      // Fetch tags for each new meeting
+      const meetingsWithTags = await Promise.all(
+        (meetingsData || []).map(async (meeting) => {
+          try {
+            // Fetch meeting tags
+            const { data: tagData, error: tagError } = await mysqlClient
+              .from('meeting_tags')
+              .select('tag_id')
+              .eq('meeting_id', meeting.id);
+
+            let tags = [];
+            if (tagData && tagData.length > 0) {
+              // Fetch tag details for each tag_id
+              const tagPromises = tagData.map(async (item) => {
+                const { data: tagDetail, error: tagDetailError } = await mysqlClient
+                  .from('tags')
+                  .select('id, name, color')
+                  .eq('id', item.tag_id)
+                  .single();
+                
+                if (tagDetailError) {
+                  console.error('Error fetching tag detail:', tagDetailError);
+                  return null;
+                }
+                return tagDetail;
+              });
+
+              const tagDetails = await Promise.all(tagPromises);
+              tags = tagDetails.filter(Boolean);
+            }
+
+            return { ...meeting, tags };
+          } catch (error) {
+            console.error('Error fetching tags for meeting:', meeting.id, error);
+            return { ...meeting, tags: [] };
+          }
+        })
+      );
+
+      return meetingsWithTags;
     },
     enabled: !!user && initialMeetings.length > 0,
     refetchInterval: 30000, // Check for new meetings every 30 seconds
@@ -371,6 +449,30 @@ const Home = () => {
                                 )}
                               </div>
                               
+                              {/* Tags */}
+                              {meeting.tags && meeting.tags.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {meeting.tags.slice(0, 3).map((tag) => (
+                                    <span
+                                      key={tag.id}
+                                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border"
+                                      style={{ 
+                                        backgroundColor: `${tag.color}20`, 
+                                        borderColor: tag.color,
+                                        color: tag.color 
+                                      }}
+                                    >
+                                      {tag.name}
+                                    </span>
+                                  ))}
+                                  {meeting.tags.length > 3 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-muted-foreground border border-border">
+                                      +{meeting.tags.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
                               {/* Summary Points */}
                               {meeting.summary && (
                                 <div className="mt-2 space-y-1">
