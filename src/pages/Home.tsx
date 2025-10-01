@@ -106,6 +106,7 @@ const Home = () => {
       }
 
       console.log('✅ Meetings fetched successfully:', meetingsData?.length || 0, 'meetings');
+      console.log('🔧 Raw meetings data:', meetingsData);
       return meetingsData || [];
     },
     enabled: !!user,
@@ -144,6 +145,7 @@ const Home = () => {
 
   // Merge initial meetings with new ones and group by date
   const { meetings, meetingsByDate } = React.useMemo(() => {
+    console.log('🔧 Processing meetings - initialMeetings:', initialMeetings.length, 'newMeetings:', newMeetings.length);
     if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {} };
     
     // Combine and deduplicate meetings
@@ -172,6 +174,7 @@ const Home = () => {
       return acc;
     }, {} as Record<string, DatabaseMeeting[]>);
     
+    console.log('🔧 Final processed meetings:', sortedMeetings.length, 'grouped keys:', Object.keys(grouped));
     return { 
       meetings: sortedMeetings, 
       meetingsByDate: grouped 
@@ -300,6 +303,7 @@ const Home = () => {
         </div>
 
         {/* Meetings List - Grouped by Date */}
+        {console.log('🔧 Rendering check - meetingsByDate keys:', Object.keys(meetingsByDate), 'length:', Object.keys(meetingsByDate).length)}
         {Object.keys(meetingsByDate).length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
