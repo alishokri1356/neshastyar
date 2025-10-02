@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 const Record = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const MAX_FILE_SIZE_BYTES = 49 * 1024 * 1024; // 49 MB
+  // Remove file size limitation
   const {
     isRecording,
     isPaused,
@@ -119,14 +119,7 @@ const Record = () => {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     
-    if (file && file.size > MAX_FILE_SIZE_BYTES) {
-      toast({
-        title: "خطا در آپلود فایل",
-        description: "حجم فایل بیشتر از 50 مگابایت است. لطفاً فایل کوچکتری انتخاب کنید.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // File size check removed - no limitations
     
     // Define supported audio MIME types for mobile devices
     const supportedAudioTypes = [
