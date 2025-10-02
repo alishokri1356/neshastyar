@@ -51,8 +51,8 @@ const TagSelection = () => {
 
         const { data, error } = await mysqlClient
           .from('tags')
-          .order('created_at', { ascending: false })
-          .select('*');
+          .select('*')
+          .order('created_at', { ascending: false });
 
 
         if (error) {
