@@ -176,9 +176,9 @@ const Home = () => {
       return meetingsWithTags;
     },
     enabled: !!user && initialMeetings.length > 0,
-    refetchInterval: 30000, // Check for new meetings every 30 seconds
-    refetchIntervalInBackground: true,
-    staleTime: 0,
+    refetchInterval: 60000, // Reduce to 60 seconds
+    refetchIntervalInBackground: false, // Disable background refetching
+    staleTime: 2 * 60 * 1000, // 2 minutes stale time
   });
 
        // Merge initial meetings with new ones and group by date or tags

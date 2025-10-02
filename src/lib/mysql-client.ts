@@ -109,6 +109,11 @@ class MySQLClient {
 
       console.log('🔍 Verify response status:', response.status);
       if (!response.ok) {
+        // Don't clear session on rate limit errors (429)
+        if (response.status === 429) {
+          console.log('🔍 Rate limit hit, keeping session');
+          return { data: { session: this.session }, error: null };
+        }
         console.log('🔍 Session verification failed');
         this.saveSession(null);
         return { data: { session: null }, error: null };
@@ -133,6 +138,11 @@ class MySQLClient {
       });
 
       if (!response.ok) {
+        // Don't clear session on rate limit errors (429)
+        if (response.status === 429) {
+          console.log('🔍 Rate limit hit in getUser, keeping session');
+          return { data: { user: this.session?.user || null }, error: null };
+        }
         this.saveSession(null);
         return { data: { user: null }, error: null };
       }

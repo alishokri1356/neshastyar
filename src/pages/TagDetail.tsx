@@ -137,10 +137,10 @@ const TagDetail = () => {
       }
       return null;
     },
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchInterval: 30000, // Reduce to 30 seconds
+    refetchIntervalInBackground: false, // Disable background refetching
+    refetchOnWindowFocus: false, // Disable refetch on window focus
+    staleTime: 5 * 60 * 1000, // 5 minutes stale time
     enabled: !!tagId,
   });
 

@@ -118,8 +118,8 @@ const MeetingDetail = () => {
         summary: meetingData.summary || ''
       };
     },
-    refetchInterval: 10000, // Refresh every 10 seconds
-    refetchIntervalInBackground: true,
+    refetchInterval: 30000, // Reduce to 30 seconds
+    refetchIntervalInBackground: false, // Disable background refetching
     enabled: !!meetingId && !!meetingData
   });
 
@@ -141,10 +141,10 @@ const MeetingDetail = () => {
       }
       return allTags || [];
     },
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0
+    refetchInterval: 30000, // Reduce to 30 seconds
+    refetchIntervalInBackground: false, // Disable background refetching
+    refetchOnWindowFocus: false, // Disable refetch on window focus
+    staleTime: 5 * 60 * 1000, // 5 minutes stale time
   });
 
   // Update local states when data changes
