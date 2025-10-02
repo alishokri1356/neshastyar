@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useAuthStore } from "@/store/useAuthStore";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
@@ -45,21 +46,57 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public routes - accessible without authentication */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/tag/:tagId" element={<TagDetail />} />
-            <Route path="/meeting/:meetingId" element={<MeetingDetail />} />
-            <Route path="/meeting/:meetingId/delete" element={<DeleteConfirmation />} />
-            <Route path="/record" element={<Record />} />
-            <Route path="/tag-selection" element={<TagSelection />} />
-            <Route path="/meetings/untagged" element={<UntaggedMeetings />} />
-            <Route path="/tags" element={<TagList />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Protected routes - require authentication */}
+            <Route path="/home" element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            } />
+            <Route path="/tag/:tagId" element={
+              <ProtectedRoute>
+                <TagDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/meeting/:meetingId" element={
+              <ProtectedRoute>
+                <MeetingDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/meeting/:meetingId/delete" element={
+              <ProtectedRoute>
+                <DeleteConfirmation />
+              </ProtectedRoute>
+            } />
+            <Route path="/record" element={
+              <ProtectedRoute>
+                <Record />
+              </ProtectedRoute>
+            } />
+            <Route path="/tag-selection" element={
+              <ProtectedRoute>
+                <TagSelection />
+              </ProtectedRoute>
+            } />
+            <Route path="/meetings/untagged" element={
+              <ProtectedRoute>
+                <UntaggedMeetings />
+              </ProtectedRoute>
+            } />
+            <Route path="/tags" element={
+              <ProtectedRoute>
+                <TagList />
+              </ProtectedRoute>
+            } />
+            
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
