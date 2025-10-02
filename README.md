@@ -219,7 +219,7 @@ The application connects to a MySQL database with the following configuration:
 - **Host**: 195.248.240.30
 - **Database**: modiryar
 - **User**: modiryar_app
-- **Password**: Terraworld2020
+- **Password**: MY-PASSWORD
 - **Port**: 3306
 
 ### Database Schema Documentation
@@ -261,7 +261,7 @@ DB_HOST=195.248.240.30
 DB_PORT=3306
 DB_NAME=modiryar
 DB_USER=modiryar_app
-DB_PASSWORD=Terraworld2020
+DB_PASSWORD=MY-PASSWORD
 
 # Server Configuration
 PORT=3001

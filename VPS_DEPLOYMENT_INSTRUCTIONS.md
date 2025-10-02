@@ -3,7 +3,7 @@
 ## Server Information
 - **IP**: 195.248.240.30
 - **Username**: root
-- **Password**: Terraworld2020
+- **Password**: MY-PASSWORD
 - **Directory**: /var/www/modiryar.online
 
 ---
@@ -53,7 +53,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
    - Use PuTTY, Terminal, or any SSH client
    - Host: 195.248.240.30
    - Username: root
-   - Password: Terraworld2020
+   - Password: MY-PASSWORD
 
 3. **Run the deployment script:**
    ```bash
@@ -78,7 +78,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 1. **SSH into VPS:**
    ```bash
    ssh root@195.248.240.30
-   # Password: Terraworld2020
+   # Password: MY-PASSWORD
    ```
 
 2. **Navigate to project directory:**

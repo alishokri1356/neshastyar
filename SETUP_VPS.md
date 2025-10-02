@@ -3,7 +3,7 @@
 ## Server Information
 - **IP**: 195.248.240.30
 - **Username**: root
-- **Password**: Terraworld2020
+- **Password**: MY-PASSWORD
 - **GitHub Repo**: https://github.com/alishokri1356/modiryar.git
 
 ---
@@ -14,7 +14,7 @@
 
 ```bash
 ssh root@195.248.240.30
-# Password: Terraworld2020
+# Password: MY-PASSWORD
 ```
 
 ### Step 2: Create directory and clone project

@@ -32,7 +32,7 @@ SSH to your VPS and run the deployment script:
 ```bash
 # SSH to VPS
 ssh root@195.248.240.30
-# Password: Terraworld2020
+# Password: MY-PASSWORD
 
 # Navigate to project
 cd /root/modiryar
