@@ -319,7 +319,11 @@ class FileController {
 
       // Set appropriate headers for file download
       const fileName = meeting.audio_file_name || `meeting-${meetingId}.${meeting.audio_format?.split('/')[1] || 'ogg'}`;
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      
+      // Sanitize filename to prevent invalid characters in headers
+      const sanitizedFileName = fileName.replace(/[^\w\-_.]/g, '_');
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
       res.setHeader('Content-Type', meeting.audio_format || 'application/octet-stream');
       
       if (meeting.audio_file_size) {
