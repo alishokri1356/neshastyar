@@ -82,12 +82,29 @@ const DeleteConfirmation = () => {
       }
 
       // Delete meeting_tags relationships
-      const { error: tagsError } = await mysqlClient
+      // First, get all meeting-tag relationships for this meeting
+      const { data: meetingTags, error: fetchTagsError } = await mysqlClient
         .from('meeting_tags')
-        .delete()
+        .select('*')
         .eq('meeting_id', meeting.id);
 
-      if (tagsError) throw tagsError;
+      if (fetchTagsError) {
+        console.error('Error fetching meeting tags:', fetchTagsError);
+      } else if (meetingTags && meetingTags.length > 0) {
+        // Delete each relationship individually
+        for (const meetingTag of meetingTags) {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meeting-tags?meeting_id=${meeting.id}&tag_id=${meetingTag.tag_id}`, {
+            method: 'DELETE',
+            headers: {
+              ...mysqlClient.getAuthHeaders(),
+            },
+          });
+          
+          if (!response.ok) {
+            console.error('Error deleting meeting-tag relationship:', response.statusText);
+          }
+        }
+      }
 
       // Delete meeting record
       const { error: meetingError } = await mysqlClient
