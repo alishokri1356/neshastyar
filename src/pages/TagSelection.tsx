@@ -309,22 +309,23 @@ const TagSelection = () => {
 
       // Create meeting-tag relationships
       if (selectedTags.length > 0) {
-        const meetingTagsData = selectedTags.map(tag => ({
-          meeting_id: meetingData.id,
-          tag_id: tag.id
-        }));
+        // Create relationships one by one since backend expects single relationship per request
+        for (const tag of selectedTags) {
+          const { error: tagsError } = await mysqlClient
+            .from('meeting_tags')
+            .insert({
+              meeting_id: meetingData.id,
+              tag_id: tag.id
+            });
 
-        const { error: tagsError } = await mysqlClient
-          .from('meeting_tags')
-          .insert(meetingTagsData);
-
-        if (tagsError) {
-          toast({
-            title: "خطا در پیوند برچسب‌ها",
-            description: tagsError.message,
-            variant: "destructive",
-          });
-          return;
+          if (tagsError) {
+            toast({
+              title: "خطا در پیوند برچسب‌ها",
+              description: tagsError.message,
+              variant: "destructive",
+            });
+            return;
+          }
         }
       }
 
