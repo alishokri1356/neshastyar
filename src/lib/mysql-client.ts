@@ -16,7 +16,7 @@ class MySQLClient {
     }
   }
 
-  private getAuthHeaders() {
+  public getAuthHeaders() {
     if (!this.session) {
       return {};
     }

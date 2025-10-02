@@ -64,13 +64,20 @@ const DeleteConfirmation = () => {
 
       // Delete audio file from storage if it exists
       if (meeting.audio_file_name) {
-        const fileName = meeting.audio_file_name.includes('.') ? meeting.audio_file_name : `${meeting.audio_file_name}.wav`;
-        const { error: storageError } = await mysqlClient.storage
-          .from('meeting-audio')
-          .remove([`${user.id}/${fileName}`]);
-        
-        if (storageError) {
-          console.error('Error deleting audio file:', storageError);
+        try {
+          // Use the backend API to delete the audio file
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/files/audio/${user.id}/${meeting.audio_file_name}`, {
+            method: 'DELETE',
+            headers: {
+              ...mysqlClient.getAuthHeaders(),
+            },
+          });
+          
+          if (!response.ok) {
+            console.error('Error deleting audio file:', response.statusText);
+          }
+        } catch (error) {
+          console.error('Error deleting audio file:', error);
         }
       }
 
