@@ -177,8 +177,7 @@ const TagDetail = () => {
       const { error } = await mysqlClient
         .from('tags')
         .delete()
-        .eq('id', tagId)
-        .eq('user_id', user.id);
+        .eq('id', tagId);
 
       if (error) {
         toast({

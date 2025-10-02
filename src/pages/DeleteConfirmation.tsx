@@ -62,25 +62,6 @@ const DeleteConfirmation = () => {
       const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Delete audio file from storage if it exists
-      if (meeting.audio_file_name) {
-        try {
-          // Use the backend API to delete the audio file
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/files/audio/${user.id}/${meeting.audio_file_name}`, {
-            method: 'DELETE',
-            headers: {
-              ...mysqlClient.getAuthHeaders(),
-            },
-          });
-          
-          if (!response.ok) {
-            console.error('Error deleting audio file:', response.statusText);
-          }
-        } catch (error) {
-          console.error('Error deleting audio file:', error);
-        }
-      }
-
       // Delete meeting_tags relationships
       // First, get all meeting-tag relationships for this meeting
       const { data: meetingTags, error: fetchTagsError } = await mysqlClient
@@ -110,14 +91,13 @@ const DeleteConfirmation = () => {
       const { error: meetingError } = await mysqlClient
         .from('meetings')
         .delete()
-        .eq('id', meeting.id)
-        .eq('user_id', user.id);
+        .eq('id', meeting.id);
 
       if (meetingError) throw meetingError;
 
       toast({
         title: "جلسه حذف شد",
-        description: "جلسه و فایل صوتی آن با موفقیت حذف شد.",
+        description: "جلسه با موفقیت حذف شد.",
       });
 
       // Navigate back to home

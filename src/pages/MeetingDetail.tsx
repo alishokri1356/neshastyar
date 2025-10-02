@@ -312,13 +312,17 @@ const MeetingDetail = () => {
 
   const handleRemoveTag = async (tagId: string) => {
     try {
-      const { error } = await mysqlClient
-        .from('meeting_tags')
-        .delete()
-        .eq('meeting_id', meeting.id)
-        .eq('tag_id', tagId);
+      // Delete meeting-tag relationship using direct API call
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meeting-tags?meeting_id=${meeting.id}&tag_id=${tagId}`, {
+        method: 'DELETE',
+        headers: {
+          ...mysqlClient.getAuthHeaders(),
+        },
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to delete meeting-tag relationship');
+      }
 
       const updatedTags = meetingTags.filter(tag => tag.id !== tagId);
       setMeetingTags(updatedTags);
@@ -473,25 +477,6 @@ const MeetingDetail = () => {
       const { data: { user } } = await mysqlClient.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Delete audio file from storage if it exists
-      if (meeting.audioUrl) {
-        try {
-          // Use the backend API to delete the audio file
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/files/audio/${user.id}/${meeting.fileName}`, {
-            method: 'DELETE',
-            headers: {
-              ...mysqlClient.getAuthHeaders(),
-            },
-          });
-          
-          if (!response.ok) {
-            console.error('Error deleting audio file:', response.statusText);
-          }
-        } catch (error) {
-          console.error('Error deleting audio file:', error);
-        }
-      }
-
       // Delete meeting_tags relationships
       // First, get all meeting-tag relationships for this meeting
       const { data: meetingTags, error: fetchTagsError } = await mysqlClient
@@ -521,14 +506,13 @@ const MeetingDetail = () => {
       const { error: meetingError } = await mysqlClient
         .from('meetings')
         .delete()
-        .eq('id', meeting.id)
-        .eq('user_id', user.id);
+        .eq('id', meeting.id);
 
       if (meetingError) throw meetingError;
 
       toast({
         title: "جلسه حذف شد",
-        description: "جلسه و فایل صوتی مربوط به آن با موفقیت حذف شد.",
+        description: "جلسه با موفقیت حذف شد.",
       });
 
       // Navigate back to home
