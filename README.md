@@ -242,7 +242,7 @@ The application uses Gmail SMTP for email confirmation functionality with the fo
 - **SMTP Port**: 587
 - **SMTP User**: shokriali@gmail.com
 - **SMTP Password**: orslxvkgfzqfpgjx (Gmail App Password)
-- **Frontend URL**: https://modiryar.teraxr.com
+- **Frontend URL**: https://modiryar.online
 
 ### Email Setup Notes
 
@@ -283,7 +283,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=shokriali@gmail.com
 SMTP_PASS=orslxvkgfzqfpgjx
-FRONTEND_URL=https://modiryar.teraxr.com
+FRONTEND_URL=https://modiryar.online
 ```
 
 ## Development
@@ -351,7 +351,7 @@ modiryar/
 
 ### Production Deployment
 The application is currently deployed on a VPS with the following configuration:
-- **Domain**: https://modiryar.teraxr.com
+- **Domain**: https://modiryar.online
 - **Backend**: Node.js with PM2 process manager
 - **Frontend**: Static files served via Nginx
 - **Database**: MySQL on remote server

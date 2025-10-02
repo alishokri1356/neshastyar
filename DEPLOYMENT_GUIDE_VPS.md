@@ -82,7 +82,7 @@ mysql -h 195.248.240.30 -u root -p modiryar
 ssh root@195.248.240.30
 
 # Navigate to your application directory
-cd /var/www/modiryar.teraxr.com
+cd /var/www/modiryar.online
 
 # Create the backend directory structure if not exists
 mkdir -p backend/uploads/audio
@@ -200,7 +200,7 @@ git push origin main
 ssh root@195.248.240.30
 
 # 3. Navigate to your app directory
-cd /var/www/modiryar.teraxr.com
+cd /var/www/modiryar.online
 
 # 4. Pull latest changes
 git pull origin main
@@ -239,7 +239,7 @@ ssh root@195.248.240.30
 npm install -g pm2
 
 # Navigate to backend directory
-cd /var/www/modiryar.teraxr.com/backend
+cd /var/www/modiryar.online/backend
 
 # Start backend with PM2
 pm2 start src/server.js --name modiryar-backend
@@ -270,14 +270,14 @@ If you're using Nginx as a reverse proxy:
 # /etc/nginx/sites-available/modiryar
 server {
     listen 80;
-    server_name modiryar.teraxr.com;
+    server_name modiryar.online;
 
     # Increase upload size limit for large audio files
     client_max_body_size 500M;
     
     # Frontend
     location / {
-        root /var/www/modiryar.teraxr.com/dist;
+        root /var/www/modiryar.online/dist;
         try_files $uri $uri/ /index.html;
     }
 
@@ -300,7 +300,7 @@ server {
 
     # Serve uploaded audio files (optional - for direct access)
     location /uploads/ {
-        alias /var/www/modiryar.teraxr.com/backend/uploads/;
+        alias /var/www/modiryar.online/backend/uploads/;
         
         # Security: Only authenticated users should access
         # You might want to proxy through backend for auth check
@@ -329,7 +329,7 @@ Since you're storing large files (100MB+), monitor your disk space:
 df -h
 
 # Check uploads directory size
-du -sh /var/www/modiryar.teraxr.com/backend/uploads/
+du -sh /var/www/modiryar.online/backend/uploads/
 
 # Set up automatic disk monitoring (optional)
 # Install and configure monitoring tools like:
@@ -349,7 +349,7 @@ Important for production:
 cat > /usr/local/bin/backup-modiryar-audio.sh << 'EOF'
 #!/bin/bash
 BACKUP_DIR="/backup/modiryar/audio"
-SOURCE_DIR="/var/www/modiryar.teraxr.com/backend/uploads/audio"
+SOURCE_DIR="/var/www/modiryar.online/backend/uploads/audio"
 DATE=$(date +%Y-%m-%d)
 
 mkdir -p "$BACKUP_DIR"
@@ -450,13 +450,13 @@ modiryar/
 whoami
 
 # Set permissions
-chmod 755 /var/www/modiryar.teraxr.com/backend/uploads
+chmod 755 /var/www/modiryar.online/backend/uploads
 
 # Set owner (if you're root, use root:root):
-chown -R root:root /var/www/modiryar.teraxr.com/backend/uploads
+chown -R root:root /var/www/modiryar.online/backend/uploads
 
 # Or if running as a specific user:
-chown -R $(whoami):$(whoami) /var/www/modiryar.teraxr.com/backend/uploads
+chown -R $(whoami):$(whoami) /var/www/modiryar.online/backend/uploads
 ```
 
 ### Problem: File upload fails with 413 error
@@ -479,7 +479,7 @@ pm2 restart modiryar-backend
 If you encounter any issues:
 1. Check logs: `pm2 logs modiryar-backend`
 2. Check disk space: `df -h`
-3. Check permissions: `ls -la /var/www/modiryar.teraxr.com/backend/uploads`
+3. Check permissions: `ls -la /var/www/modiryar.online/backend/uploads`
 4. Test locally first before deploying to VPS
 
 ---

@@ -96,7 +96,7 @@ The script will automatically:
 - Deploy backend with PM2
 - Install frontend dependencies
 - Build frontend
-- Copy frontend files to /var/www/modiryar.teraxr.com
+- Copy frontend files to /var/www/modiryar.online
 
 ### Option 2: Manual deployment
 
@@ -122,7 +122,7 @@ pm2 save
 cd /root/modiryar
 npm install
 npm run build
-sudo cp -R dist/* /var/www/modiryar.teraxr.com/
+sudo cp -R dist/* /var/www/modiryar.online/
 ```
 
 ---
@@ -141,7 +141,7 @@ sudo cp -R dist/* /var/www/modiryar.teraxr.com/
 ├── deploy-to-vps.sh                     # Deployment script
 └── package.json
 
-/var/www/modiryar.teraxr.com/            # Nginx web root (served files)
+/var/www/modiryar.online/            # Nginx web root (served files)
 ├── index.html
 ├── assets/
 └── ... (built frontend files)
@@ -167,7 +167,7 @@ curl http://localhost:3001/health
 ls -la /root/modiryar/backend/uploads/audio/
 
 # Check frontend files
-ls -la /var/www/modiryar.teraxr.com/
+ls -la /var/www/modiryar.online/
 
 # Check disk space
 df -h
@@ -217,7 +217,7 @@ pm2 restart modiryar-backend
 ```bash
 cd /root/modiryar
 npm run build
-sudo cp -R dist/* /var/www/modiryar.teraxr.com/
+sudo cp -R dist/* /var/www/modiryar.online/
 ```
 
 ### Problem: Port 3001 already in use
@@ -261,7 +261,7 @@ git log --oneline -10                # View recent commits
 
 # File Management
 ls -la /root/modiryar                # List project files
-ls -la /var/www/modiryar.teraxr.com  # List web files
+ls -la /var/www/modiryar.online  # List web files
 du -sh /root/modiryar/backend/uploads # Check uploads size
 
 # System Commands

@@ -75,7 +75,7 @@ git push origin main
 ssh root@195.248.240.30
 
 # 3. Update code
-cd /var/www/modiryar.teraxr.com
+cd /var/www/modiryar.online
 git pull
 cd backend
 npm install

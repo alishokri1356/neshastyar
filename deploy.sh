@@ -79,7 +79,7 @@ pm2 status modiryar-backend
 
 # Test backend health
 echo "--- Testing backend health ---"
-if curl -s http://localhost:3001/health > /dev/null; then
+if curl -s http://modiryar.online:3001/health > /dev/null; then
     echo -e "${GREEN}✅ Backend is healthy!${NC}"
 else
     echo -e "${RED}⚠️  Backend health check failed - check logs${NC}"
@@ -101,7 +101,7 @@ echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 # Create production environment file for frontend
 echo "--- Creating production environment ---"
 # Use the same domain with /api path (Nginx will proxy to backend)
-echo "VITE_API_URL=https://modiryar.teraxr.com/api" > .env.production
+echo "VITE_API_URL=https://modiryar.online/api" > .env.production
 
 # Build the final, optimized production-ready static files
 echo "--- Building frontend ---"
@@ -110,8 +110,8 @@ echo -e "${GREEN}✅ Frontend built successfully${NC}"
 
 # Copy the contents of the 'dist' folder to the Nginx web directory
 echo "--- Copying build files to web root ---"
-sudo cp -R dist/* /var/www/modiryar.teraxr.com/
-echo -e "${GREEN}✅ Frontend files copied to /var/www/modiryar.teraxr.com/${NC}"
+sudo cp -R dist/* /var/www/modiryar.online/
+echo -e "${GREEN}✅ Frontend files copied to /var/www/modiryar.online/${NC}"
 
 echo "--- Frontend deployment complete ---"
 echo ""
@@ -124,9 +124,9 @@ echo ""
 echo "📍 Project Directory: /root/modiryar"
 echo "📁 Backend: /root/modiryar/backend"
 echo "📁 Uploads: /root/modiryar/backend/uploads/audio"
-echo "📁 Frontend: /var/www/modiryar.teraxr.com"
+echo "📁 Frontend: /var/www/modiryar.online"
 echo "🔌 Backend Port: 3001"
-echo "🌐 Domain: modiryar.teraxr.com"
+echo "🌐 Domain: modiryar.online"
 echo ""
 echo "Useful Commands:"
 echo "  pm2 logs modiryar-backend      # View backend logs"
@@ -138,7 +138,7 @@ echo ""
 echo -e "${YELLOW}⚠️  IMPORTANT NEXT STEPS:${NC}"
 echo "1. Update .env file with production values if needed"
 echo "2. Run database migration in phpMyAdmin:"
-echo "   URL: http://phpmyadmin.teraxr.com/local"
+echo "   URL: http://phpmyadmin.online/local"
 echo "   Database: modiryar"
 echo "   Table: meetings"
 echo "   SQL: See VPS_DEPLOYMENT_INSTRUCTIONS.md"

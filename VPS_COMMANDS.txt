@@ -1,7 +1,7 @@
 === COPY AND PASTE THESE COMMANDS IN YOUR VPS ===
 
 # You are currently logged in as root@195.248.240.30
-# You are in /var/www/modiryar.teraxr.com (WRONG LOCATION)
+# You are in /var/www/modiryar.online (WRONG LOCATION)
 
 # 1. Go to home directory
 cd /root
@@ -35,7 +35,7 @@ After running these commands, the script will:
 - Create uploads directory
 - Start backend with PM2
 - Build frontend
-- Copy frontend to /var/www/modiryar.teraxr.com
+- Copy frontend to /var/www/modiryar.online
 
 IMPORTANT: Don't forget to run the database migration in phpMyAdmin!
 URL: http://phpmyadmin.teraxr.com/local

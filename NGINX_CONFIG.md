@@ -2,7 +2,7 @@
 
 ## 🔧 Required Nginx Configuration
 
-The production frontend at https://modiryar.teraxr.com needs to proxy API requests to the backend running on port 3001.
+The production frontend at https://modiryar.online needs to proxy API requests to the backend running on port 3001.
 
 ---
 
@@ -14,7 +14,7 @@ Location: `/etc/nginx/sites-available/modiryar` (or similar)
 server {
     listen 80;
     listen [::]:80;
-    server_name modiryar.teraxr.com;
+    server_name modiryar.online;
 
     # Redirect HTTP to HTTPS
     return 301 https://$server_name$request_uri;
@@ -23,7 +23,7 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name modiryar.teraxr.com;
+    server_name modiryar.online;
 
     # SSL configuration (update with your actual SSL certificate paths)
     ssl_certificate /path/to/ssl/cert.pem;
@@ -38,7 +38,7 @@ server {
 
     # Frontend - Serve static files
     location / {
-        root /var/www/modiryar.teraxr.com;
+        root /var/www/modiryar.online;
         try_files $uri $uri/ /index.html;
         
         # Cache static assets
@@ -144,7 +144,7 @@ sudo systemctl restart nginx
 sudo systemctl status nginx
 
 # Test API endpoint
-curl https://modiryar.teraxr.com/api/health
+curl https://modiryar.online/api/health
 ```
 
 ---
@@ -186,7 +186,7 @@ client_body_timeout 600s;
 
 ## 📊 Current Configuration
 
-- **Frontend**: Served from `/var/www/modiryar.teraxr.com`
+- **Frontend**: Served from `/var/www/modiryar.online`
 - **Backend**: Proxied from `localhost:3001` to `/api/`
 - **Upload Limit**: 500MB
 - **Timeout**: 600 seconds
@@ -207,7 +207,7 @@ pm2 status
 curl http://localhost:3001/health
 
 # Test through Nginx
-curl https://modiryar.teraxr.com/api/health
+curl https://modiryar.online/api/health
 
 # View Nginx logs
 sudo tail -f /var/log/nginx/modiryar-error.log

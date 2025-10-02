@@ -80,8 +80,8 @@ const errorHandler = (err, req, res, next) => {
 const corsOptions = {
   origin: [
     // Production
-    'https://modiryar.teraxr.com',
-    'http://modiryar.teraxr.com',
+    'https://modiryar.online',
+    'http://modiryar.online',
     // Development
     'http://localhost:5173',
     'http://localhost:8080',

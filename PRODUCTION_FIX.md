@@ -2,9 +2,9 @@
 
 ## ❌ Current Problem
 
-Your production site at https://modiryar.teraxr.com shows this error:
+Your production site at https://modiryar.online shows this error:
 ```
-Access to fetch at 'http://localhost:3001/api/auth/login' from origin 'https://modiryar.teraxr.com' 
+Access to fetch at 'http://localhost:3001/api/auth/login' from origin 'https://modiryar.online' 
 has been blocked by CORS policy
 ```
 
@@ -44,8 +44,8 @@ cd /root/modiryar
 The script will:
 - Pull latest code
 - Install dependencies  
-- Build frontend with `VITE_API_URL=https://modiryar.teraxr.com/api`
-- Deploy to `/var/www/modiryar.teraxr.com`
+- Build frontend with `VITE_API_URL=https://modiryar.online/api`
+- Deploy to `/var/www/modiryar.online`
 - Restart backend with updated CORS settings
 
 ### Step 3: Configure Nginx (One-Time Setup)
@@ -102,15 +102,15 @@ sudo systemctl reload nginx
 
 Now it uses:
 - **Development**: `http://localhost:3001/api`
-- **Production**: `https://modiryar.teraxr.com/api` (set by `.env.production`)
+- **Production**: `https://modiryar.online/api` (set by `.env.production`)
 
 ### 2. Backend CORS
 **Before**: Only allowed localhost origins  
 **After**: Added production domain:
 ```javascript
 origin: [
-  'https://modiryar.teraxr.com',  // ← Added
-  'http://modiryar.teraxr.com',   // ← Added
+  'https://modiryar.online',  // ← Added
+  'http://modiryar.online',   // ← Added
   'http://localhost:8080',
   // ... other dev ports
 ]
@@ -125,7 +125,7 @@ origin: [
 
 After deployment, test:
 
-1. **Visit**: https://modiryar.teraxr.com/login
+1. **Visit**: https://modiryar.online/login
 2. **Try to login**
 3. **Should work** without CORS errors
 
@@ -135,7 +135,7 @@ To verify the API URL is correct:
 grep -r "VITE_API_URL" /root/modiryar/.env.production
 
 # Should show:
-# VITE_API_URL=https://modiryar.teraxr.com/api
+# VITE_API_URL=https://modiryar.online/api
 ```
 
 ---
@@ -154,7 +154,7 @@ pm2 logs modiryar-backend
 curl http://localhost:3001/health
 
 # Test through Nginx
-curl https://modiryar.teraxr.com/api/health
+curl https://modiryar.online/api/health
 ```
 
 ### Check Frontend Build:

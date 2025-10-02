@@ -9,8 +9,8 @@ All code has been implemented and tested. The audio storage system is ready to h
 ## 📍 VPS Information
 
 - **Server IP**: 195.248.240.30
-- **App Directory**: `/var/www/modiryar.teraxr.com`
-- **Domain**: modiryar.teraxr.com
+- **App Directory**: `/var/www/modiryar.online`
+- **Domain**: modiryar.online
 - **Backend Port**: 3001
 - **Storage Type**: Local Filesystem
 
@@ -75,7 +75,7 @@ git push origin main
 ssh root@195.248.240.30
 
 # Update code
-cd /var/www/modiryar.teraxr.com
+cd /var/www/modiryar.online
 git pull origin main
 
 # Install dependencies
@@ -150,7 +150,7 @@ curl http://localhost:3001/health
 
 ### Storage Structure:
 ```
-/var/www/modiryar.teraxr.com/backend/uploads/audio/
+/var/www/modiryar.online/backend/uploads/audio/
 └── {user_id}/
     ├── 1696123456789-audio_2025-09-30_23-39-32.ogg
     ├── 1696123567890-meeting_recording.wav
@@ -208,8 +208,8 @@ pm2 restart modiryar-backend
 
 ### Files not accessible?
 ```bash
-ls -la /var/www/modiryar.teraxr.com/backend/uploads
-chown -R www-data:www-data /var/www/modiryar.teraxr.com/backend/uploads
+ls -la /var/www/modiryar.online/backend/uploads
+chown -R www-data:www-data /var/www/modiryar.online/backend/uploads
 ```
 
 ---

@@ -4,7 +4,7 @@
 - **IP**: 195.248.240.30
 - **Username**: root
 - **Password**: Terraworld2020
-- **Directory**: /var/www/modiryar.teraxr.com
+- **Directory**: /var/www/modiryar.online
 
 ---
 
@@ -57,7 +57,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 3. **Run the deployment script:**
    ```bash
-   cd /var/www/modiryar.teraxr.com
+   cd /var/www/modiryar.online
    git pull origin main
    chmod +x deploy.sh
    ./deploy.sh
@@ -83,7 +83,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 2. **Navigate to project directory:**
    ```bash
-   cd /var/www/modiryar.teraxr.com
+   cd /var/www/modiryar.online
    ```
 
 3. **Pull latest code:**
@@ -176,7 +176,7 @@ pm2 stop modiryar-backend
 pm2 start modiryar-backend
 
 # Check uploads directory
-ls -la /var/www/modiryar.teraxr.com/backend/uploads
+ls -la /var/www/modiryar.online/backend/uploads
 
 # Check disk space
 df -h
@@ -199,7 +199,7 @@ npm --version
 ## 📱 Test the Upload Feature
 
 1. **Go to your frontend:**
-   - URL: http://modiryar.teraxr.com (or http://195.248.240.30)
+   - URL: http://modiryar.online (or http://195.248.240.30)
 
 2. **Login to your account**
 
@@ -211,10 +211,10 @@ npm --version
 
 6. **Verify on VPS:**
    ```bash
-   ls -la /var/www/modiryar.teraxr.com/backend/uploads/audio/
+   ls -la /var/www/modiryar.online/backend/uploads/audio/
    # You should see a directory with your user ID
    
-   ls -la /var/www/modiryar.teraxr.com/backend/uploads/audio/{your-user-id}/
+   ls -la /var/www/modiryar.online/backend/uploads/audio/{your-user-id}/
    # You should see the uploaded audio file
    ```
 
@@ -228,13 +228,13 @@ npm --version
 ### Issue: "Permission denied" on uploads
 **Solution**:
 ```bash
-chmod -R 777 /var/www/modiryar.teraxr.com/backend/uploads
+chmod -R 777 /var/www/modiryar.online/backend/uploads
 ```
 
 ### Issue: Backend not starting
 **Solution**:
 ```bash
-cd /var/www/modiryar.teraxr.com/backend
+cd /var/www/modiryar.online/backend
 pm2 delete modiryar-backend
 pm2 start src/server.js --name modiryar-backend
 pm2 logs modiryar-backend
@@ -254,7 +254,7 @@ pm2 restart modiryar-backend
 ### Issue: Git pull fails
 **Solution**:
 ```bash
-cd /var/www/modiryar.teraxr.com
+cd /var/www/modiryar.online
 git stash
 git pull origin main
 ```

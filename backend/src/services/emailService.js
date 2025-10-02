@@ -13,7 +13,7 @@ class EmailService {
       }
     });
 
-    this.frontendUrl = process.env.FRONTEND_URL || 'https://modiryar.teraxr.com';
+    this.frontendUrl = process.env.FRONTEND_URL || 'https://modiryar.online';
   }
 
   // Send email verification
