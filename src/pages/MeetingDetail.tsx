@@ -90,8 +90,8 @@ const MeetingDetail = () => {
       }
       return null;
     },
-    refetchOnWindowFocus: true,
-    staleTime: 5 * 60 * 1000, // 5 minutes - no auto-refresh to avoid interrupting audio
+    refetchOnWindowFocus: false, // Disable aggressive refetching
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     enabled: !!meetingId
   });
 

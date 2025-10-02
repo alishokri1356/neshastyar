@@ -21,7 +21,15 @@ import TagList from "./pages/TagList";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1, // Reduce retry attempts
+      refetchOnWindowFocus: false, // Disable refetch on window focus globally
+      staleTime: 5 * 60 * 1000, // 5 minutes default stale time
+    },
+  },
+});
 
 const App = () => {
   const { initialize } = useAuthStore();

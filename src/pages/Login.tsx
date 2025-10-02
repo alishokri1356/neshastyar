@@ -18,8 +18,9 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    // Remove duplicate initialize call - it's already called in App.tsx
+    // initialize();
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
