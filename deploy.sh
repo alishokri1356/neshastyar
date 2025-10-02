@@ -79,7 +79,7 @@ pm2 status modiryar-backend
 
 # Test backend health
 echo "--- Testing backend health ---"
-if curl -s http://modiryar.online:3001/health > /dev/null; then
+if curl -s http://localhost:3001/health > /dev/null; then
     echo -e "${GREEN}✅ Backend is healthy!${NC}"
 else
     echo -e "${RED}⚠️  Backend health check failed - check logs${NC}"
