@@ -31,6 +31,7 @@ const MeetingDetail = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
 
   // Fetch meeting and all user tags from database with auto-refresh
   const { data: meetingData, isLoading: meetingLoading } = useQuery({
@@ -574,6 +575,79 @@ const MeetingDetail = () => {
     setEditedTitle(meeting.title);
   };
 
+  // Helper function to check if summary is JSON
+  const parseJsonSummary = (summaryText: string) => {
+    try {
+      const parsed = JSON.parse(summaryText);
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const renderJsonSummary = (jsonData: any) => {
+    return (
+      <div className="space-y-6 text-right" dir="rtl">
+        {/* Subject */}
+        {jsonData.Subject && (
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">موضوع:</h3>
+            <p className="text-foreground leading-relaxed">{jsonData.Subject}</p>
+          </div>
+        )}
+
+        {/* Summary */}
+        {jsonData.Summary && (
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">خلاصه:</h3>
+            <p className="text-foreground leading-relaxed whitespace-pre-wrap">{jsonData.Summary}</p>
+          </div>
+        )}
+
+        {/* People in meetings */}
+        {jsonData["People in meetings"] && jsonData["People in meetings"].length > 0 && (
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">افراد حاضر در جلسه:</h3>
+            <ul className="list-disc list-inside space-y-1">
+              {jsonData["People in meetings"].map((person: string, index: number) => (
+                <li key={index} className="text-foreground">{person}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Bullet Points */}
+        {jsonData["Bolet Points"] && jsonData["Bolet Points"].length > 0 && (
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">نکات کلیدی:</h3>
+            <ul className="list-disc list-inside space-y-2">
+              {jsonData["Bolet Points"].map((point: string, index: number) => (
+                <li key={index} className="text-foreground leading-relaxed">{point}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Tags from JSON */}
+        {jsonData.Tags && jsonData.Tags.length > 0 && (
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">برچسب‌های پیشنهادی:</h3>
+            <div className="flex flex-wrap gap-2">
+              {jsonData.Tags.map((tag: string, index: number) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -676,20 +750,65 @@ const MeetingDetail = () => {
                   <Sparkles className="mr-1 sm:mr-2 h-4 w-4" />
                   تولید خلاصه خودکار
                 </Button>
-                <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
-                  <Save className="mr-1 sm:mr-2 h-4 w-4" />
-                  ذخیره
-                </Button>
+                {isEditingSummary ? (
+                  <>
+                    <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
+                      <Save className="mr-1 sm:mr-2 h-4 w-4" />
+                      ذخیره
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setIsEditingSummary(false);
+                        setSummary(meeting.summary);
+                      }} 
+                      variant="outline" 
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      <X className="mr-1 sm:mr-2 h-4 w-4" />
+                      لغو
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    onClick={() => setIsEditingSummary(true)} 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full sm:w-auto"
+                  >
+                    <Edit className="mr-1 sm:mr-2 h-4 w-4" />
+                    ویرایش
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Textarea
-              value={statusData?.summary || summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="خلاصه جلسه را وارد کنید..."
-              className="min-h-[200px] resize-none"
-            />
+            {(() => {
+              const currentSummary = statusData?.summary || summary;
+              const jsonData = parseJsonSummary(currentSummary);
+              
+              if (isEditingSummary || !currentSummary) {
+                return (
+                  <Textarea
+                    value={currentSummary}
+                    onChange={(e) => setSummary(e.target.value)}
+                    placeholder="خلاصه جلسه را وارد کنید..."
+                    className="min-h-[200px] resize-none"
+                  />
+                );
+              }
+              
+              if (jsonData) {
+                return renderJsonSummary(jsonData);
+              }
+              
+              return (
+                <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
+                  {currentSummary}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
