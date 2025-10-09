@@ -585,6 +585,88 @@ const MeetingDetail = () => {
     }
   };
 
+  const handleAddSuggestedTag = async (tagName: string) => {
+    try {
+      const { data: { user } } = await mysqlClient.auth.getUser();
+      if (!user) return;
+
+      // Check if tag already exists in user's tags
+      const existingTag = localAllUserTags.find(
+        (tag) => tag.name.toLowerCase().trim() === tagName.toLowerCase().trim()
+      );
+
+      let tagToAdd = existingTag;
+
+      if (!existingTag) {
+        // Create new tag with a default color
+        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+        const { data: newTag, error: tagError } = await mysqlClient
+          .from('tags')
+          .insert({
+            name: tagName.trim(),
+            color: randomColor,
+            user_id: user.id
+          })
+          .select()
+          .single();
+
+        if (tagError) throw tagError;
+
+        tagToAdd = newTag;
+        setLocalAllUserTags(prev => [...prev, newTag]);
+      }
+
+      // Check if tag is already linked to the meeting
+      const isAlreadyLinked = meetingTags.some(mt => mt.id === tagToAdd.id);
+      
+      if (isAlreadyLinked) {
+        toast({
+          title: "برچسب قبلاً اضافه شده",
+          description: "این برچسب قبلاً به جلسه اضافه شده است.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Link tag to meeting
+      const { error: linkError } = await mysqlClient
+        .from('meeting_tags')
+        .insert({
+          meeting_id: meeting.id,
+          tag_id: tagToAdd.id
+        });
+
+      if (linkError) throw linkError;
+
+      const updatedTags = [...meetingTags, tagToAdd];
+      setMeetingTags(updatedTags);
+      setMeeting(prev => ({ ...prev, tags: updatedTags }));
+      
+      toast({
+        title: "برچسب اضافه شد",
+        description: "برچسب با موفقیت به جلسه اضافه شد.",
+      });
+    } catch (error: any) {
+      console.error('Error adding suggested tag:', error);
+      
+      if (error?.message?.includes('Relationship already exists') || error?.error === 'Relationship already exists') {
+        toast({
+          title: "برچسب قبلاً اضافه شده",
+          description: "این برچسب قبلاً به جلسه اضافه شده است.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "خطا",
+          description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const renderJsonSummary = (jsonData: any) => {
     return (
       <div className="space-y-6 text-right" dir="rtl">
@@ -631,16 +713,33 @@ const MeetingDetail = () => {
         {/* Tags from JSON */}
         {jsonData.Tags && jsonData.Tags.length > 0 && (
           <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">برچسب‌های پیشنهادی:</h3>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">
+              برچسب‌های پیشنهادی:
+              <span className="text-sm font-normal text-muted-foreground mr-2">(برای افزودن کلیک کنید)</span>
+            </h3>
             <div className="flex flex-wrap gap-2">
-              {jsonData.Tags.map((tag: string, index: number) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20"
-                >
-                  {tag}
-                </span>
-              ))}
+              {jsonData.Tags.map((tag: string, index: number) => {
+                // Check if this tag is already added to the meeting
+                const isAdded = meetingTags.some(
+                  mt => mt.name.toLowerCase().trim() === tag.toLowerCase().trim()
+                );
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleAddSuggestedTag(tag)}
+                    disabled={isAdded}
+                    className={`px-3 py-1 rounded-full text-sm font-medium border transition-all ${
+                      isAdded
+                        ? 'bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60'
+                        : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:border-primary/40 cursor-pointer transform hover:scale-105'
+                    }`}
+                  >
+                    {tag}
+                    {isAdded && ' ✓'}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
