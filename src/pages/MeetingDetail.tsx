@@ -689,12 +689,34 @@ const MeetingDetail = () => {
         {/* People in meetings */}
         {jsonData["People in meetings"] && jsonData["People in meetings"].length > 0 && (
           <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">افراد حاضر در جلسه:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              {jsonData["People in meetings"].map((person: string, index: number) => (
-                <li key={index} className="text-foreground">{person}</li>
-              ))}
-            </ul>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">
+              افراد حاضر در جلسه:
+              <span className="text-sm font-normal text-muted-foreground mr-2">(برای افزودن به برچسب‌ها کلیک کنید)</span>
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {jsonData["People in meetings"].map((person: string, index: number) => {
+                // Check if this person is already added as a tag to the meeting
+                const isAdded = meetingTags.some(
+                  mt => mt.name.toLowerCase().trim() === person.toLowerCase().trim()
+                );
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleAddSuggestedTag(person)}
+                    disabled={isAdded}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                      isAdded
+                        ? 'bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60'
+                        : 'bg-secondary/50 text-foreground border-border hover:bg-secondary hover:border-secondary-foreground/20 cursor-pointer transform hover:scale-105'
+                    }`}
+                  >
+                    {person}
+                    {isAdded && ' ✓'}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
