@@ -379,17 +379,7 @@ const Home = () => {
                       ? 'text-primary cursor-pointer hover:underline' 
                       : 'text-muted-foreground cursor-pointer'
                   }`}
-                  onClick={sortBy === 'tags' ? () => {
-                    if (groupKey === 'بدون برچسب') {
-                      navigate('/meetings/untagged');
-                    } else {
-                      // Find the tag ID for this tag name
-                      const tag = tags.find(t => t.name === groupKey);
-                      if (tag) {
-                        navigate(`/tag/${tag.id}`);
-                      }
-                    }
-                  } : () => {
+                  onClick={() => {
                     setExpandedDates(prev => ({
                       ...prev,
                       [groupKey]: !prev[groupKey]
@@ -398,21 +388,19 @@ const Home = () => {
                 >
                   <span className="inline-flex items-center gap-2">
                     {groupKey}
-                    {sortBy === 'date' && (
-                      <svg
-                        className={`w-4 h-4 transition-transform ${expandedDates[groupKey] ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    )}
+                    <svg
+                      className={`w-4 h-4 transition-transform ${expandedDates[groupKey] ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </span>
                 </h4>
                 
                 {/* Meetings for this group */}
-                {(sortBy === 'tags' || expandedDates[groupKey]) && (
+                {expandedDates[groupKey] && (
                 <div className="space-y-2">
                   {groupMeetings.map((meeting) => {
                     const title = (meeting as any).title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
