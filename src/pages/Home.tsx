@@ -272,6 +272,16 @@ const Home = () => {
     }
   };
 
+  // Helper function to check if summary is JSON and return parsed object
+  const parseJsonSummary = (summaryText: string) => {
+    try {
+      const parsed = JSON.parse(summaryText);
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
@@ -446,19 +456,37 @@ const Home = () => {
                                 </div>
                               )}
 
-                              {/* Summary Points */}
-                              {meeting.summary && (
-                                <div className="mt-2 space-y-1">
-                                  {meeting.summary.split('\n').slice(0, 3).map((line, index) => (
-                                    <div key={index} className="flex items-start space-x-2 text-xs text-muted-foreground">
-                                      <span className="text-primary mt-1">•</span>
-                                      <span className="leading-relaxed">
-                                        {line.length > 60 ? line.substring(0, 57) + '...' : line}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                              {/* Bullet Points (max 3) with ellipsis when more */}
+                              {(meeting.summary) && (() => {
+                                const jsonData = parseJsonSummary(meeting.summary || '');
+                                const boletPoints = Array.isArray(jsonData?.["Bolet Points"]) 
+                                  ? (jsonData["Bolet Points"] as string[])
+                                  : (meeting.summary ? meeting.summary.split('\n').filter(Boolean) : []);
+
+                                if (!boletPoints || boletPoints.length === 0) return null;
+
+                                const visible = boletPoints.slice(0, 3);
+                                const hasMore = boletPoints.length > 3;
+
+                                return (
+                                  <div className="mt-2 space-y-1">
+                                    {visible.map((line, index) => (
+                                      <div key={index} className="flex items-start space-x-2 text-xs text-muted-foreground">
+                                        <span className="text-primary mt-1">•</span>
+                                        <span className="leading-relaxed">
+                                          {line.length > 60 ? line.substring(0, 57) + '...' : line}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {hasMore && (
+                                      <div className="flex items-start space-x-2 text-xs text-muted-foreground">
+                                        <span className="text-primary mt-1">•</span>
+                                        <span className="leading-relaxed">...</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                             
                             {/* Status Badge */}
