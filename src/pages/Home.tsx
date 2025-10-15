@@ -39,6 +39,7 @@ const Home = () => {
   
   // State for sorting
   const [sortBy, setSortBy] = React.useState<'date' | 'tags'>('date');
+  const [expandedDates, setExpandedDates] = React.useState<Record<string, boolean>>({});
 
   // Fetch tags once on load (no aggressive polling)
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
@@ -282,6 +283,11 @@ const Home = () => {
     }
   };
 
+  // Reset expanded groups when sort changes
+  React.useEffect(() => {
+    setExpandedDates({});
+  }, [sortBy]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
@@ -371,7 +377,7 @@ const Home = () => {
                   className={`text-sm font-medium px-2 ${
                     sortBy === 'tags' 
                       ? 'text-primary cursor-pointer hover:underline' 
-                      : 'text-muted-foreground'
+                      : 'text-muted-foreground cursor-pointer'
                   }`}
                   onClick={sortBy === 'tags' ? () => {
                     if (groupKey === 'بدون برچسب') {
@@ -383,12 +389,30 @@ const Home = () => {
                         navigate(`/tag/${tag.id}`);
                       }
                     }
-                  } : undefined}
+                  } : () => {
+                    setExpandedDates(prev => ({
+                      ...prev,
+                      [groupKey]: !prev[groupKey]
+                    }));
+                  }}
                 >
-                  {sortBy === 'date' ? groupKey : groupKey}
+                  <span className="inline-flex items-center gap-2">
+                    {groupKey}
+                    {sortBy === 'date' && (
+                      <svg
+                        className={`w-4 h-4 transition-transform ${expandedDates[groupKey] ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
+                  </span>
                 </h4>
                 
                 {/* Meetings for this group */}
+                {(sortBy === 'tags' || expandedDates[groupKey]) && (
                 <div className="space-y-2">
                   {groupMeetings.map((meeting) => {
                     const title = (meeting as any).title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
@@ -501,6 +525,7 @@ const Home = () => {
                     );
                   })}
                 </div>
+                )}
               </div>
             ))}
           </div>
