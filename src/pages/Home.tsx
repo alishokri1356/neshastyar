@@ -37,6 +37,16 @@ const Home = () => {
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
   
+  // Format dates using Persian (Jalali) calendar
+  const formatPersianDate = (date: Date, options?: Intl.DateTimeFormatOptions) => {
+    try {
+      return new Intl.DateTimeFormat('fa-IR-u-ca-persian', options).format(date);
+    } catch {
+      // Fallback to fa-IR if persian calendar not supported
+      return new Intl.DateTimeFormat('fa-IR', options).format(date);
+    }
+  };
+  
   // State for sorting
   const [sortBy, setSortBy] = React.useState<'date' | 'tags'>('date');
   const [expandedDates, setExpandedDates] = React.useState<Record<string, boolean>>({});
@@ -196,14 +206,14 @@ const Home = () => {
          const sortedMeetings = uniqueMeetings
            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
          
-         // Group by date
+        // Group by date (Persian calendar)
          const groupedByDate = sortedMeetings.reduce((acc, meeting) => {
            const date = new Date(meeting.meeting_date || meeting.created_at);
-           const dateKey = date.toLocaleDateString('en-US', { 
-             weekday: 'short', 
-             month: 'short', 
-             day: 'numeric' 
-           });
+          const dateKey = formatPersianDate(date, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
            
            if (!acc[dateKey]) {
              acc[dateKey] = [];
@@ -407,10 +417,10 @@ const Home = () => {
                     const duration = meeting.audio_duration || meeting.duration || 0;
                     const durationText = duration > 0 ? `${Math.round(duration / 60)} min` : '';
                     const meetingDate = new Date(meeting.meeting_date || meeting.created_at);
-                    const dateText = meetingDate.toLocaleDateString("en-US", { 
-                      month: "short", 
-                      day: "numeric", 
-                      year: "numeric" 
+                    const dateText = formatPersianDate(meetingDate, {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
                     });
                     
                     return (
