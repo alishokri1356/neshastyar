@@ -8,6 +8,7 @@ import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Calendar, FileText, Clock, Trash2 } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
+import moment from 'moment-jalaali';
 
 const TagDetail = () => {
   const { tagId } = useParams<{ tagId: string }>();
@@ -324,19 +325,11 @@ const TagDetail = () => {
                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                              <Calendar className="h-4 w-4" />
                              <span>
-                               {new Date(meeting.date).toLocaleDateString('fa-IR', {
-                                 weekday: 'long',
-                                 year: 'numeric',
-                                 month: 'long',
-                                 day: 'numeric'
-                               })}
+                               {moment(meeting.date).format('jYYYY/jMM/jDD')}
                              </span>
                              <span>•</span>
                              <span>
-                               {new Date(meeting.date).toLocaleTimeString('fa-IR', {
-                                 hour: '2-digit',
-                                 minute: '2-digit'
-                               })}
+                               {moment(meeting.date).format('HH:mm')}
                              </span>
                            </div>
 

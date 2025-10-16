@@ -10,6 +10,7 @@ import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Mic2, LogOut, Plus, Calendar, Clock, FileText, User } from 'lucide-react';
+import moment from 'moment-jalaali';
 
 interface DatabaseTag {
   id: string;
@@ -40,7 +41,19 @@ const Home = () => {
   // Format dates and times using Persian (Jalali) calendar
   const formatPersianDate = (date: Date, options?: Intl.DateTimeFormatOptions) => {
     try {
-      return new Intl.DateTimeFormat('fa-IR-u-ca-persian', options).format(date);
+      // Use moment-jalaali for proper Persian calendar support
+      const jMoment = moment(date);
+      
+      if (options?.weekday === 'short' && options?.month === 'short' && options?.day === 'numeric') {
+        // Format like "پنجشنبه، ۱۸ مهر"
+        const weekday = jMoment.format('dddd');
+        const month = jMoment.format('jMMMM');
+        const day = jMoment.format('jD');
+        return `${weekday}، ${day} ${month}`;
+      }
+      
+      // Default format
+      return jMoment.format('jYYYY/jMM/jDD');
     } catch {
       // Fallback to fa-IR if persian calendar not supported
       return new Intl.DateTimeFormat('fa-IR', options).format(date);
@@ -49,14 +62,9 @@ const Home = () => {
 
   const formatPersianDateTime = (date: Date) => {
     try {
-      return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }).format(date);
+      // Use moment-jalaali for proper Persian calendar support
+      const jMoment = moment(date);
+      return jMoment.format('jYYYY/jMM/jDD - HH:mm');
     } catch {
       // Fallback to fa-IR if persian calendar not supported
       return new Intl.DateTimeFormat('fa-IR', {
