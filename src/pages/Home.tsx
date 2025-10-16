@@ -37,13 +37,36 @@ const Home = () => {
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
   
-  // Format dates using Persian (Jalali) calendar
+  // Format dates and times using Persian (Jalali) calendar
   const formatPersianDate = (date: Date, options?: Intl.DateTimeFormatOptions) => {
     try {
       return new Intl.DateTimeFormat('fa-IR-u-ca-persian', options).format(date);
     } catch {
       // Fallback to fa-IR if persian calendar not supported
       return new Intl.DateTimeFormat('fa-IR', options).format(date);
+    }
+  };
+
+  const formatPersianDateTime = (date: Date) => {
+    try {
+      return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(date);
+    } catch {
+      // Fallback to fa-IR if persian calendar not supported
+      return new Intl.DateTimeFormat('fa-IR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(date);
     }
   };
   
@@ -329,6 +352,7 @@ const Home = () => {
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-foreground">{user?.email}</p>
               <p className="text-xs text-muted-foreground">حرفه‌ای</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatPersianDateTime(new Date())}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
@@ -417,11 +441,7 @@ const Home = () => {
                     const duration = meeting.audio_duration || meeting.duration || 0;
                     const durationText = duration > 0 ? `${Math.round(duration / 60)} min` : '';
                     const meetingDate = new Date(meeting.meeting_date || meeting.created_at);
-                    const dateText = formatPersianDate(meetingDate, {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    });
+                    const dateText = formatPersianDateTime(meetingDate);
                     
                     return (
                       <Card
