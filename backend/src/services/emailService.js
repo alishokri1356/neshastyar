@@ -39,16 +39,18 @@ class EmailService {
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <table role="presentation" style="border-collapse: separate; line-height: 100%; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
-                <tr>
-                  <td style="border: none; border-radius: 25px; cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); mso-padding-alt: 15px 30px;" align="center">
-                    <a href="${verificationUrl}" 
-                       style="display: inline-block; padding: 15px 30px; color: white; text-decoration: none; font-weight: bold; font-size: 16px; border-radius: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                      تأیید ایمیل
-                    </a>
-                  </td>
-                </tr>
-              </table>
+              <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${verificationUrl}" style="height:50px;v-text-anchor:middle;width:200px;" arcsize="50%" stroke="f" fillcolor="#667eea">
+                <w:anchorlock/>
+                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">تأیید ایمیل</center>
+              </v:roundrect>
+              <![endif]-->
+              <!--[if !mso]><!-->
+              <a href="${verificationUrl}" 
+                 style="background-color: #667eea; border: 2px solid #667eea; border-radius: 25px; color: #ffffff; display: inline-block; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; line-height: 50px; text-align: center; text-decoration: none; width: 200px; -webkit-text-size-adjust: none; mso-hide: all;">
+                تأیید ایمیل
+              </a>
+              <!--<![endif]-->
             </div>
             
             <p style="color: #999; font-size: 14px; line-height: 1.5; text-align: right;">
@@ -102,16 +104,18 @@ class EmailService {
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <table role="presentation" style="border-collapse: separate; line-height: 100%; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
-                <tr>
-                  <td style="border: none; border-radius: 25px; cursor: pointer; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); mso-padding-alt: 15px 30px;" align="center">
-                    <a href="${resetUrl}" 
-                       style="display: inline-block; padding: 15px 30px; color: white; text-decoration: none; font-weight: bold; font-size: 16px; border-radius: 25px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                      بازیابی رمز عبور
-                    </a>
-                  </td>
-                </tr>
-              </table>
+              <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${resetUrl}" style="height:50px;v-text-anchor:middle;width:200px;" arcsize="50%" stroke="f" fillcolor="#dc3545">
+                <w:anchorlock/>
+                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">بازیابی رمز عبور</center>
+              </v:roundrect>
+              <![endif]-->
+              <!--[if !mso]><!-->
+              <a href="${resetUrl}" 
+                 style="background-color: #dc3545; border: 2px solid #dc3545; border-radius: 25px; color: #ffffff; display: inline-block; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; line-height: 50px; text-align: center; text-decoration: none; width: 200px; -webkit-text-size-adjust: none; mso-hide: all;">
+                بازیابی رمز عبور
+              </a>
+              <!--<![endif]-->
             </div>
             
             <p style="color: #999; font-size: 14px; line-height: 1.5; text-align: right;">
