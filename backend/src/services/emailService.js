@@ -25,38 +25,37 @@ class EmailService {
       to: email,
       subject: 'تأیید ایمیل - Modiryar',
       html: `
-        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="margin: 0; font-size: 28px;">Modiryar</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">سیستم مدیریت جلسات</p>
           </div>
           
-          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-            <h2 style="color: #333; margin-top: 0;">سلام ${name} عزیز!</h2>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; direction: rtl;">
+            <h2 style="color: #333; margin-top: 0; text-align: right;">سلام ${name} عزیز!</h2>
             
-            <p style="color: #666; line-height: 1.6; font-size: 16px;">
+            <p style="color: #666; line-height: 1.6; font-size: 16px; text-align: right;">
               از ثبت نام شما در Modiryar متشکریم. برای تکمیل فرآیند ثبت نام، لطفاً ایمیل خود را تأیید کنید.
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" 
-                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        color: white; 
-                        padding: 15px 30px; 
-                        text-decoration: none; 
-                        border-radius: 25px; 
-                        font-weight: bold; 
-                        font-size: 16px;
-                        display: inline-block;">
-                تأیید ایمیل
-              </a>
+              <table role="presentation" style="border-collapse: separate; line-height: 100%; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
+                <tr>
+                  <td style="border: none; border-radius: 25px; cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); mso-padding-alt: 15px 30px;" align="center">
+                    <a href="${verificationUrl}" 
+                       style="display: inline-block; padding: 15px 30px; color: white; text-decoration: none; font-weight: bold; font-size: 16px; border-radius: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                      تأیید ایمیل
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </div>
             
-            <p style="color: #999; font-size: 14px; line-height: 1.5;">
+            <p style="color: #999; font-size: 14px; line-height: 1.5; text-align: right;">
               اگر دکمه بالا کار نمی‌کند، می‌توانید لینک زیر را کپی کرده و در مرورگر خود باز کنید:
             </p>
             
-            <p style="background: #e9ecef; padding: 15px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; color: #495057;">
+            <p style="background: #e9ecef; padding: 15px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; color: #495057; text-align: right; direction: ltr;">
               ${verificationUrl}
             </p>
             
@@ -89,43 +88,42 @@ class EmailService {
       to: email,
       subject: 'بازیابی رمز عبور - Modiryar',
       html: `
-        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="margin: 0; font-size: 28px;">Modiryar</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">سیستم مدیریت جلسات</p>
           </div>
           
-          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-            <h2 style="color: #333; margin-top: 0;">سلام ${name} عزیز!</h2>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; direction: rtl;">
+            <h2 style="color: #333; margin-top: 0; text-align: right;">سلام ${name} عزیز!</h2>
             
-            <p style="color: #666; line-height: 1.6; font-size: 16px;">
+            <p style="color: #666; line-height: 1.6; font-size: 16px; text-align: right;">
               درخواست بازیابی رمز عبور برای حساب کاربری شما دریافت شده است. برای تنظیم رمز عبور جدید، روی دکمه زیر کلیک کنید.
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" 
-                 style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); 
-                        color: white; 
-                        padding: 15px 30px; 
-                        text-decoration: none; 
-                        border-radius: 25px; 
-                        font-weight: bold; 
-                        font-size: 16px;
-                        display: inline-block;">
-                بازیابی رمز عبور
-              </a>
+              <table role="presentation" style="border-collapse: separate; line-height: 100%; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
+                <tr>
+                  <td style="border: none; border-radius: 25px; cursor: pointer; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); mso-padding-alt: 15px 30px;" align="center">
+                    <a href="${resetUrl}" 
+                       style="display: inline-block; padding: 15px 30px; color: white; text-decoration: none; font-weight: bold; font-size: 16px; border-radius: 25px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                      بازیابی رمز عبور
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </div>
             
-            <p style="color: #999; font-size: 14px; line-height: 1.5;">
+            <p style="color: #999; font-size: 14px; line-height: 1.5; text-align: right;">
               اگر دکمه بالا کار نمی‌کند، می‌توانید لینک زیر را کپی کرده و در مرورگر خود باز کنید:
             </p>
             
-            <p style="background: #e9ecef; padding: 15px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; color: #495057;">
+            <p style="background: #e9ecef; padding: 15px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; color: #495057; text-align: right; direction: ltr;">
               ${resetUrl}
             </p>
             
             <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="color: #856404; margin: 0; font-size: 14px;">
+              <p style="color: #856404; margin: 0; font-size: 14px; text-align: right;">
                 <strong>نکته امنیتی:</strong> این لینک فقط برای مدت محدودی معتبر است. اگر شما این درخواست را نکرده‌اید، لطفاً این ایمیل را نادیده بگیرید.
               </p>
             </div>
