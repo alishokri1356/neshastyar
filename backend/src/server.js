@@ -17,6 +17,9 @@ const fileRoutes = require('./routes/files');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for rate limiting (required when behind reverse proxy like Nginx)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 
