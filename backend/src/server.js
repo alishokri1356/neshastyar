@@ -34,8 +34,6 @@ const limiter = rateLimit({
     error: 'Too many requests',
     message: 'Too many requests from this IP, please try again later.'
   },
-  // Trust proxy to handle X-Forwarded-For headers
-  trustProxy: true,
   // Skip rate limiting for successful requests
   skipSuccessfulRequests: false
 });
