@@ -85,10 +85,12 @@ export const useAuthStore = create<AuthState>()(
           throw new Error(error.error || error.message || 'Signup failed');
         }
 
+        // Only set authenticated if we have a valid session
+        // For unverified users, session will be null
         set({
           session: data.session,
           user: data.user,
-          isAuthenticated: true,
+          isAuthenticated: !!data.session,
         });
       },
 

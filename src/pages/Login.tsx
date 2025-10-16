@@ -40,11 +40,23 @@ const Login = () => {
       });
       navigate('/');
     } catch (error) {
-      toast({
-        title: "خطا",
-        description: "ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
+      const errorMessage = (error as Error).message;
+      
+      // Check if this is an email verification error
+      if (errorMessage.includes('Email not verified') || errorMessage.includes('verify your email')) {
+        toast({
+          title: "ایمیل تأیید نشده",
+          description: "لطفاً ابتدا ایمیل خود را تأیید کنید. لینک تأیید به ایمیل شما ارسال شده است.",
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: "خطا",
+          description: "ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
