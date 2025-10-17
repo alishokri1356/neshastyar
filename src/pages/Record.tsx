@@ -23,6 +23,10 @@ const Record = () => {
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
   const [showFilesList, setShowFilesList] = useState(false);
   
+  // State for audio playback
+  const [playingFileId, setPlayingFileId] = useState<string | null>(null);
+  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  
   const {
     isRecording,
     isPaused,
@@ -56,6 +60,16 @@ const Record = () => {
       }
     };
   }, [isRecording, isPaused, recordingDuration, setRecordingDuration]);
+
+  // Cleanup audio elements on unmount
+  useEffect(() => {
+    return () => {
+      audioElements.forEach((audioElement) => {
+        audioElement.pause();
+        URL.revokeObjectURL(audioElement.src);
+      });
+    };
+  }, [audioElements]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -144,6 +158,70 @@ const Record = () => {
     setAudioFiles(prev => prev.filter(file => file.id !== id));
     if (audioFiles.length === 1) {
       setShowFilesList(false);
+    }
+    
+    // Clean up audio element if it exists
+    const audioElement = audioElements.get(id);
+    if (audioElement) {
+      audioElement.pause();
+      URL.revokeObjectURL(audioElement.src);
+      setAudioElements(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(id);
+        return newMap;
+      });
+    }
+    
+    // Stop playing if this file was playing
+    if (playingFileId === id) {
+      setPlayingFileId(null);
+    }
+  };
+
+  const handlePlayPause = async (file: AudioFile) => {
+    try {
+      // Stop any currently playing audio
+      if (playingFileId && playingFileId !== file.id) {
+        const currentAudio = audioElements.get(playingFileId);
+        if (currentAudio) {
+          currentAudio.pause();
+        }
+      }
+
+      let audioElement = audioElements.get(file.id);
+      
+      if (!audioElement) {
+        // Create audio element for this file
+        audioElement = new Audio();
+        const audioUrl = URL.createObjectURL(file.blob);
+        audioElement.src = audioUrl;
+        audioElement.preload = 'metadata';
+        
+        // Store the audio element
+        setAudioElements(prev => new Map(prev).set(file.id, audioElement!));
+        
+        // Clean up URL when audio ends
+        audioElement.addEventListener('ended', () => {
+          setPlayingFileId(null);
+        });
+      }
+
+      if (playingFileId === file.id) {
+        // Currently playing this file - pause it
+        audioElement.pause();
+        setPlayingFileId(null);
+      } else {
+        // Play this file
+        await audioElement.play();
+        setPlayingFileId(file.id);
+      }
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      toast({
+        title: "خطا در پخش فایل صوتی",
+        description: "امکان پخش این فایل صوتی وجود ندارد.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -276,14 +354,28 @@ const Record = () => {
                             مدت زمان: {formatTime(file.duration)}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAudioFile(file.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePlayPause(file)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {playingFileId === file.id ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAudioFile(file.id)}
+                            className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
