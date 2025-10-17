@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Plus, Check, Tag, X } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Tag, X, Play, Pause, GripVertical } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
 
 interface AudioFile {
@@ -40,6 +40,10 @@ const TagSelection = () => {
   
   // State for individual file upload progress
   const [fileUploadProgress, setFileUploadProgress] = useState<Map<string, number>>(new Map());
+  
+  // State for audio playback
+  const [playingFileId, setPlayingFileId] = useState<string | null>(null);
+  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
 
   const audioFiles = location.state?.audioFiles as AudioFile[] | null;
   
@@ -241,27 +245,14 @@ const TagSelection = () => {
       const firstFile = audioFiles[0];
       const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg)$/i, '') || 'جلسه';
 
-      // Simulate upload progress
-      const totalFileSize = audioFiles.reduce((sum, file) => sum + file.blob.size, 0);
-      const fileSizeInMB = totalFileSize / (1024 * 1024);
-      const estimatedUploadTime = Math.max(2000, Math.min(fileSizeInMB * 1000, 10000)); // 2-10 seconds based on file size
-      const progressStep = 85 / (estimatedUploadTime / 300); // Update every 300ms to reach 85%
-      
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 85 || uploadCancelled) {
-            clearInterval(progressInterval);
-            return uploadCancelled ? prev : 85; // Keep at 85% until upload completes
-          }
-          return Math.min(prev + progressStep + Math.random() * 2, 85);
-        });
-      }, 300);
-
-      // Check if cancelled before starting upload
-      if (uploadCancelled) {
-        clearInterval(progressInterval);
-        return;
-      }
+      // Calculate total progress based on individual file progress
+      const updateTotalProgress = () => {
+        const individualProgresses = Array.from(fileUploadProgress.values());
+        const averageProgress = individualProgresses.length > 0 
+          ? individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length
+          : 0;
+        setUploadProgress(averageProgress);
+      };
 
       // Upload all audio files
       const uploadedFiles = [];
@@ -284,6 +275,14 @@ const TagSelection = () => {
             if (event.lengthComputable) {
               const percentComplete = Math.round((event.loaded / event.total) * 100);
               setFileUploadProgress(prev => new Map(prev).set(file.id, percentComplete));
+              // Update total progress after individual progress update
+              setTimeout(() => {
+                const individualProgresses = Array.from(fileUploadProgress.values());
+                const averageProgress = individualProgresses.length > 0 
+                  ? individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length
+                  : 0;
+                setUploadProgress(averageProgress);
+              }, 0);
             }
           });
 
@@ -318,6 +317,15 @@ const TagSelection = () => {
           
           // Set progress to 100% for completed file
           setFileUploadProgress(prev => new Map(prev).set(file.id, 100));
+          
+          // Update total progress
+          setTimeout(() => {
+            const individualProgresses = Array.from(fileUploadProgress.values());
+            const averageProgress = individualProgresses.length > 0 
+              ? individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length
+              : 0;
+            setUploadProgress(averageProgress);
+          }, 0);
         } catch (error) {
           throw new Error(error instanceof Error ? error.message : 'بارگذاری فایل ناموفق بود');
         }
@@ -471,6 +479,69 @@ const TagSelection = () => {
     });
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handlePlayPause = async (file: AudioFile) => {
+    try {
+      // Stop any currently playing audio
+      if (playingFileId && playingFileId !== file.id) {
+        const currentAudio = audioElements.get(playingFileId);
+        if (currentAudio) {
+          currentAudio.pause();
+        }
+      }
+
+      let audioElement = audioElements.get(file.id);
+      
+      if (!audioElement) {
+        // Create audio element for this file
+        audioElement = new Audio();
+        const audioUrl = URL.createObjectURL(file.blob);
+        audioElement.src = audioUrl;
+        audioElement.preload = 'metadata';
+        
+        // Store the audio element
+        setAudioElements(prev => new Map(prev).set(file.id, audioElement!));
+        
+        // Clean up URL when audio ends
+        audioElement.addEventListener('ended', () => {
+          setPlayingFileId(null);
+        });
+      }
+
+      if (playingFileId === file.id) {
+        // Currently playing this file - pause it
+        audioElement.pause();
+        setPlayingFileId(null);
+      } else {
+        // Play this file
+        await audioElement.play();
+        setPlayingFileId(file.id);
+      }
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      toast({
+        title: "خطا در پخش فایل صوتی",
+        description: "امکان پخش این فایل صوتی وجود ندارد.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Cleanup audio elements on unmount
+  useEffect(() => {
+    return () => {
+      audioElements.forEach((audioElement) => {
+        audioElement.pause();
+        URL.revokeObjectURL(audioElement.src);
+      });
+    };
+  }, [audioElements]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
       {/* Header */}
@@ -497,6 +568,51 @@ const TagSelection = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Audio Files List */}
+        {audioFiles && audioFiles.length > 0 && !isUploading && (
+          <Card className="bg-gradient-card border-0 shadow-soft">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-foreground mb-4">
+                فایل‌های صوتی ({audioFiles.length})
+              </h3>
+              <div className="space-y-3">
+                {audioFiles.map((file, index) => (
+                  <div key={file.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="cursor-grab">
+                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
+                            {file.type === 'recording' ? 'ضبط' : 'آپلود'}
+                          </Badge>
+                          <span className="font-medium text-sm">{file.name}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          مدت زمان: {formatTime(file.duration)} • اندازه: {(file.blob.size / (1024 * 1024)).toFixed(1)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePlayPause(file)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {playingFileId === file.id ? (
+                        <Pause className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Audio Files Upload Progress */}
         {isUploading && audioFiles && audioFiles.length > 0 && (
           <Card className="bg-gradient-card border-0 shadow-soft">
