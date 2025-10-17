@@ -333,8 +333,7 @@ const TagSelection = () => {
           user_id: user.id,
           summary: '',
           title: meetingTitle,
-          status: 'آماده پردازش',
-          storage_type: 'local'
+          status: 'آماده پردازش'
         });
 
       if (meetingError) {
@@ -352,7 +351,6 @@ const TagSelection = () => {
             file_size: uploadedFile.fileSize,
             duration: uploadedFile.duration,
             format: uploadedFile.format,
-            storage_type: 'local',
             upload_order: uploadedFile.uploadOrder
           });
 
