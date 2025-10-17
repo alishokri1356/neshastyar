@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft } from 'lucide-react';
+import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AudioFile {
@@ -26,6 +26,9 @@ const Record = () => {
   // State for audio playback
   const [playingFileId, setPlayingFileId] = useState<string | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  
+  // State for drag and drop
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   
   const {
     isRecording,
@@ -225,6 +228,47 @@ const Record = () => {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, fileId: string) => {
+    setDraggedItemId(fileId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFileId: string) => {
+    e.preventDefault();
+    
+    if (!draggedItemId || draggedItemId === targetFileId) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    setAudioFiles(prev => {
+      const newFiles = [...prev];
+      const draggedIndex = newFiles.findIndex(file => file.id === draggedItemId);
+      const targetIndex = newFiles.findIndex(file => file.id === targetFileId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+      
+      // Remove the dragged item
+      const [draggedItem] = newFiles.splice(draggedIndex, 1);
+      
+      // Insert it at the target position
+      newFiles.splice(targetIndex, 0, draggedItem);
+      
+      return newFiles;
+    });
+    
+    setDraggedItemId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItemId(null);
+  };
+
   const handleDone = () => {
     if (audioFiles.length === 0) {
       toast({
@@ -340,19 +384,34 @@ const Record = () => {
               </h2>
               <div className="space-y-3">
                 {audioFiles.map((file, index) => (
-                  <Card key={file.id} className="bg-white/50 dark:bg-gray-800/50">
+                  <Card 
+                    key={file.id} 
+                    className={`bg-white/50 dark:bg-gray-800/50 transition-all duration-200 ${
+                      draggedItemId === file.id ? 'opacity-50 scale-95' : 'hover:shadow-md'
+                    }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, file.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, file.id)}
+                    onDragEnd={handleDragEnd}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
-                              {file.type === 'recording' ? 'ضبط' : 'آپلود'}
-                            </Badge>
-                            <span className="font-medium">{file.name}</span>
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className="cursor-grab active:cursor-grabbing">
+                            <GripVertical className="h-5 w-5 text-muted-foreground" />
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            مدت زمان: {formatTime(file.duration)}
-                          </p>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
+                                {file.type === 'recording' ? 'ضبط' : 'آپلود'}
+                              </Badge>
+                              <span className="font-medium">{file.name}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              مدت زمان: {formatTime(file.duration)}
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button
