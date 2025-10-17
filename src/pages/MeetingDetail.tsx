@@ -105,6 +105,7 @@ const MeetingDetail = () => {
         .single();
 
       console.log('🔍 Meeting query result:', { meetingData, meetingError });
+      console.log('🔍 Raw meeting data:', JSON.stringify(meetingData, null, 2));
 
       if (meetingError) {
         console.error('Error fetching meeting:', meetingError);
@@ -120,9 +121,17 @@ const MeetingDetail = () => {
 
         console.log('🔍 Meeting tags data:', tags, tagError);
 
-        // Process audio files
-        const audioFiles = meetingData.audio_files || [];
-        console.log('🔍 Audio files from database:', audioFiles);
+        // Direct query to check audio files
+        const { data: directAudioFiles, error: directAudioError } = await mysqlClient
+          .from('audio_files')
+          .select('*')
+          .eq('meeting_id', meetingId);
+        
+        console.log('🔍 Direct audio files query:', { directAudioFiles, directAudioError });
+
+        // Process audio files - use direct query if JOIN query fails
+        const audioFiles = (meetingData.audio_files || []).length > 0 ? (meetingData.audio_files || []) : (directAudioFiles || []);
+        console.log('🔍 Final audio files to process:', audioFiles);
         
         const processedAudioFiles = await Promise.all(
           audioFiles.map(async (file: any) => ({
