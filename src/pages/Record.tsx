@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { Mic, Pause, Square, Play, Upload, Trash2, Check } from 'lucide-react';
+import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AudioFile {
@@ -235,19 +235,23 @@ const Record = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
         <div className="container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="text-center space-y-4 mb-8">
-            <div className="relative">
-              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mic className="h-12 w-12 text-primary" />
+          {/* Header with Return Button */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Mic className="h-8 w-8 text-primary" />
               </div>
-              <div className="absolute inset-0 w-24 h-24 bg-primary/20 rounded-full animate-ping mx-auto" />
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">ضبط جلسه</h1>
+                <p className="text-muted-foreground">
+                  می‌توانید چندین فایل صوتی ضبط یا آپلود کنید. پس از اتمام روی "تمام" کلیک کنید.
+                </p>
+              </div>
             </div>
-            
-            <h1 className="text-3xl font-bold text-foreground">ضبط جلسه</h1>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              می‌توانید چندین فایل صوتی ضبط یا آپلود کنید. پس از اتمام روی "تمام" کلیک کنید.
-            </p>
+            <Button onClick={() => navigate('/home')} variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              بازگشت به خانه
+            </Button>
           </div>
 
           {/* Audio Files List */}
@@ -328,13 +332,6 @@ const Record = () => {
               className="hidden"
             />
 
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/home')}
-              className="mt-4 bg-red-500 hover:bg-red-600 text-white"
-            >
-              لغو
-            </Button>
           </div>
         </div>
       </div>
