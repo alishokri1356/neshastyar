@@ -44,6 +44,15 @@ const TagSelection = () => {
   // State for audio playback
   const [playingFileId, setPlayingFileId] = useState<string | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  
+  // Calculate total progress whenever individual progress changes
+  useEffect(() => {
+    if (fileUploadProgress.size > 0) {
+      const individualProgresses = Array.from(fileUploadProgress.values());
+      const averageProgress = individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length;
+      setUploadProgress(Math.round(averageProgress));
+    }
+  }, [fileUploadProgress]);
 
   const audioFiles = location.state?.audioFiles as AudioFile[] | null;
   
@@ -245,15 +254,6 @@ const TagSelection = () => {
       const firstFile = audioFiles[0];
       const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg)$/i, '') || 'جلسه';
 
-      // Calculate total progress based on individual file progress
-      const updateTotalProgress = () => {
-        const individualProgresses = Array.from(fileUploadProgress.values());
-        const averageProgress = individualProgresses.length > 0 
-          ? individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length
-          : 0;
-        setUploadProgress(averageProgress);
-      };
-
       // Upload all audio files
       const uploadedFiles = [];
       
@@ -275,14 +275,6 @@ const TagSelection = () => {
             if (event.lengthComputable) {
               const percentComplete = Math.round((event.loaded / event.total) * 100);
               setFileUploadProgress(prev => new Map(prev).set(file.id, percentComplete));
-              // Update total progress after individual progress update
-              setTimeout(() => {
-                const individualProgresses = Array.from(fileUploadProgress.values());
-                const averageProgress = individualProgresses.length > 0 
-                  ? individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length
-                  : 0;
-                setUploadProgress(averageProgress);
-              }, 0);
             }
           });
 
@@ -317,15 +309,6 @@ const TagSelection = () => {
           
           // Set progress to 100% for completed file
           setFileUploadProgress(prev => new Map(prev).set(file.id, 100));
-          
-          // Update total progress
-          setTimeout(() => {
-            const individualProgresses = Array.from(fileUploadProgress.values());
-            const averageProgress = individualProgresses.length > 0 
-              ? individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length
-              : 0;
-            setUploadProgress(averageProgress);
-          }, 0);
         } catch (error) {
           throw new Error(error instanceof Error ? error.message : 'بارگذاری فایل ناموفق بود');
         }
