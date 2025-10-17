@@ -346,11 +346,7 @@ const TagSelection = () => {
         
         
         // Try multiple approaches to ensure the request gets through (same as MeetingDetail)
-        const requestData = {
-          fileName: fileName,
-          userEmail: userEmail,
-          meetingId: meetingData.id
-        };
+        const requestData = {};
 
         // Approach 1: Try with no-cors first
         try {
@@ -370,9 +366,6 @@ const TagSelection = () => {
         try {
           const img = new Image();
           const url = new URL('https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
-          url.searchParams.append('fileName', fileName);
-          url.searchParams.append('userEmail', userEmail);
-          url.searchParams.append('meetingId', meetingData.id);
           img.src = url.toString();
         } catch (e) {
         }
