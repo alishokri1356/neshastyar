@@ -10,6 +10,14 @@ import { Progress } from '@/components/ui/progress';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { ArrowLeft, Plus, Check, Tag, X } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
+
+interface AudioFile {
+  id: string;
+  name: string;
+  duration: number;
+  blob: Blob | File;
+  type: 'recording' | 'upload';
+}
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -30,7 +38,7 @@ const TagSelection = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadCancelled, setUploadCancelled] = useState(false);
 
-  const recordingData = location.state as { duration: number; audioBlob: Blob | null; fileName?: string } | null;
+  const audioFiles = location.state?.audioFiles as AudioFile[] | null;
   
 
   // Fetch user's tags from database on component mount
@@ -196,10 +204,10 @@ const TagSelection = () => {
   };
 
   const handleSaveMeeting = async () => {
-    if (!recordingData?.audioBlob) {
+    if (!audioFiles || audioFiles.length === 0) {
       toast({
         title: "خطا",
-        description: "ضبط صوتی یافت نشد",
+        description: "هیچ فایل صوتی یافت نشد",
         variant: "destructive",
       });
       return;
@@ -223,12 +231,16 @@ const TagSelection = () => {
         return;
       }
 
-      // Use original filename if available, otherwise generate one
-      const fileName = recordingData.fileName || `Meeting_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
-      const audioFilePath = `${user.id}/${fileName}`;
+      // Calculate total duration
+      const totalDuration = audioFiles.reduce((sum, file) => sum + file.duration, 0);
+      
+      // Generate meeting title from first file
+      const firstFile = audioFiles[0];
+      const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg)$/i, '') || 'جلسه';
 
-      // Simulate upload progress based on file size for better accuracy
-      const fileSizeInMB = recordingData.audioBlob.size / (1024 * 1024);
+      // Simulate upload progress
+      const totalFileSize = audioFiles.reduce((sum, file) => sum + file.blob.size, 0);
+      const fileSizeInMB = totalFileSize / (1024 * 1024);
       const estimatedUploadTime = Math.max(2000, Math.min(fileSizeInMB * 1000, 10000)); // 2-10 seconds based on file size
       const progressStep = 85 / (estimatedUploadTime / 300); // Update every 300ms to reach 85%
       
@@ -248,63 +260,76 @@ const TagSelection = () => {
         return;
       }
 
-      // Upload audio file to backend
+      // Upload all audio files
+      const uploadedFiles = [];
       
-      const formData = new FormData();
-      formData.append('audio', recordingData.audioBlob, fileName);
+      for (let i = 0; i < audioFiles.length; i++) {
+        const file = audioFiles[i];
+        const fileName = `${Date.now()}-${i}-${file.name}`;
+        
+        const formData = new FormData();
+        formData.append('audio', file.blob, fileName);
 
-      const uploadResponse = await fetch(`${API_BASE_URL}/upload/audio`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token || session.token}`
-        },
-        body: formData
-      });
-
-           clearInterval(progressInterval);
-      
-      if (!uploadResponse.ok) {
-        const uploadError = await uploadResponse.json();
-        toast({
-          title: "خطا در بارگذاری فایل",
-          description: uploadError.message || "بارگذاری فایل ناموفق بود",
-          variant: "destructive",
+        const uploadResponse = await fetch(`${API_BASE_URL}/upload/audio`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token || session.token}`
+          },
+          body: formData
         });
-        return;
-      }
 
-           const uploadResult = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          const uploadError = await uploadResponse.json();
+          throw new Error(uploadError.message || 'بارگذاری فایل ناموفق بود');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        uploadedFiles.push({
+          fileName: fileName,
+          filePath: uploadResult.data.relativePath,
+          fileSize: uploadResult.data.size,
+          duration: file.duration,
+          format: uploadResult.data.format,
+          uploadOrder: i + 1
+        });
+      }
       
       setUploadProgress(100);
 
       // Create meeting in database
-      
-      // Generate title from filename (remove extension)
-      const meetingTitle = fileName.replace(/\.(wav|mp3|m4a|ogg)$/i, '');
-      
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
         .insert({
           meeting_date: new Date().toISOString(),
           user_id: user.id,
           summary: '',
-          audio_file_name: fileName,
-          audio_file_path: uploadResult.data.relativePath,
-          audio_file_size: uploadResult.data.size,
-          audio_duration: Math.floor(recordingData.duration / 1000),
-          audio_format: uploadResult.data.format,
           title: meetingTitle,
           status: 'آماده پردازش',
           storage_type: 'local'
         });
 
-           if (meetingError) {
-        toast({
-          title: "خطا در ذخیره جلسه",
-          description: meetingError.message,
-          variant: "destructive",
-        });
-        return;
+      if (meetingError) {
+        throw new Error(meetingError.message);
+      }
+
+      // Insert audio files into audio_files table
+      for (const uploadedFile of uploadedFiles) {
+        const { error: audioFileError } = await mysqlClient
+          .from('audio_files')
+          .insert({
+            meeting_id: meetingData[0].id,
+            file_name: uploadedFile.fileName,
+            file_path: uploadedFile.filePath,
+            file_size: uploadedFile.fileSize,
+            duration: uploadedFile.duration,
+            format: uploadedFile.format,
+            storage_type: 'local',
+            upload_order: uploadedFile.uploadOrder
+          });
+
+        if (audioFileError) {
+          console.error('Error inserting audio file:', audioFileError);
+        }
       }
 
       // Create meeting-tag relationships
