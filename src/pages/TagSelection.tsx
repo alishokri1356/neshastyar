@@ -37,6 +37,9 @@ const TagSelection = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadCancelled, setUploadCancelled] = useState(false);
+  
+  // State for individual file upload progress
+  const [fileUploadProgress, setFileUploadProgress] = useState<Map<string, number>>(new Map());
 
   const audioFiles = location.state?.audioFiles as AudioFile[] | null;
   
@@ -267,31 +270,57 @@ const TagSelection = () => {
         const file = audioFiles[i];
         const fileName = `${Date.now()}-${i}-${file.name}`;
         
+        // Initialize progress for this file
+        setFileUploadProgress(prev => new Map(prev).set(file.id, 0));
+        
         const formData = new FormData();
         formData.append('audio', file.blob, fileName);
 
-        const uploadResponse = await fetch(`${API_BASE_URL}/upload/audio`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token || session.token}`
-          },
-          body: formData
+        // Create XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        const uploadPromise = new Promise((resolve, reject) => {
+          xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              setFileUploadProgress(prev => new Map(prev).set(file.id, percentComplete));
+            }
+          });
+
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const uploadResult = JSON.parse(xhr.responseText);
+              resolve(uploadResult);
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          });
+
+          xhr.addEventListener('error', () => {
+            reject(new Error('Upload failed'));
+          });
+
+          xhr.open('POST', `${API_BASE_URL}/upload/audio`);
+          xhr.setRequestHeader('Authorization', `Bearer ${session.access_token || session.token}`);
+          xhr.send(formData);
         });
 
-        if (!uploadResponse.ok) {
-          const uploadError = await uploadResponse.json();
-          throw new Error(uploadError.message || 'بارگذاری فایل ناموفق بود');
+        try {
+          const uploadResult = await uploadPromise;
+          uploadedFiles.push({
+            fileName: fileName,
+            filePath: uploadResult.data.relativePath,
+            fileSize: uploadResult.data.size,
+            duration: file.duration,
+            format: uploadResult.data.format,
+            uploadOrder: i + 1
+          });
+          
+          // Set progress to 100% for completed file
+          setFileUploadProgress(prev => new Map(prev).set(file.id, 100));
+        } catch (error) {
+          throw new Error(error instanceof Error ? error.message : 'بارگذاری فایل ناموفق بود');
         }
-
-        const uploadResult = await uploadResponse.json();
-        uploadedFiles.push({
-          fileName: fileName,
-          filePath: uploadResult.data.relativePath,
-          fileSize: uploadResult.data.size,
-          duration: file.duration,
-          format: uploadResult.data.format,
-          uploadOrder: i + 1
-        });
       }
       
       setUploadProgress(100);
@@ -429,6 +458,7 @@ const TagSelection = () => {
       setIsUploading(false);
       setUploadProgress(0);
       setUploadCancelled(false);
+      setFileUploadProgress(new Map()); // Clear individual file progress
     }
   };
 
@@ -436,6 +466,7 @@ const TagSelection = () => {
     setUploadCancelled(true);
     setIsUploading(false);
     setUploadProgress(0);
+    setFileUploadProgress(new Map()); // Clear individual file progress
     toast({
       title: "بارگذاری لغو شد",
       description: "بارگذاری جلسه لغو شد",
@@ -468,7 +499,50 @@ const TagSelection = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Create New Tag */}
+        {/* Audio Files Upload Progress */}
+        {isUploading && audioFiles && audioFiles.length > 0 && (
+          <Card className="bg-gradient-card border-0 shadow-soft">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-foreground mb-4">
+                بارگذاری فایل‌های صوتی ({audioFiles.length})
+              </h3>
+              <div className="space-y-4">
+                {audioFiles.map((file, index) => {
+                  const progress = fileUploadProgress.get(file.id) || 0;
+                  return (
+                    <div key={file.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
+                            {file.type === 'recording' ? 'ضبط' : 'آپلود'}
+                          </Badge>
+                          <span className="font-medium text-sm">{file.name}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {progress}%
+                        </span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>مدت زمان: {Math.floor(file.duration / 60)}:{String(file.duration % 60).padStart(2, '0')}</span>
+                        <span>اندازه: {(file.blob.size / (1024 * 1024)).toFixed(1)} MB</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Overall Progress */}
+              <div className="mt-6 pt-4 border-t border-border/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">پیشرفت کلی</span>
+                  <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="h-3" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">برچسب‌ها</h2>
