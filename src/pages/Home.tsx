@@ -38,6 +38,13 @@ const Home = () => {
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
   
+  // Persian day names and month names
+  const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+  const persianMonths = [
+    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+  ];
+
   // Format dates and times using Persian (Jalali) calendar
   const formatPersianDate = (date: Date, options?: Intl.DateTimeFormatOptions) => {
     try {
@@ -45,9 +52,11 @@ const Home = () => {
       const jMoment = moment(date);
       
       if (options?.weekday === 'short' && options?.month === 'short' && options?.day === 'numeric') {
-        // Format like "پنجشنبه، ۱۸ مهر"
-        const weekday = jMoment.format('dddd');
-        const month = jMoment.format('jMMMM');
+        // Format like "سه‌شنبه، 17 مهر"
+        const weekdayIndex = jMoment.day(); // 0 = Sunday, 1 = Monday, etc.
+        const weekday = persianDays[weekdayIndex];
+        const monthIndex = jMoment.jMonth(); // 0 = Farvardin, 1 = Ordibehesht, etc.
+        const month = persianMonths[monthIndex];
         const day = jMoment.format('jD');
         return `${weekday}، ${day} ${month}`;
       }
@@ -64,7 +73,12 @@ const Home = () => {
     try {
       // Use moment-jalaali for proper Persian calendar support
       const jMoment = moment(date);
-      return jMoment.format('jYYYY/jMM/jDD - HH:mm');
+      const monthIndex = jMoment.jMonth();
+      const month = persianMonths[monthIndex];
+      const day = jMoment.format('jD');
+      const year = jMoment.format('jYYYY');
+      const time = jMoment.format('HH:mm');
+      return `${day} ${month} ${year} - ${time}`;
     } catch {
       // Fallback to fa-IR if persian calendar not supported
       return new Intl.DateTimeFormat('fa-IR', {
