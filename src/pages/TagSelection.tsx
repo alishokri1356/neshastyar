@@ -443,28 +443,6 @@ const TagSelection = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Recording Summary */}
-        {recordingData && (
-          <Card className="bg-gradient-card border-0 shadow-soft">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-foreground mb-2">
-                {recordingData.fileName ? `فایل انتخاب شده: ${recordingData.fileName}` : 'ضبط تکمیل شد'}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-2">
-                مدت زمان: {Math.floor((recordingData.duration || 0) / 1000 / 60)}:{Math.floor(((recordingData.duration || 0) / 1000) % 60).toString().padStart(2, '0')}
-              </p>
-              <p className="text-xs text-muted-foreground/70 font-mono">
-                فایل: {recordingData.audioBlob ? `${recordingData.audioBlob.size} بایت (${recordingData.audioBlob.type})` : 'داده فایل موجود نیست'}
-              </p>
-              {recordingData.audioBlob && (
-                <div className="mt-4">
-                  <audio controls src={URL.createObjectURL(recordingData.audioBlob)} className="w-full" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Create New Tag */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
