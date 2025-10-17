@@ -21,6 +21,9 @@ router.post('/upload/audio', upload.single('audio'), FileController.uploadAudio)
 // Get audio file
 router.get('/files/audio/:userId/:filename', FileController.getAudio);
 
+// Get audio files for a meeting
+router.get('/meetings/:meetingId/audio-files', FileController.getMeetingAudioFiles);
+
 // Delete audio file
 router.delete('/files/audio/:userId/:filename', FileController.deleteAudio);
 

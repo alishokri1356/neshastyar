@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const { pool } = require('../config/database');
 
 // Configure multer for large file uploads
 const storage = multer.diskStorage({
@@ -375,6 +376,61 @@ class FileController {
       console.error('File deletion error:', error);
       res.status(500).json({
         error: 'Failed to delete file',
+        message: error.message
+      });
+    }
+  }
+
+  // GET /api/meetings/:meetingId/audio-files
+  async getMeetingAudioFiles(req, res) {
+    try {
+      const { meetingId } = req.params;
+      const requestingUserId = req.user.sub;
+
+      // First verify the meeting belongs to the user
+      const meetingQuery = `
+        SELECT id, user_id 
+        FROM meetings 
+        WHERE id = ? AND user_id = ?
+      `;
+      
+      const [meetingRows] = await pool.query(meetingQuery, [meetingId, requestingUserId]);
+      
+      if (meetingRows.length === 0) {
+        return res.status(404).json({
+          error: 'Meeting not found',
+          message: 'Meeting not found or access denied'
+        });
+      }
+
+      // Get audio files for the meeting
+      const audioFilesQuery = `
+        SELECT 
+          id,
+          file_name,
+          file_path,
+          file_size,
+          duration,
+          format,
+          storage_type,
+          upload_order,
+          created_at,
+          updated_at
+        FROM audio_files 
+        WHERE meeting_id = ?
+        ORDER BY upload_order ASC, created_at ASC
+      `;
+      
+      const [audioFilesRows] = await pool.query(audioFilesQuery, [meetingId]);
+      
+      res.json({
+        data: audioFilesRows,
+        error: null
+      });
+    } catch (error) {
+      console.error('Error fetching meeting audio files:', error);
+      res.status(500).json({
+        error: 'Failed to fetch audio files',
         message: error.message
       });
     }
