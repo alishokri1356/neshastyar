@@ -122,6 +122,8 @@ const MeetingDetail = () => {
 
         // Process audio files
         const audioFiles = meetingData.audio_files || [];
+        console.log('🔍 Audio files from database:', audioFiles);
+        
         const processedAudioFiles = await Promise.all(
           audioFiles.map(async (file: any) => ({
             id: file.id,
@@ -135,6 +137,8 @@ const MeetingDetail = () => {
             audioUrl: await getAudioUrl(file.file_name, user.id)
           }))
         );
+        
+        console.log('🔍 Processed audio files:', processedAudioFiles);
 
         const transformedMeeting = {
           id: meetingData.id,
@@ -148,6 +152,7 @@ const MeetingDetail = () => {
           totalDuration: processedAudioFiles.reduce((sum, file) => sum + (file.duration || 0), 0)
         };
 
+        console.log('🔍 Final transformed meeting:', transformedMeeting);
         return transformedMeeting;
       }
       return null;
@@ -901,7 +906,7 @@ const MeetingDetail = () => {
         </Card>
 
         {/* Audio Player */}
-        {meeting?.audioFiles && meeting.audioFiles.length > 0 && (
+        {meeting?.audioFiles && meeting.audioFiles.length > 0 ? (
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg text-card-foreground">
@@ -1012,6 +1017,22 @@ const MeetingDetail = () => {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">
+                  هیچ فایل صوتی برای این جلسه یافت نشد.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ممکن است فایل‌های صوتی هنوز در حال پردازش باشند یا به سیستم جدید منتقل نشده باشند.
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
