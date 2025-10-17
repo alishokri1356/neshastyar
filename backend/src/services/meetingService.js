@@ -56,11 +56,9 @@ class MeetingService {
 
     const sql = `
       INSERT INTO meetings (
-        id, user_id, audio_file_name, audio_file_path, 
-        audio_file_size, audio_duration, audio_format,
-        title, meeting_date, status, summary, 
+        id, user_id, title, meeting_date, status, summary, 
         storage_type, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     // Convert dates to MySQL format
@@ -71,11 +69,6 @@ class MeetingService {
     const values = [
       id,
       userId,
-      meetingData.audio_file_name || null,
-      meetingData.audio_file_path || null,
-      meetingData.audio_file_size || null,
-      meetingData.audio_duration || 0,
-      meetingData.audio_format || null,
       meetingData.title || null,
       meetingDate,
       meetingData.status || 'pending',
@@ -91,7 +84,7 @@ class MeetingService {
 
   // Update meeting
   async updateMeeting(id, userId, updates) {
-    const allowedFields = ['audio_file_name', 'meeting_date', 'status', 'summary'];
+    const allowedFields = ['title', 'meeting_date', 'status', 'summary', 'storage_type'];
     const updateFields = [];
     const values = [];
 
