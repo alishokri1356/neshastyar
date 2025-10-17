@@ -7,16 +7,27 @@ export interface Tag {
   userId: string;
 }
 
-export interface Meeting {
+export interface AudioFile {
   id: string;
   fileName: string;
+  filePath: string;
+  fileSize?: number;
+  duration?: number;
+  format?: string;
+  storageType: 'local' | 's3' | 'supabase' | 'other';
+  uploadOrder: number;
+  audioUrl?: string;
+}
+
+export interface Meeting {
+  id: string;
   title: string;
   date: Date;
   summary: string;
   status: 'آماده پردازش' | 'Need Review' | 'Done';
   tags: Tag[];
-  audioUrl?: string;
-  duration?: number;
+  audioFiles: AudioFile[];
+  totalDuration?: number; // Sum of all audio file durations
   userId: string;
 }
 

@@ -19,17 +19,30 @@ interface DatabaseTag {
   meetingCount: number;
 }
 
+interface DatabaseAudioFile {
+  id: string;
+  meeting_id: string;
+  file_name: string;
+  file_path: string;
+  file_size?: number;
+  duration?: number;
+  format?: string;
+  storage_type: 'local' | 's3' | 'supabase' | 'other';
+  upload_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface DatabaseMeeting {
   id: string;
   meeting_date: string;
   summary: string;
   status: string;
-  audio_file_name: string;
   title?: string;
   created_at: string;
   updated_at: string;
   user_id: string;
-  duration?: number;
+  audioFiles?: DatabaseAudioFile[];
   [key: string]: any; // Allow additional properties
 }
 
@@ -148,7 +161,21 @@ const Home = () => {
            try {
              const { data: meetingsData, error: meetingsError } = await mysqlClient
                .from('meetings')
-               .select('*')
+               .select(`
+                 *,
+                 audio_files (
+                   id,
+                   file_name,
+                   file_path,
+                   file_size,
+                   duration,
+                   format,
+                   storage_type,
+                   upload_order,
+                   created_at,
+                   updated_at
+                 )
+               `)
                .eq('user_id', user.id)
                .order('created_at', { ascending: false })
                .limit(20);
@@ -201,7 +228,21 @@ const Home = () => {
       
       const { data: meetingsData, error: meetingsError } = await mysqlClient
         .from('meetings')
-        .select('*')
+        .select(`
+          *,
+          audio_files (
+            id,
+            file_name,
+            file_path,
+            file_size,
+            duration,
+            format,
+            storage_type,
+            upload_order,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('user_id', user.id)
         .gt('created_at', latestMeetingTime)
         .order('created_at', { ascending: false });
@@ -459,9 +500,11 @@ const Home = () => {
                 {expandedDates[groupKey] && (
                 <div className="space-y-2">
                   {groupMeetings.map((meeting) => {
-                    const title = (meeting as any).title || meeting.audio_file_name?.replace('.wav', '').replace('.ogg', '') || 'جلسه';
-                    const duration = meeting.audio_duration || meeting.duration || 0;
-                    const durationText = duration > 0 ? `${Math.round(duration / 60)} min` : '';
+                    const title = meeting.title || 'جلسه';
+                    const audioFiles = meeting.audioFiles || [];
+                    const totalDuration = audioFiles.reduce((sum, file) => sum + (file.duration || 0), 0);
+                    const durationText = totalDuration > 0 ? `${Math.round(totalDuration / 60)} min` : '';
+                    const audioCountText = audioFiles.length > 1 ? ` (${audioFiles.length} فایل)` : '';
                     const meetingDate = new Date(meeting.meeting_date || meeting.created_at);
                     const dateText = formatPersianDateTime(meetingDate);
                     
@@ -483,7 +526,7 @@ const Home = () => {
                             {/* Meeting Content */}
                             <div className="flex-1 min-w-0">
                               <h4 className="font-medium text-foreground text-sm leading-tight">
-                                {title}
+                                {title}{audioCountText}
                               </h4>
                               
                               <div className="flex items-center space-x-2 mt-1 text-xs text-muted-foreground">
