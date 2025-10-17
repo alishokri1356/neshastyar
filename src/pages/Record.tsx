@@ -293,7 +293,7 @@ const Record = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button
                 onClick={handleStartRecording}
-                className="bg-red-500 hover:bg-red-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
+                className="bg-green-500 hover:bg-green-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
               >
                 <Mic className="h-6 w-6 ml-3" />
                 شروع ضبط
@@ -313,7 +313,7 @@ const Record = () => {
             {audioFiles.length > 0 && (
               <Button
                 onClick={handleDone}
-                className="bg-green-500 hover:bg-green-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
+                className="bg-blue-500 hover:bg-blue-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
               >
                 <Check className="h-6 w-6 ml-3" />
                 تمام ({audioFiles.length} فایل)
@@ -331,7 +331,7 @@ const Record = () => {
             <Button
               variant="ghost"
               onClick={() => navigate('/home')}
-              className="mt-4"
+              className="mt-4 bg-red-500 hover:bg-red-600 text-white"
             >
               لغو
             </Button>
