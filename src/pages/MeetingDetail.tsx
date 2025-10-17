@@ -32,6 +32,37 @@ const MeetingDetail = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [isEditingSummary, setIsEditingSummary] = useState(false);
+  
+  // Audio player state
+  const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // Audio player control functions
+  const handlePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleNextAudio = () => {
+    if (meeting?.audioFiles && currentAudioIndex < meeting.audioFiles.length - 1) {
+      setCurrentAudioIndex(currentAudioIndex + 1);
+      setCurrentTime(0);
+    }
+  };
+
+  const handlePreviousAudio = () => {
+    if (currentAudioIndex > 0) {
+      setCurrentAudioIndex(currentAudioIndex - 1);
+      setCurrentTime(0);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Fetch meeting and all user tags from database with auto-refresh
   const { data: meetingData, isLoading: meetingLoading } = useQuery({
@@ -54,7 +85,21 @@ const MeetingDetail = () => {
 
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
-        .select('*')
+        .select(`
+          *,
+          audio_files (
+            id,
+            file_name,
+            file_path,
+            file_size,
+            duration,
+            format,
+            storage_type,
+            upload_order,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('id', meetingId)
         .eq('user_id', user.id)
         .single();
@@ -75,16 +120,32 @@ const MeetingDetail = () => {
 
         console.log('🔍 Meeting tags data:', tags, tagError);
 
+        // Process audio files
+        const audioFiles = meetingData.audio_files || [];
+        const processedAudioFiles = await Promise.all(
+          audioFiles.map(async (file: any) => ({
+            id: file.id,
+            fileName: file.file_name,
+            filePath: file.file_path,
+            fileSize: file.file_size,
+            duration: file.duration,
+            format: file.format,
+            storageType: file.storage_type,
+            uploadOrder: file.upload_order,
+            audioUrl: await getAudioUrl(file.file_name, user.id)
+          }))
+        );
+
         const transformedMeeting = {
           id: meetingData.id,
-          fileName: meetingData.audio_file_name || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
-          title: (meetingData as any).title || meetingData.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
+          title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
           date: new Date(meetingData.meeting_date),
           summary: meetingData.summary || '',
           status: meetingData.status,
           tags: tags,
           userId: meetingData.user_id,
-          audioUrl: meetingData.audio_file_name ? await getAudioUrl(meetingData.audio_file_name, user.id) : null
+          audioFiles: processedAudioFiles,
+          totalDuration: processedAudioFiles.reduce((sum, file) => sum + (file.duration || 0), 0)
         };
 
         return transformedMeeting;
@@ -840,19 +901,117 @@ const MeetingDetail = () => {
         </Card>
 
         {/* Audio Player */}
-        {meeting.audioUrl && (
+        {meeting?.audioFiles && meeting.audioFiles.length > 0 && (
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
+              <CardTitle className="text-lg text-card-foreground">
+                ضبط صوتی ({meeting.audioFiles.length} فایل)
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <audio
-                  controls
-                  src={meeting.audioUrl}
-                  className="flex-1"
-                >
-                  Your browser does not support the audio element.
-                </audio>
+            <CardContent className="space-y-4">
+              {/* Audio File List */}
+              <div className="space-y-2">
+                {meeting.audioFiles.map((audioFile, index) => (
+                  <div
+                    key={audioFile.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      index === currentAudioIndex
+                        ? 'bg-primary/10 border-primary'
+                        : 'bg-muted/50 border-border hover:bg-muted/70'
+                    }`}
+                    onClick={() => setCurrentAudioIndex(index)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">
+                          فایل {index + 1}: {audioFile.fileName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {audioFile.duration ? formatTime(audioFile.duration) : 'نامشخص'} • {audioFile.format || 'صوتی'}
+                        </p>
+                      </div>
+                      {index === currentAudioIndex && (
+                        <Badge variant="secondary" className="text-xs">
+                          در حال پخش
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Audio Controls */}
+              {meeting.audioFiles[currentAudioIndex] && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center space-x-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreviousAudio}
+                      disabled={currentAudioIndex === 0}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="default"
+                      size="lg"
+                      onClick={handlePlayPause}
+                      className="rounded-full w-12 h-12"
+                    >
+                      {isPlaying ? (
+                        <Pause className="h-6 w-6" />
+                      ) : (
+                        <Play className="h-6 w-6" />
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextAudio}
+                      disabled={currentAudioIndex === meeting.audioFiles.length - 1}
+                    >
+                      <ArrowLeft className="h-4 w-4 rotate-180" />
+                    </Button>
+                  </div>
+
+                  {/* Audio Element */}
+                  <audio
+                    ref={(audio) => {
+                      if (audio) {
+                        audio.addEventListener('timeupdate', () => {
+                          setCurrentTime(audio.currentTime);
+                        });
+                        audio.addEventListener('loadedmetadata', () => {
+                          setDuration(audio.duration);
+                        });
+                        audio.addEventListener('ended', () => {
+                          setIsPlaying(false);
+                          if (currentAudioIndex < meeting.audioFiles.length - 1) {
+                            handleNextAudio();
+                          }
+                        });
+                        audio.addEventListener('play', () => setIsPlaying(true));
+                        audio.addEventListener('pause', () => setIsPlaying(false));
+                      }
+                    }}
+                    controls
+                    src={meeting.audioFiles[currentAudioIndex].audioUrl}
+                    className="w-full"
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+
+                  {/* Progress Info */}
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
