@@ -8,6 +8,9 @@ const router = express.Router();
 // Get audio file (public access with token) - NO AUTH MIDDLEWARE
 router.get('/audio/:userId/:filename', FileController.getPublicAudio);
 
+// Download audio by audio file ID (public access) - NO AUTH MIDDLEWARE
+router.get('/audio/:audioFileId', FileController.downloadAudioByFileId);
+
 // Download audio by meeting ID (public access) - NO AUTH MIDDLEWARE
 router.get('/download/audio/:meetingId', FileController.downloadAudioByMeetingId);
 

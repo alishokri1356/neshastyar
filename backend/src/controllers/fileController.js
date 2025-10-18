@@ -213,6 +213,140 @@ class FileController {
     }
   }
 
+  // GET /api/audio/:audioFileId - Public audio download by audio file ID (NO AUTH)
+  async downloadAudioByFileId(req, res) {
+    try {
+      const { audioFileId } = req.params;
+      
+      console.log('🔍 Audio download request for file ID:', audioFileId);
+
+      if (!audioFileId) {
+        return res.status(400).json({
+          error: 'Audio file ID required',
+          message: 'Audio file ID is required to download audio file'
+        });
+      }
+
+      // Get audio file data from database
+      const db = require('../config/database');
+      const sql = 'SELECT * FROM audio_files WHERE id = ?';
+      const audioFiles = await db.query(sql, [audioFileId]);
+      
+      if (!audioFiles || audioFiles.length === 0) {
+        return res.status(404).json({
+          error: 'Audio file not found',
+          message: 'The requested audio file does not exist'
+        });
+      }
+
+      const audioFile = audioFiles[0];
+      
+      // Get meeting data to verify it exists
+      const meetingSql = 'SELECT * FROM meetings WHERE id = ?';
+      const meetings = await db.query(meetingSql, [audioFile.meeting_id]);
+      
+      if (!meetings || meetings.length === 0) {
+        return res.status(404).json({
+          error: 'Meeting not found',
+          message: 'The meeting for this audio file does not exist'
+        });
+      }
+
+      const meeting = meetings[0];
+
+      // Construct file path
+      const filePath = path.join(process.cwd(), audioFile.file_path);
+      console.log('🔍 Looking for file at:', filePath);
+
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+        console.log('✅ File exists at:', filePath);
+      } catch (error) {
+        console.log('❌ File not found at:', filePath);
+        
+        // Try to find a matching file in the user's directory
+        const userDir = path.join(process.cwd(), 'uploads', 'audio', meeting.user_id);
+        console.log('🔍 Searching in user directory:', userDir);
+        
+        try {
+          const files = await fs.readdir(userDir);
+          console.log('🔍 Files in directory:', files);
+          
+          // Find file that matches the audio_file_name pattern
+          const baseFileName = audioFile.file_name;
+          let matchingFile = files.find(file => {
+            // Extract the base name without timestamp prefix
+            const baseName = file.replace(/^\d+-/, ''); // Remove timestamp prefix
+            const originalBaseName = baseFileName;
+            
+            // Check if the base names match (ignoring timestamp prefixes)
+            return baseName === originalBaseName || 
+                   baseName.includes(originalBaseName.replace('.ogg', '')) ||
+                   originalBaseName.includes(baseName.replace('.ogg', ''));
+          });
+          
+          // If no exact match found, try to find any audio file for this user
+          if (!matchingFile && files.length > 0) {
+            console.log('🔍 No exact match found, using first available audio file');
+            matchingFile = files[0]; // Use the first available file
+          }
+          
+          if (matchingFile) {
+            const foundFilePath = path.join(userDir, matchingFile);
+            console.log('✅ Found file:', foundFilePath);
+            
+            // Set appropriate headers for file download
+            const fileName = audioFile.file_name || `audio-${audioFileId}.${audioFile.format?.split('/')[1] || 'ogg'}`;
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.setHeader('Content-Type', audioFile.format || 'application/octet-stream');
+            
+            if (audioFile.file_size) {
+              res.setHeader('Content-Length', audioFile.file_size);
+            }
+            
+            // Stream the file
+            return res.sendFile(foundFilePath);
+          } else {
+            console.log('❌ No audio files found for this user');
+            return res.status(404).json({
+              error: 'Audio file not found',
+              message: 'No audio files found for this audio file record'
+            });
+          }
+        } catch (dirError) {
+          console.log('❌ Error reading directory:', dirError.message);
+          return res.status(404).json({
+            error: 'Audio file not found',
+            message: 'The audio file for this record could not be located'
+          });
+        }
+      }
+
+      // Set appropriate headers for file download
+      const fileName = audioFile.file_name || `audio-${audioFileId}.${audioFile.format?.split('/')[1] || 'ogg'}`;
+      
+      // Sanitize filename to prevent invalid characters in headers
+      const sanitizedFileName = fileName.replace(/[^\w\-_.]/g, '_');
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
+      res.setHeader('Content-Type', audioFile.format || 'application/octet-stream');
+      
+      if (audioFile.file_size) {
+        res.setHeader('Content-Length', audioFile.file_size);
+      }
+
+      // Stream the file
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error('Audio download error:', error);
+      res.status(500).json({
+        error: 'Failed to download audio file',
+        message: 'An error occurred while downloading the audio file'
+      });
+    }
+  }
+
   // GET /api/download/audio/:meetingId - Public audio download by meeting ID (NO AUTH)
   async downloadAudioByMeetingId(req, res) {
     try {
