@@ -434,6 +434,63 @@ class FileController {
       });
     }
   }
+
+  // POST /api/audio-files - Create audio file record
+  async createAudioFile(req, res) {
+    try {
+      const userId = req.user.sub;
+      const { meeting_id, file_name, file_path, file_size, duration, format, upload_order } = req.body;
+
+      // Verify the meeting belongs to the user
+      const meetingQuery = `
+        SELECT id, user_id 
+        FROM meetings 
+        WHERE id = ? AND user_id = ?
+      `;
+      
+      const [meetingRows] = await pool.query(meetingQuery, [meeting_id, userId]);
+      
+      if (meetingRows.length === 0) {
+        return res.status(404).json({
+          error: 'Meeting not found',
+          message: 'Meeting not found or access denied'
+        });
+      }
+
+      // Insert audio file record
+      const insertQuery = `
+        INSERT INTO audio_files (
+          meeting_id, file_name, file_path, file_size, 
+          duration, format, upload_order, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `;
+      
+      const [result] = await pool.query(insertQuery, [
+        meeting_id, file_name, file_path, file_size, 
+        duration, format, upload_order || 1
+      ]);
+      
+      res.json({
+        data: {
+          id: result.insertId,
+          meeting_id,
+          file_name,
+          file_path,
+          file_size,
+          duration,
+          format,
+          upload_order: upload_order || 1
+        },
+        error: null
+      });
+    } catch (error) {
+      console.error('Error creating audio file:', error);
+      res.status(500).json({
+        error: 'Failed to create audio file',
+        message: error.message
+      });
+    }
+  }
 }
 
 module.exports = { FileController: new FileController(), upload };

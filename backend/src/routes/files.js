@@ -24,6 +24,9 @@ router.get('/files/audio/:userId/:filename', FileController.getAudio);
 // Get audio files for a meeting
 router.get('/meetings/:meetingId/audio-files', FileController.getMeetingAudioFiles);
 
+// Create audio file record
+router.post('/audio-files', FileController.createAudioFile);
+
 // Delete audio file
 router.delete('/files/audio/:userId/:filename', FileController.deleteAudio);
 

@@ -279,6 +279,8 @@ class MySQLClient {
           url = `${API_BASE_URL}/tags`;
         } else if (table === 'meeting_tags') {
           url = `${API_BASE_URL}/meeting-tags`;
+        } else if (table === 'audio_files') {
+          url = `${API_BASE_URL}/audio-files`;
         } else {
           return { data: null, error: { message: 'Table not supported' } };
         }

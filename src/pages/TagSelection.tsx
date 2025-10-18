@@ -352,7 +352,7 @@ const TagSelection = () => {
         const { error: audioFileError } = await mysqlClient
           .from('audio_files')
           .insert({
-            meeting_id: meetingData[0].id,
+            meeting_id: meetingData.id || meetingData[0]?.id,
             file_name: uploadedFile.fileName,
             file_path: uploadedFile.filePath,
             file_size: uploadedFile.fileSize,
@@ -373,7 +373,7 @@ const TagSelection = () => {
           const { error: tagsError } = await mysqlClient
             .from('meeting_tags')
             .insert({
-              meeting_id: meetingData.id,
+              meeting_id: meetingData.id || meetingData[0]?.id,
               tag_id: tag.id
             });
 
@@ -396,7 +396,7 @@ const TagSelection = () => {
           .from('meetings')
           .update({ status: 'ارسال درخواست پردازش' });
         
-        const { error: statusError } = await updateResult.eq('id', meetingData.id);
+        const { error: statusError } = await updateResult.eq('id', meetingData.id || meetingData[0]?.id);
 
         if (statusError) throw statusError;
 
