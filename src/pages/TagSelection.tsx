@@ -274,7 +274,16 @@ const TagSelection = () => {
           xhr.upload.addEventListener('progress', (event) => {
             if (event.lengthComputable) {
               const percentComplete = Math.round((event.loaded / event.total) * 100);
-              setFileUploadProgress(prev => new Map(prev).set(file.id, percentComplete));
+              setFileUploadProgress(prev => {
+                const newMap = new Map(prev).set(file.id, percentComplete);
+                
+                // Calculate overall progress
+                const totalProgress = Array.from(newMap.values()).reduce((sum, progress) => sum + progress, 0);
+                const averageProgress = Math.round(totalProgress / audioFiles.length);
+                setUploadProgress(averageProgress);
+                
+                return newMap;
+              });
             }
           });
 
@@ -308,13 +317,20 @@ const TagSelection = () => {
           });
           
           // Set progress to 100% for completed file
-          setFileUploadProgress(prev => new Map(prev).set(file.id, 100));
+          setFileUploadProgress(prev => {
+            const newMap = new Map(prev).set(file.id, 100);
+            
+            // Calculate overall progress
+            const totalProgress = Array.from(newMap.values()).reduce((sum, progress) => sum + progress, 0);
+            const averageProgress = Math.round(totalProgress / audioFiles.length);
+            setUploadProgress(averageProgress);
+            
+            return newMap;
+          });
         } catch (error) {
           throw new Error(error instanceof Error ? error.message : 'بارگذاری فایل ناموفق بود');
         }
       }
-      
-      setUploadProgress(100);
 
       // Create meeting in database
       const { data: meetingData, error: meetingError } = await mysqlClient
