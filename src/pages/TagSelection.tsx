@@ -650,15 +650,6 @@ const TagSelection = () => {
                   );
                 })}
               </div>
-              
-              {/* Overall Progress */}
-              <div className="mt-6 pt-4 border-t border-border/50">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">پیشرفت کلی</span>
-                  <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
-                </div>
-                <Progress value={uploadProgress} className="h-3" />
-              </div>
             </CardContent>
           </Card>
         )}
