@@ -24,7 +24,6 @@ Total Tables: 6
 | file_size | bigint | YES |  | NULL |  |
 | duration | int | YES |  | 0 |  |
 | format | varchar(50) | YES |  | NULL |  |
-| storage_type | enum('local','s3','supabase','other') | YES |  | local |  |
 | upload_order | int | YES | MUL | 1 |  |
 | created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 | updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
@@ -50,7 +49,6 @@ CREATE TABLE `audio_files` (
   `file_size` bigint DEFAULT NULL,
   `duration` int DEFAULT '0',
   `format` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `storage_type` enum('local','s3','supabase','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'local',
   `upload_order` int DEFAULT '1' COMMENT 'Order of upload for this meeting',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -94,7 +94,6 @@ const MeetingDetail = () => {
             file_size,
             duration,
             format,
-            storage_type,
             upload_order,
             created_at,
             updated_at
@@ -144,7 +143,6 @@ const MeetingDetail = () => {
             fileSize: file.file_size,
             duration: file.duration,
             format: file.format,
-            storageType: file.storage_type,
             uploadOrder: file.upload_order,
             audioUrl: await getAudioUrl(file.file_name, user.id)
           }))

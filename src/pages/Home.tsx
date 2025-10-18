@@ -27,7 +27,6 @@ interface DatabaseAudioFile {
   file_size?: number;
   duration?: number;
   format?: string;
-  storage_type: 'local' | 's3' | 'supabase' | 'other';
   upload_order: number;
   created_at: string;
   updated_at: string;
@@ -170,7 +169,6 @@ const Home = () => {
                    file_size,
                    duration,
                    format,
-                   storage_type,
                    upload_order,
                    created_at,
                    updated_at
@@ -237,7 +235,6 @@ const Home = () => {
             file_size,
             duration,
             format,
-            storage_type,
             upload_order,
             created_at,
             updated_at

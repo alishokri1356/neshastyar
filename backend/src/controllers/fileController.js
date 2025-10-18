@@ -412,7 +412,6 @@ class FileController {
           file_size,
           duration,
           format,
-          storage_type,
           upload_order,
           created_at,
           updated_at

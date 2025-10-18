@@ -28,10 +28,8 @@ ADD COLUMN `audio_file_size` BIGINT NULL,
 ADD COLUMN `audio_duration` INT DEFAULT 0,
 ADD COLUMN `audio_format` VARCHAR(50) NULL,
 ADD COLUMN `title` VARCHAR(255) NULL,
-ADD COLUMN `storage_type` ENUM('local', 's3', 'supabase', 'other') DEFAULT 'local';
 
 CREATE INDEX `idx_audio_file_path` ON `meetings` (`audio_file_path`);
-CREATE INDEX `idx_storage_type` ON `meetings` (`storage_type`);
 CREATE INDEX `idx_title` ON `meetings` (`title`);
 ```
 

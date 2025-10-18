@@ -19,7 +19,7 @@ async function runMigration() {
       FROM INFORMATION_SCHEMA.COLUMNS 
       WHERE TABLE_SCHEMA = '${process.env.DB_NAME || 'modiryar'}' 
       AND TABLE_NAME = 'meetings'
-      AND COLUMN_NAME IN ('audio_file_path', 'audio_file_size', 'audio_duration', 'audio_format', 'title', 'storage_type')
+      AND COLUMN_NAME IN ('audio_file_path', 'audio_file_size', 'audio_duration', 'audio_format', 'title')
     `);
     
     const existingColumns = columns.map(c => c.COLUMN_NAME);
@@ -80,16 +80,6 @@ async function runMigration() {
       console.log('⏭️  title already exists');
     }
 
-    // Add storage_type
-    if (!existingColumns.includes('storage_type')) {
-      await connection.execute(`
-        ALTER TABLE meetings 
-        ADD COLUMN storage_type ENUM('local', 's3', 'other') DEFAULT 'local' COMMENT 'Storage location'
-      `);
-      console.log('✅ Added storage_type column');
-    } else {
-      console.log('⏭️  storage_type already exists');
-    }
 
     // Add indexes
     console.log('\n📇 Adding indexes...');
@@ -105,16 +95,6 @@ async function runMigration() {
       }
     }
 
-    try {
-      await connection.execute(`CREATE INDEX idx_storage_type ON meetings (storage_type)`);
-      console.log('✅ Added idx_storage_type index');
-    } catch (e) {
-      if (e.code === 'ER_DUP_KEYNAME') {
-        console.log('⏭️  idx_storage_type already exists');
-      } else {
-        throw e;
-      }
-    }
 
     try {
       await connection.execute(`CREATE INDEX idx_title ON meetings (title)`);
@@ -134,7 +114,6 @@ async function runMigration() {
     console.log('  - audio_duration (INT)');
     console.log('  - audio_format (VARCHAR(50))');
     console.log('  - title (VARCHAR(255))');
-    console.log('  - storage_type (ENUM)');
 
   } catch (error) {
     console.error('\n❌ Migration failed:', error.message);

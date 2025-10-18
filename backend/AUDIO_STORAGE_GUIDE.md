@@ -16,7 +16,6 @@ This adds:
 - `audio_duration` - Duration in seconds
 - `audio_format` - File format (mp3, wav, ogg, etc.)
 - `title` - Meeting title
-- `storage_type` - Where the file is stored (local, s3, etc.)
 
 ### 2. Storage Options
 
@@ -236,7 +235,7 @@ async createMeeting(userId, meetingData) {
       id, user_id, audio_file_name, audio_file_path, 
       audio_file_size, audio_duration, audio_format,
       title, meeting_date, status, summary, 
-      storage_type, created_at, updated_at
+      created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
@@ -252,7 +251,6 @@ async createMeeting(userId, meetingData) {
     meetingData.meeting_date || now,
     meetingData.status || 'pending',
     meetingData.summary || null,
-    meetingData.storage_type || 'local',
     now,
     now
   ];
@@ -295,7 +293,6 @@ const { data: meetingData, error: meetingError } = await mysqlClient
     audio_duration: Math.floor(recordingData.duration / 1000),
     title: meetingTitle,
     status: 'آماده پردازش',
-    storage_type: 'local'
   });
 ```
 
