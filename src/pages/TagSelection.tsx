@@ -277,8 +277,11 @@ const TagSelection = () => {
               setFileUploadProgress(prev => {
                 const newMap = new Map(prev).set(file.id, percentComplete);
                 
-                // Calculate overall progress
-                const totalProgress = Array.from(newMap.values()).reduce((sum, progress) => sum + progress, 0);
+                // Calculate overall progress - ensure all files are counted
+                const totalProgress = audioFiles.reduce((sum, file) => {
+                  const fileProgress = newMap.get(file.id) || 0;
+                  return sum + fileProgress;
+                }, 0);
                 const averageProgress = Math.round(totalProgress / audioFiles.length);
                 setUploadProgress(averageProgress);
                 
@@ -320,8 +323,11 @@ const TagSelection = () => {
           setFileUploadProgress(prev => {
             const newMap = new Map(prev).set(file.id, 100);
             
-            // Calculate overall progress
-            const totalProgress = Array.from(newMap.values()).reduce((sum, progress) => sum + progress, 0);
+            // Calculate overall progress - ensure all files are counted
+            const totalProgress = audioFiles.reduce((sum, file) => {
+              const fileProgress = newMap.get(file.id) || 0;
+              return sum + fileProgress;
+            }, 0);
             const averageProgress = Math.round(totalProgress / audioFiles.length);
             setUploadProgress(averageProgress);
             
