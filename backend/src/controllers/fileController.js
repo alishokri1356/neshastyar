@@ -457,22 +457,25 @@ class FileController {
         });
       }
 
+      // Generate a UUID for the audio file
+      const audioFileId = require('crypto').randomUUID();
+
       // Insert audio file record
       const insertQuery = `
         INSERT INTO audio_files (
-          meeting_id, file_name, file_path, file_size, 
+          id, meeting_id, file_name, file_path, file_size, 
           duration, format, upload_order, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
       
       const [result] = await pool.query(insertQuery, [
-        meeting_id, file_name, file_path, file_size, 
+        audioFileId, meeting_id, file_name, file_path, file_size, 
         duration, format, upload_order || 1
       ]);
       
       res.json({
         data: {
-          id: result.insertId,
+          id: audioFileId,
           meeting_id,
           file_name,
           file_path,
