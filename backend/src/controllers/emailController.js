@@ -197,9 +197,13 @@ class EmailController {
   // GET /sendmail/:meetingId - Webhook endpoint (no authentication required)
   async sendMailWebhook(req, res) {
     try {
+      console.log('🔗 Webhook called:', req.method, req.url);
+      console.log('🔗 Meeting ID:', req.params.meetingId);
+      
       const { meetingId } = req.params;
 
       if (!meetingId) {
+        console.log('❌ Missing meeting ID');
         return res.status(400).json({
           error: 'Missing meeting ID',
           message: 'Meeting ID is required'
@@ -228,11 +232,14 @@ class EmailController {
       }
 
       if (meetingError || !meetingData) {
+        console.log('❌ Meeting not found:', meetingError);
         return res.status(404).json({
           error: 'Meeting not found',
           message: 'Meeting with the specified ID was not found'
         });
       }
+
+      console.log('✅ Meeting found:', meetingData.title);
 
       // Fetch user data separately
       const { data: userData, error: userError } = await mysqlClient

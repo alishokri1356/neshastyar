@@ -9,6 +9,7 @@ const { corsOptions, errorHandler } = require('./middleware/auth');
 // Import routes
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
+const webhookRoutes = require('./routes/webhook');
 const meetingRoutes = require('./routes/meetings');
 const tagRoutes = require('./routes/tags');
 const meetingTagRoutes = require('./routes/meetingTags');
@@ -53,7 +54,7 @@ app.get('/health', (req, res) => {
 });
 
 // Webhook routes (no authentication required) - MUST be before 404 handler
-app.use('/', emailRoutes);
+app.use('/', webhookRoutes);
 
 // API routes
 app.use('/api/auth', authRoutes);
