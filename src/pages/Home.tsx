@@ -510,15 +510,6 @@ const Home = () => {
          meetingsByParticipants
        ).length > 0 && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-foreground">جلسات</h3>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <span>Home</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
             
             {Object.entries(
               sortBy === 'date' ? meetingsByDate : 
