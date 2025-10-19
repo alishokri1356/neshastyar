@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
-import { Mic2, LogOut, Plus, Calendar, Clock, FileText, User } from 'lucide-react';
+import { Mic2, LogOut, Plus, Calendar, Clock, FileText, User, Settings, X, Tag, UserCircle } from 'lucide-react';
 import moment from 'moment-jalaali';
 
 interface DatabaseTag {
@@ -107,6 +107,9 @@ const Home = () => {
   // State for sorting
   const [sortBy, setSortBy] = React.useState<'date' | 'tags' | 'participants'>('date');
   const [expandedDates, setExpandedDates] = React.useState<Record<string, boolean>>({});
+  
+  // State for slide panel
+  const [isPanelOpen, setIsPanelOpen] = React.useState(false);
 
   // Fetch tags once on load (no aggressive polling)
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
@@ -406,6 +409,26 @@ const Home = () => {
     window.location.href = '/';
   };
 
+  const handleTagManagement = () => {
+    setIsPanelOpen(false);
+    // Navigate to tag management page or show tag management modal
+    navigate('/tags');
+  };
+
+  const handleAccountManagement = () => {
+    setIsPanelOpen(false);
+    // Navigate to account management page or show account settings modal
+    toast({
+      title: "مدیریت حساب",
+      description: "این قابلیت به زودی اضافه خواهد شد.",
+    });
+  };
+
+  const handleLogoutFromPanel = async () => {
+    setIsPanelOpen(false);
+    await handleLogout();
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'On Process':
@@ -457,12 +480,77 @@ const Home = () => {
               <p className="text-xs text-muted-foreground">حرفه‌ای</p>
               <p className="text-xs text-muted-foreground mt-1">{formatPersianDateTime(new Date())}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => setIsPanelOpen(true)}>
+              <Settings className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </header>
+
+      {/* Slide-out Settings Panel */}
+      <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${isPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={() => setIsPanelOpen(false)}
+        />
+        
+        {/* Panel */}
+        <div className={`absolute right-0 top-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          {/* Panel Header */}
+          <div className="flex items-center justify-between p-6 border-b border-border/50">
+            <h2 className="text-xl font-semibold text-foreground">تنظیمات</h2>
+            <Button variant="ghost" size="icon" onClick={() => setIsPanelOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Panel Content */}
+          <div className="p-6 space-y-4">
+            {/* Tag Management */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start h-12 text-right"
+              onClick={handleTagManagement}
+            >
+              <Tag className="h-5 w-5 ml-3" />
+              <div className="text-right">
+                <div className="font-medium">مدیریت برچسب‌ها</div>
+                <div className="text-xs text-muted-foreground">ایجاد، ویرایش و حذف برچسب‌ها</div>
+              </div>
+            </Button>
+            
+            {/* Account Management */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start h-12 text-right"
+              onClick={handleAccountManagement}
+            >
+              <UserCircle className="h-5 w-5 ml-3" />
+              <div className="text-right">
+                <div className="font-medium">مدیریت حساب</div>
+                <div className="text-xs text-muted-foreground">تنظیمات پروفایل و امنیت</div>
+              </div>
+            </Button>
+            
+            {/* Divider */}
+            <div className="border-t border-border/50 my-4" />
+            
+            {/* Logout */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start h-12 text-right text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleLogoutFromPanel}
+            >
+              <LogOut className="h-5 w-5 ml-3" />
+              <div className="text-right">
+                <div className="font-medium">خروج از حساب</div>
+                <div className="text-xs text-muted-foreground">خروج از سیستم</div>
+              </div>
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Welcome Section */}
