@@ -52,6 +52,9 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Webhook routes (no authentication required) - MUST be before 404 handler
+app.use('/', emailRoutes);
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', emailRoutes);
@@ -60,9 +63,6 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/meeting-tags', meetingTagRoutes);
 app.use('/api', fileRoutes);
-
-// Webhook routes (no authentication required)
-app.use('/', emailRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
