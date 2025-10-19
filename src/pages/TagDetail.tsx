@@ -49,11 +49,10 @@ const TagDetail = () => {
         let untaggedMeetings = [];
 
         if (allMeetings && allMeetings.length > 0) {
-          // Get all meeting IDs that have tags
-          const { data: taggedMeetingIds, error: tagsError } = await mysqlClient
+          // Get all meeting tags
+          const { data: allMeetingTags, error: tagsError } = await mysqlClient
             .from('meeting_tags')
-            .select('meeting_id')
-            .in('meeting_id', allMeetings.map(m => m.id));
+            .select('meeting_id');
 
           if (tagsError) {
             console.error('Error fetching tagged meetings:', tagsError);
@@ -61,7 +60,7 @@ const TagDetail = () => {
           }
 
           // Filter out meetings that have tags
-          const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
+          const taggedIds = new Set(allMeetingTags?.map(item => item.meeting_id) || []);
           untaggedMeetings = allMeetings.filter(meeting => !taggedIds.has(meeting.id));
         } else {
           // If no meetings exist, untagged meetings is empty array

@@ -76,11 +76,10 @@ const TagList = () => {
         let untaggedMeetingsCount = 0;
 
         if (allMeetings && allMeetings.length > 0) {
-          // Get all meeting IDs that have tags
-          const { data: taggedMeetingIds, error: tagsCountError } = await mysqlClient
+          // Get all meeting tags for this user
+          const { data: allMeetingTags, error: tagsCountError } = await mysqlClient
             .from('meeting_tags')
-            .select('meeting_id')
-            .in('meeting_id', allMeetings.map(m => m.id));
+            .select('meeting_id');
 
           if (tagsCountError) {
             console.error('Error fetching tagged meetings:', tagsCountError);
@@ -88,7 +87,7 @@ const TagList = () => {
           }
 
           // Calculate untagged meetings count
-          const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
+          const taggedIds = new Set(allMeetingTags?.map(item => item.meeting_id) || []);
           untaggedMeetingsCount = allMeetings.filter(meeting => !taggedIds.has(meeting.id)).length;
         } else {
           // If no meetings exist, untagged count is 0
