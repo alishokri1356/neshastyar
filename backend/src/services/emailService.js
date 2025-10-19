@@ -154,6 +154,9 @@ class EmailService {
 
   // Send meeting summary email
   async sendMeetingSummaryEmail(email, name, meetingTitle, summary) {
+    // Parse and format the summary
+    const formattedSummary = this.formatSummaryForEmail(summary);
+    
     const mailOptions = {
       from: `"Modiryar" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
       to: email,
@@ -173,12 +176,7 @@ class EmailService {
             </p>
             
             <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
-                خلاصه جلسه
-              </h3>
-              <div style="color: #555; line-height: 1.8; font-size: 15px; text-align: right; white-space: pre-wrap;">
-                ${summary}
-              </div>
+              ${formattedSummary}
             </div>
             
             <div style="background: #e3f2fd; border: 1px solid #2196f3; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -204,6 +202,87 @@ class EmailService {
     } catch (error) {
       console.error('Error sending meeting summary email:', error);
       throw new Error('Failed to send meeting summary email');
+    }
+  }
+
+  // Format summary for email display
+  formatSummaryForEmail(summary) {
+    try {
+      // Try to parse as JSON first
+      const jsonData = JSON.parse(summary);
+      
+      let html = '<h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>';
+      
+      // Subject
+      if (jsonData.Subject) {
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">موضوع:</h4>
+            <p style="color: #333; line-height: 1.6; font-size: 15px; text-align: right; margin: 0; font-weight: bold;">${jsonData.Subject}</p>
+          </div>
+        `;
+      }
+      
+      // Summary
+      if (jsonData.Summary) {
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">خلاصه:</h4>
+            <p style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; margin: 0; white-space: pre-wrap;">${jsonData.Summary}</p>
+          </div>
+        `;
+      }
+      
+      // People in meetings
+      if (jsonData["People in meetings"] && jsonData["People in meetings"].length > 0) {
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">افراد حاضر در جلسه:</h4>
+            <div style="text-align: right;">
+              ${jsonData["People in meetings"].map(person => 
+                `<span style="display: inline-block; background: #f0f0f0; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; color: #555;">${person}</span>`
+              ).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Bullet Points
+      if (jsonData["Bolet Points"] && jsonData["Bolet Points"].length > 0) {
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">نکات کلیدی:</h4>
+            <ul style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; margin: 0; padding-right: 20px;">
+              ${jsonData["Bolet Points"].map(point => 
+                `<li style="margin-bottom: 8px;">${point}</li>`
+              ).join('')}
+            </ul>
+          </div>
+        `;
+      }
+      
+      // Tags
+      if (jsonData.Tags && jsonData.Tags.length > 0) {
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">برچسب‌های پیشنهادی:</h4>
+            <div style="text-align: right;">
+              ${jsonData.Tags.map(tag => 
+                `<span style="display: inline-block; background: #e3f2fd; color: #1976d2; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; border: 1px solid #bbdefb;">${tag}</span>`
+              ).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      return html;
+      
+    } catch (error) {
+      // If it's not JSON, treat as plain text
+      return `
+        <h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>
+        <div style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; white-space: pre-wrap;">${summary}</div>
+      `;
     }
   }
 
