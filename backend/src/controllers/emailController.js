@@ -249,7 +249,7 @@ class EmailController {
       // Fetch user data separately
       console.log('🔍 Fetching user data for ID:', meeting.user_id);
       const userQuery = `
-        SELECT id, email, user_metadata 
+        SELECT id, email 
         FROM users 
         WHERE id = ?
       `;
@@ -293,7 +293,7 @@ class EmailController {
       }
 
       const userEmail = user.email;
-      const userName = user.user_metadata?.name || userEmail;
+      const userName = user.email; // Use email as name since user_metadata doesn't exist
       const meetingTitle = meeting.title || `Meeting ${meetingId}`;
 
       // Send the email
