@@ -18,4 +18,7 @@ router.post('/reset-password', emailController.resetPassword);
 // POST /api/email/send-summary
 router.post('/send-summary', emailController.sendSummary);
 
+// GET /sendmail/:meetingId - Webhook endpoint (no authentication required)
+router.get('/sendmail/:meetingId', emailController.sendMailWebhook);
+
 module.exports = router;

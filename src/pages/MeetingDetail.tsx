@@ -541,16 +541,6 @@ const MeetingDetail = () => {
 
   const handleSendSummaryToEmail = async () => {
     try {
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) {
-        toast({
-          title: "خطا",
-          description: "کاربر وارد نشده است.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const currentSummary = statusData?.summary || summary;
       if (!currentSummary || currentSummary.trim() === '') {
         toast({
@@ -561,29 +551,24 @@ const MeetingDetail = () => {
         return;
       }
 
-      // Send request to backend to email the summary
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/email/send-summary`, {
-        method: 'POST',
+      // Call the webhook endpoint (no authentication required)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/sendmail/${meeting.id}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...mysqlClient.getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          meetingId: meeting.id,
-          meetingTitle: meeting.title,
-          summary: currentSummary,
-          userEmail: user.email,
-          userName: user.user_metadata?.name || user.email
-        })
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send email');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send email');
       }
 
+      const result = await response.json();
+      
       toast({
         title: "خلاصه ارسال شد",
-        description: "خلاصه جلسه به ایمیل شما ارسال شد.",
+        description: `خلاصه جلسه به ایمیل ${result.data.userEmail} ارسال شد.`,
       });
     } catch (error) {
       console.error('Error sending summary to email:', error);

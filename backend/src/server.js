@@ -61,6 +61,9 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/meeting-tags', meetingTagRoutes);
 app.use('/api', fileRoutes);
 
+// Webhook routes (no authentication required)
+app.use('/', emailRoutes);
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({

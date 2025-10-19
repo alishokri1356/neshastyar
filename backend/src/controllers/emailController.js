@@ -1,5 +1,6 @@
 const userService = require('../services/userService');
 const emailService = require('../services/emailService');
+const mysqlClient = require('../config/database');
 
 class EmailController {
   // GET /api/auth/verify-email
@@ -152,6 +153,79 @@ class EmailController {
       res.status(500).json({
         error: 'Send failed',
         message: 'Failed to send meeting summary email'
+      });
+    }
+  }
+
+  // GET /sendmail/:meetingId - Webhook endpoint (no authentication required)
+  async sendMailWebhook(req, res) {
+    try {
+      const { meetingId } = req.params;
+
+      if (!meetingId) {
+        return res.status(400).json({
+          error: 'Missing meeting ID',
+          message: 'Meeting ID is required'
+        });
+      }
+
+      // Fetch meeting data from database
+      const { data: meetingData, error: meetingError } = await mysqlClient
+        .from('meetings')
+        .select(`
+          id,
+          title,
+          summary,
+          user_id,
+          users!inner(
+            id,
+            email,
+            user_metadata
+          )
+        `)
+        .eq('id', meetingId)
+        .single();
+
+      if (meetingError || !meetingData) {
+        return res.status(404).json({
+          error: 'Meeting not found',
+          message: 'Meeting with the specified ID was not found'
+        });
+      }
+
+      if (!meetingData.summary || meetingData.summary.trim() === '') {
+        return res.status(400).json({
+          error: 'No summary available',
+          message: 'This meeting does not have a summary to send'
+        });
+      }
+
+      const userEmail = meetingData.users.email;
+      const userName = meetingData.users.user_metadata?.name || userEmail;
+      const meetingTitle = meetingData.title || `Meeting ${meetingId}`;
+
+      // Send the email
+      await emailService.sendMeetingSummaryEmail(
+        userEmail,
+        userName,
+        meetingTitle,
+        meetingData.summary
+      );
+
+      res.json({
+        data: { 
+          success: true,
+          message: 'Meeting summary email sent successfully',
+          meetingId: meetingId,
+          userEmail: userEmail
+        },
+        error: null
+      });
+    } catch (error) {
+      console.error('Send mail webhook error:', error);
+      res.status(500).json({
+        error: 'Send failed',
+        message: 'Failed to send meeting summary email via webhook'
       });
     }
   }
