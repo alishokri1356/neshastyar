@@ -1,4 +1,5 @@
 const userService = require('../services/userService');
+const emailService = require('../services/emailService');
 
 class EmailController {
   // GET /api/auth/verify-email
@@ -112,6 +113,45 @@ class EmailController {
       res.status(400).json({
         error: 'Reset failed',
         message: error.message
+      });
+    }
+  }
+
+  // POST /api/email/send-summary
+  async sendSummary(req, res) {
+    try {
+      const { meetingId, meetingTitle, summary, userEmail, userName } = req.body;
+
+      if (!meetingId || !meetingTitle || !summary || !userEmail) {
+        return res.status(400).json({
+          error: 'Missing required fields',
+          message: 'Meeting ID, title, summary, and user email are required'
+        });
+      }
+
+      if (!summary.trim()) {
+        return res.status(400).json({
+          error: 'Empty summary',
+          message: 'Summary cannot be empty'
+        });
+      }
+
+      await emailService.sendMeetingSummaryEmail(
+        userEmail,
+        userName || userEmail,
+        meetingTitle,
+        summary
+      );
+
+      res.json({
+        data: { success: true },
+        error: null
+      });
+    } catch (error) {
+      console.error('Send summary email error:', error);
+      res.status(500).json({
+        error: 'Send failed',
+        message: 'Failed to send meeting summary email'
       });
     }
   }

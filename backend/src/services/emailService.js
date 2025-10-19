@@ -152,6 +152,61 @@ class EmailService {
     }
   }
 
+  // Send meeting summary email
+  async sendMeetingSummaryEmail(email, name, meetingTitle, summary) {
+    const mailOptions = {
+      from: `"Modiryar" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      to: email,
+      subject: `خلاصه جلسه: ${meetingTitle}`,
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">Modiryar</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">سیستم مدیریت جلسات</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; direction: rtl;">
+            <h2 style="color: #333; margin-top: 0; text-align: right;">سلام ${name} عزیز!</h2>
+            
+            <p style="color: #666; line-height: 1.6; font-size: 16px; text-align: right;">
+              خلاصه جلسه "<strong>${meetingTitle}</strong>" برای شما ارسال شده است.
+            </p>
+            
+            <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                خلاصه جلسه
+              </h3>
+              <div style="color: #555; line-height: 1.8; font-size: 15px; text-align: right; white-space: pre-wrap;">
+                ${summary}
+              </div>
+            </div>
+            
+            <div style="background: #e3f2fd; border: 1px solid #2196f3; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p style="color: #1976d2; margin: 0; font-size: 14px; text-align: right;">
+                <strong>نکته:</strong> این خلاصه از سیستم Modiryar برای شما ارسال شده است. برای مشاهده جزئیات بیشتر و مدیریت جلسات خود، به پنل کاربری خود مراجعه کنید.
+              </p>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+            
+            <p style="color: #999; font-size: 12px; text-align: center;">
+              این ایمیل به صورت خودکار ارسال شده است. لطفاً به آن پاسخ ندهید.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    try {
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('Meeting summary email sent:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('Error sending meeting summary email:', error);
+      throw new Error('Failed to send meeting summary email');
+    }
+  }
+
   // Test email connection
   async testConnection() {
     try {

@@ -15,4 +15,7 @@ router.post('/request-password-reset', emailController.requestPasswordReset);
 // POST /api/auth/reset-password
 router.post('/reset-password', emailController.resetPassword);
 
+// POST /api/email/send-summary
+router.post('/send-summary', emailController.sendSummary);
+
 module.exports = router;

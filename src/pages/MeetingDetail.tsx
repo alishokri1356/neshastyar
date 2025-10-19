@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check } from 'lucide-react';
+import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 import { mysqlClient } from '@/lib/mysql-client';
@@ -539,6 +539,62 @@ const MeetingDetail = () => {
     }
   };
 
+  const handleSendSummaryToEmail = async () => {
+    try {
+      const { data: { user } } = await mysqlClient.auth.getUser();
+      if (!user) {
+        toast({
+          title: "خطا",
+          description: "کاربر وارد نشده است.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const currentSummary = statusData?.summary || summary;
+      if (!currentSummary || currentSummary.trim() === '') {
+        toast({
+          title: "خطا",
+          description: "خلاصه‌ای برای ارسال وجود ندارد.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Send request to backend to email the summary
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/email/send-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...mysqlClient.getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          meetingId: meeting.id,
+          meetingTitle: meeting.title,
+          summary: currentSummary,
+          userEmail: user.email,
+          userName: user.user_metadata?.name || user.email
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email');
+      }
+
+      toast({
+        title: "خلاصه ارسال شد",
+        description: "خلاصه جلسه به ایمیل شما ارسال شد.",
+      });
+    } catch (error) {
+      console.error('Error sending summary to email:', error);
+      toast({
+        title: "خطا",
+        description: "ارسال خلاصه به ایمیل ناموفق بود. لطفاً دوباره تلاش کنید.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteMeeting = async () => {
     if (!meeting) return;
     
@@ -1053,6 +1109,15 @@ const MeetingDetail = () => {
                 >
                   <Sparkles className="mr-1 sm:mr-2 h-4 w-4" />
                   تولید خلاصه خودکار
+                </Button>
+                <Button 
+                  onClick={handleSendSummaryToEmail}
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 transition-all duration-300 font-medium text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
+                >
+                  <Mail className="mr-1 sm:mr-2 h-4 w-4" />
+                  Send to email
                 </Button>
                 {isEditingSummary ? (
                   <>
