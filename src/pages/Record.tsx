@@ -288,9 +288,9 @@ const Record = () => {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = event.target.files;
     
-    // File size check removed - no limitations
+    if (!files || files.length === 0) return;
     
     // Define supported audio MIME types for mobile devices
     const supportedAudioTypes = [
@@ -309,48 +309,93 @@ const Record = () => {
       'audio/flac' // FLAC
     ];
     
-    if (file && supportedAudioTypes.includes(file.type)) {
-      // Get audio duration (approximate)
-      const audio = new Audio();
-      audio.src = URL.createObjectURL(file);
-      
-      audio.onloadedmetadata = () => {
-        const duration = Math.floor(audio.duration);
-        URL.revokeObjectURL(audio.src);
-        
-        // Add file to the list
-        const newAudioFile: AudioFile = {
-          id: `upload-${Date.now()}`,
-          name: file.name,
-          duration: duration,
-          blob: file,
-          type: 'upload'
-        };
-        
-        setAudioFiles(prev => [...prev, newAudioFile]);
-        setShowFilesList(true);
-        
-        toast({
-          title: "فایل اضافه شد",
-          description: "فایل صوتی به لیست اضافه شد.",
-        });
-      };
-      
-      audio.onerror = () => {
-        URL.revokeObjectURL(audio.src);
-        toast({
-          title: "خطا در پخش فایل صوتی",
-          description: "فایل صوتی نامعتبر است یا قابل پخش نیست.",
-          variant: "destructive",
-        });
-      };
-    } else {
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+    
+    // Filter valid audio files
+    Array.from(files).forEach((file: File) => {
+      if (supportedAudioTypes.includes(file.type)) {
+        validFiles.push(file);
+      } else {
+        invalidFiles.push(file.name);
+      }
+    });
+    
+    // Show error for invalid files
+    if (invalidFiles.length > 0) {
       toast({
-        title: "فرمت فایل نامعتبر",
-        description: "لطفاً یک فایل صوتی معتبر انتخاب کنید (MP3, WAV, AAC, M4A, OGG, WebM, 3GP, AMR, FLAC)",
+        title: "فرمت فایل پشتیبانی نمی‌شود",
+        description: `${invalidFiles.length} فایل فرمت نامعتبر دارد: ${invalidFiles.slice(0, 3).join(', ')}${invalidFiles.length > 3 ? '...' : ''}`,
         variant: "destructive",
       });
     }
+    
+    // Process valid files
+    if (validFiles.length > 0) {
+      let processedCount = 0;
+      const newAudioFiles: AudioFile[] = [];
+      
+      validFiles.forEach((file, index) => {
+        // Get audio duration (approximate)
+        const audio = new Audio();
+        audio.src = URL.createObjectURL(file);
+        
+        audio.onloadedmetadata = () => {
+          const duration = Math.floor(audio.duration);
+          URL.revokeObjectURL(audio.src);
+          
+          // Add file to the list
+          const newAudioFile: AudioFile = {
+            id: `upload-${Date.now()}-${index}`,
+            name: file.name,
+            duration: duration,
+            blob: file,
+            type: 'upload'
+          };
+          
+          newAudioFiles.push(newAudioFile);
+          processedCount++;
+          
+          // When all files are processed, update state
+          if (processedCount === validFiles.length) {
+            setAudioFiles(prev => [...prev, ...newAudioFiles]);
+            setShowFilesList(true);
+            
+            toast({
+              title: "فایل‌ها اضافه شدند",
+              description: `${validFiles.length} فایل صوتی به لیست اضافه شد.`,
+            });
+          }
+        };
+        
+        audio.onerror = () => {
+          URL.revokeObjectURL(audio.src);
+          processedCount++;
+          
+          // Still count as processed even if failed
+          if (processedCount === validFiles.length) {
+            if (newAudioFiles.length > 0) {
+              setAudioFiles(prev => [...prev, ...newAudioFiles]);
+              setShowFilesList(true);
+              
+              toast({
+                title: "برخی فایل‌ها اضافه شدند",
+                description: `${newAudioFiles.length} از ${validFiles.length} فایل با موفقیت اضافه شد.`,
+              });
+            } else {
+              toast({
+                title: "خطا در بارگذاری فایل‌ها",
+                description: "هیچ فایل صوتی قابل پخش نبود.",
+                variant: "destructive",
+              });
+            }
+          }
+        };
+      });
+    }
+    
+    // Clear the input so the same files can be selected again
+    event.target.value = '';
   };
 
   if (!isRecording) {
@@ -478,6 +523,7 @@ const Record = () => {
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/aac,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,audio/3gpp,audio/amr,audio/flac,.mp3,.wav,.aac,.m4a,.ogg,.3gp,.amr,.flac"
               onChange={handleFileChange}
               className="hidden"
