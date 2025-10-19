@@ -105,7 +105,7 @@ const Home = () => {
   };
   
   // State for sorting
-  const [sortBy, setSortBy] = React.useState<'date' | 'tags'>('date');
+  const [sortBy, setSortBy] = React.useState<'date' | 'tags' | 'participants'>('date');
   const [expandedDates, setExpandedDates] = React.useState<Record<string, boolean>>({});
 
   // Fetch tags once on load (no aggressive polling)
@@ -275,9 +275,9 @@ const Home = () => {
     staleTime: 2 * 60 * 1000, // 2 minutes stale time
   });
 
-       // Merge initial meetings with new ones and group by date or tags
-       const { meetings, meetingsByDate, meetingsByTags } = React.useMemo(() => {
-         if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {}, meetingsByTags: {} };
+       // Merge initial meetings with new ones and group by date, tags, or participants
+       const { meetings, meetingsByDate, meetingsByTags, meetingsByParticipants } = React.useMemo(() => {
+         if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {}, meetingsByTags: {}, meetingsByParticipants: {} };
          
          // Combine and deduplicate meetings
          const allMeetings = [...newMeetings, ...initialMeetings];
@@ -329,11 +329,54 @@ const Home = () => {
            
            return acc;
          }, {} as Record<string, DatabaseMeeting[]>);
+
+         // Group by participants
+         const groupedByParticipants = sortedMeetings.reduce((acc, meeting) => {
+           // Extract participants from summary or people field
+           let participants: string[] = [];
+           
+           // Try to get participants from summary JSON first
+           const summaryData = parseJsonSummary(meeting.summary || '');
+           if (summaryData && summaryData['People in meetings']) {
+             participants = Array.isArray(summaryData['People in meetings']) 
+               ? summaryData['People in meetings'] 
+               : [];
+           } else if (meeting.people) {
+             // Fallback to people field if it exists
+             try {
+               const peopleData = JSON.parse(meeting.people);
+               participants = Array.isArray(peopleData) ? peopleData : [];
+             } catch {
+               // If people field is not JSON, treat as plain text
+               participants = meeting.people.split(',').map(p => p.trim()).filter(p => p);
+             }
+           }
+           
+           if (participants.length === 0) {
+             // Meetings without participants go to "بدون شرکت‌کننده"
+             const noParticipantsKey = 'بدون شرکت‌کننده';
+             if (!acc[noParticipantsKey]) {
+               acc[noParticipantsKey] = [];
+             }
+             acc[noParticipantsKey].push(meeting);
+           } else {
+             // Group by each participant
+             participants.forEach(participant => {
+               if (!acc[participant]) {
+                 acc[participant] = [];
+               }
+               acc[participant].push(meeting);
+             });
+           }
+           
+           return acc;
+         }, {} as Record<string, DatabaseMeeting[]>);
          
          return { 
            meetings: sortedMeetings, 
            meetingsByDate: groupedByDate,
-           meetingsByTags: groupedByTags
+           meetingsByTags: groupedByTags,
+           meetingsByParticipants: groupedByParticipants
          };
        }, [initialMeetings, newMeetings, tags]);
 
@@ -429,7 +472,7 @@ const Home = () => {
           </h2>
           
           {/* Sorting Buttons */}
-          <div className="flex justify-center gap-2">
+          <div className="flex justify-center gap-2 flex-wrap">
             <Button
               variant={sortBy === 'date' ? 'default' : 'outline'}
               size="sm"
@@ -448,11 +491,24 @@ const Home = () => {
               <FileText className="h-4 w-4" />
               مرتب‌سازی بر اساس برچسب
             </Button>
+            <Button
+              variant={sortBy === 'participants' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSortBy('participants')}
+              className="flex items-center gap-2"
+            >
+              <User className="h-4 w-4" />
+              مرتب‌سازی بر اساس شرکت‌کنندگان
+            </Button>
           </div>
         </div>
 
-        {/* Meetings List - Grouped by Date or Tags */}
-       {Object.keys(sortBy === 'date' ? meetingsByDate : meetingsByTags).length > 0 && (
+        {/* Meetings List - Grouped by Date, Tags, or Participants */}
+       {Object.keys(
+         sortBy === 'date' ? meetingsByDate : 
+         sortBy === 'tags' ? meetingsByTags : 
+         meetingsByParticipants
+       ).length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-foreground">جلسات</h3>
@@ -464,12 +520,16 @@ const Home = () => {
               </div>
             </div>
             
-            {Object.entries(sortBy === 'date' ? meetingsByDate : meetingsByTags).map(([groupKey, groupMeetings]) => (
+            {Object.entries(
+              sortBy === 'date' ? meetingsByDate : 
+              sortBy === 'tags' ? meetingsByTags : 
+              meetingsByParticipants
+            ).map(([groupKey, groupMeetings]) => (
               <div key={groupKey} className="space-y-3">
                 {/* Group Header */}
                 <h4 
                   className={`text-sm font-medium px-2 ${
-                    sortBy === 'tags' 
+                    sortBy === 'tags' || sortBy === 'participants'
                       ? 'text-primary cursor-pointer hover:underline' 
                       : 'text-muted-foreground cursor-pointer'
                   }`}
