@@ -73,20 +73,27 @@ const TagList = () => {
           return;
         }
 
-        // Get all meeting IDs that have tags
-        const { data: taggedMeetingIds, error: tagsCountError } = await mysqlClient
-          .from('meeting_tags')
-          .select('meeting_id')
-          .in('meeting_id', allMeetings?.map(m => m.id) || []);
+        let untaggedMeetingsCount = 0;
 
-        if (tagsCountError) {
-          console.error('Error fetching tagged meetings:', tagsCountError);
-          return;
+        if (allMeetings && allMeetings.length > 0) {
+          // Get all meeting IDs that have tags
+          const { data: taggedMeetingIds, error: tagsCountError } = await mysqlClient
+            .from('meeting_tags')
+            .select('meeting_id')
+            .in('meeting_id', allMeetings.map(m => m.id));
+
+          if (tagsCountError) {
+            console.error('Error fetching tagged meetings:', tagsCountError);
+            return;
+          }
+
+          // Calculate untagged meetings count
+          const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
+          untaggedMeetingsCount = allMeetings.filter(meeting => !taggedIds.has(meeting.id)).length;
+        } else {
+          // If no meetings exist, untagged count is 0
+          untaggedMeetingsCount = 0;
         }
-
-        // Calculate untagged meetings count
-        const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
-        const untaggedMeetingsCount = allMeetings?.filter(meeting => !taggedIds.has(meeting.id)).length || 0;
         
         setUntaggedCount(untaggedMeetingsCount);
       } catch (error) {

@@ -39,25 +39,32 @@ const UntaggedMeetings = () => {
           return;
         }
 
-        // Get all meeting IDs that have tags
-        const { data: taggedMeetingIds, error: tagsError } = await mysqlClient
-          .from('meeting_tags')
-          .select('meeting_id')
-          .in('meeting_id', allMeetings?.map(m => m.id) || []);
+        let untaggedMeetings = [];
 
-        if (tagsError) {
-          console.error('Error fetching tagged meetings:', tagsError);
-          toast({
-            title: "خطا در بارگذاری جلسات برچسب‌دار",
-            description: tagsError.message,
-            variant: "destructive",
-          });
-          return;
+        if (allMeetings && allMeetings.length > 0) {
+          // Get all meeting IDs that have tags
+          const { data: taggedMeetingIds, error: tagsError } = await mysqlClient
+            .from('meeting_tags')
+            .select('meeting_id')
+            .in('meeting_id', allMeetings.map(m => m.id));
+
+          if (tagsError) {
+            console.error('Error fetching tagged meetings:', tagsError);
+            toast({
+              title: "خطا در بارگذاری جلسات برچسب‌دار",
+              description: tagsError.message,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Filter out meetings that have tags
+          const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
+          untaggedMeetings = allMeetings.filter(meeting => !taggedIds.has(meeting.id));
+        } else {
+          // If no meetings exist, untagged meetings is empty array
+          untaggedMeetings = [];
         }
-
-        // Filter out meetings that have tags
-        const taggedIds = new Set(taggedMeetingIds?.map(item => item.meeting_id) || []);
-        const untaggedMeetings = allMeetings?.filter(meeting => !taggedIds.has(meeting.id)) || [];
 
         // Transform the data to match the expected format
         const transformedMeetings = untaggedMeetings.map((meeting: any) => ({
