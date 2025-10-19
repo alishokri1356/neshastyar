@@ -138,30 +138,32 @@ class EmailController {
       }
 
       // Check cooldown period for authenticated endpoint as well
-      const { data: meetingData, error: meetingError } = await mysqlClient
-        .from('meetings')
-        .select('lastTimeEmailSent')
-        .eq('id', meetingId)
-        .single();
-
-      if (!meetingError && meetingData) {
-        const now = new Date();
-        const lastEmailSent = meetingData.lastTimeEmailSent ? new Date(meetingData.lastTimeEmailSent) : null;
+      try {
+        const cooldownQuery = `SELECT lastTimeEmailSent FROM meetings WHERE id = ?`;
+        const cooldownData = await mysqlClient.query(cooldownQuery, [meetingId]);
         
-        if (lastEmailSent) {
-          const timeDiffSeconds = (now - lastEmailSent) / 1000;
-          const cooldownSeconds = 60; // 1 minute
+        if (cooldownData && cooldownData.length > 0) {
+          const now = new Date();
+          const lastEmailSent = cooldownData[0].lastTimeEmailSent ? new Date(cooldownData[0].lastTimeEmailSent) : null;
           
-          if (timeDiffSeconds < cooldownSeconds) {
-            const remainingSeconds = Math.ceil(cooldownSeconds - timeDiffSeconds);
-            return res.status(429).json({
-              error: 'Email cooldown active',
-              message: `Please wait ${remainingSeconds} seconds before sending another email`,
-              cooldownRemaining: remainingSeconds,
-              lastEmailSent: lastEmailSent.toISOString()
-            });
+          if (lastEmailSent) {
+            const timeDiffSeconds = (now - lastEmailSent) / 1000;
+            const cooldownSeconds = 60; // 1 minute
+            
+            if (timeDiffSeconds < cooldownSeconds) {
+              const remainingSeconds = Math.ceil(cooldownSeconds - timeDiffSeconds);
+              return res.status(429).json({
+                error: 'Email cooldown active',
+                message: `Please wait ${remainingSeconds} seconds before sending another email`,
+                cooldownRemaining: remainingSeconds,
+                lastEmailSent: lastEmailSent.toISOString()
+              });
+            }
           }
         }
+      } catch (e) {
+        // Field might not exist yet, that's okay
+        console.log('lastTimeEmailSent field not found, treating as null');
       }
 
       await emailService.sendMeetingSummaryEmail(
@@ -173,10 +175,13 @@ class EmailController {
 
       // Update lastTimeEmailSent timestamp
       const now = new Date();
-      await mysqlClient
-        .from('meetings')
-        .update({ lastTimeEmailSent: now.toISOString() })
-        .eq('id', meetingId);
+      try {
+        const updateQuery = `UPDATE meetings SET lastTimeEmailSent = ? WHERE id = ?`;
+        await mysqlClient.query(updateQuery, [now.toISOString(), meetingId]);
+      } catch (e) {
+        // Field might not exist yet, log but don't fail
+        console.log('Could not update lastTimeEmailSent field:', e.message);
+      }
 
       res.json({
         data: { 
@@ -211,51 +216,57 @@ class EmailController {
       }
 
       // Fetch meeting data from database (handle case where lastTimeEmailSent might not exist)
-      const { data: meetingData, error: meetingError } = await mysqlClient
-        .from('meetings')
-        .select('id, title, summary, user_id')
-        .eq('id', meetingId)
-        .single();
+      console.log('🔍 Fetching meeting data for ID:', meetingId);
+      const meetingQuery = `
+        SELECT id, title, summary, user_id 
+        FROM meetings 
+        WHERE id = ?
+      `;
+      const meetingData = await mysqlClient.query(meetingQuery, [meetingId]);
 
-      // Try to get lastTimeEmailSent separately (in case field doesn't exist yet)
-      let lastTimeEmailSent = null;
-      try {
-        const { data: emailData } = await mysqlClient
-          .from('meetings')
-          .select('lastTimeEmailSent')
-          .eq('id', meetingId)
-          .single();
-        lastTimeEmailSent = emailData?.lastTimeEmailSent;
-      } catch (e) {
-        // Field might not exist yet, that's okay
-        console.log('lastTimeEmailSent field not found, treating as null');
-      }
-
-      if (meetingError || !meetingData) {
-        console.log('❌ Meeting not found:', meetingError);
+      if (!meetingData || meetingData.length === 0) {
+        console.log('❌ Meeting not found');
         return res.status(404).json({
           error: 'Meeting not found',
           message: 'Meeting with the specified ID was not found'
         });
       }
 
-      console.log('✅ Meeting found:', meetingData.title);
+      const meeting = meetingData[0];
+      console.log('✅ Meeting found:', meeting.title);
+
+      // Try to get lastTimeEmailSent separately (in case field doesn't exist yet)
+      let lastTimeEmailSent = null;
+      try {
+        const emailQuery = `SELECT lastTimeEmailSent FROM meetings WHERE id = ?`;
+        const emailData = await mysqlClient.query(emailQuery, [meetingId]);
+        lastTimeEmailSent = emailData[0]?.lastTimeEmailSent;
+      } catch (e) {
+        // Field might not exist yet, that's okay
+        console.log('lastTimeEmailSent field not found, treating as null');
+      }
 
       // Fetch user data separately
-      const { data: userData, error: userError } = await mysqlClient
-        .from('users')
-        .select('id, email, user_metadata')
-        .eq('id', meetingData.user_id)
-        .single();
+      console.log('🔍 Fetching user data for ID:', meeting.user_id);
+      const userQuery = `
+        SELECT id, email, user_metadata 
+        FROM users 
+        WHERE id = ?
+      `;
+      const userData = await mysqlClient.query(userQuery, [meeting.user_id]);
 
-      if (userError || !userData) {
+      if (!userData || userData.length === 0) {
+        console.log('❌ User not found');
         return res.status(404).json({
           error: 'User not found',
           message: 'User associated with this meeting was not found'
         });
       }
 
-      if (!meetingData.summary || meetingData.summary.trim() === '') {
+      const user = userData[0];
+      console.log('✅ User found:', user.email);
+
+      if (!meeting.summary || meeting.summary.trim() === '') {
         return res.status(400).json({
           error: 'No summary available',
           message: 'This meeting does not have a summary to send'
@@ -281,24 +292,22 @@ class EmailController {
         }
       }
 
-      const userEmail = userData.email;
-      const userName = userData.user_metadata?.name || userEmail;
-      const meetingTitle = meetingData.title || `Meeting ${meetingId}`;
+      const userEmail = user.email;
+      const userName = user.user_metadata?.name || userEmail;
+      const meetingTitle = meeting.title || `Meeting ${meetingId}`;
 
       // Send the email
       await emailService.sendMeetingSummaryEmail(
         userEmail,
         userName,
         meetingTitle,
-        meetingData.summary
+        meeting.summary
       );
 
       // Update lastTimeEmailSent timestamp (handle case where field might not exist)
       try {
-        await mysqlClient
-          .from('meetings')
-          .update({ lastTimeEmailSent: now.toISOString() })
-          .eq('id', meetingId);
+        const updateQuery = `UPDATE meetings SET lastTimeEmailSent = ? WHERE id = ?`;
+        await mysqlClient.query(updateQuery, [now.toISOString(), meetingId]);
       } catch (e) {
         // Field might not exist yet, log but don't fail
         console.log('Could not update lastTimeEmailSent field:', e.message);
