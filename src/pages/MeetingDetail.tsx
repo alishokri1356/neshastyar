@@ -561,6 +561,17 @@ const MeetingDetail = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Handle cooldown error specifically
+        if (response.status === 429 && errorData.cooldownRemaining) {
+          toast({
+            title: "لطفاً صبر کنید",
+            description: `برای ارسال ایمیل بعدی ${errorData.cooldownRemaining} ثانیه صبر کنید.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
         throw new Error(errorData.message || 'Failed to send email');
       }
 

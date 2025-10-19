@@ -137,6 +137,33 @@ class EmailController {
         });
       }
 
+      // Check cooldown period for authenticated endpoint as well
+      const { data: meetingData, error: meetingError } = await mysqlClient
+        .from('meetings')
+        .select('lastTimeEmailSent')
+        .eq('id', meetingId)
+        .single();
+
+      if (!meetingError && meetingData) {
+        const now = new Date();
+        const lastEmailSent = meetingData.lastTimeEmailSent ? new Date(meetingData.lastTimeEmailSent) : null;
+        
+        if (lastEmailSent) {
+          const timeDiffSeconds = (now - lastEmailSent) / 1000;
+          const cooldownSeconds = 60; // 1 minute
+          
+          if (timeDiffSeconds < cooldownSeconds) {
+            const remainingSeconds = Math.ceil(cooldownSeconds - timeDiffSeconds);
+            return res.status(429).json({
+              error: 'Email cooldown active',
+              message: `Please wait ${remainingSeconds} seconds before sending another email`,
+              cooldownRemaining: remainingSeconds,
+              lastEmailSent: lastEmailSent.toISOString()
+            });
+          }
+        }
+      }
+
       await emailService.sendMeetingSummaryEmail(
         userEmail,
         userName || userEmail,
@@ -144,8 +171,18 @@ class EmailController {
         summary
       );
 
+      // Update lastTimeEmailSent timestamp
+      const now = new Date();
+      await mysqlClient
+        .from('meetings')
+        .update({ lastTimeEmailSent: now.toISOString() })
+        .eq('id', meetingId);
+
       res.json({
-        data: { success: true },
+        data: { 
+          success: true,
+          emailSentAt: now.toISOString()
+        },
         error: null
       });
     } catch (error) {
@@ -169,7 +206,7 @@ class EmailController {
         });
       }
 
-      // Fetch meeting data from database
+      // Fetch meeting data from database including lastTimeEmailSent
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
         .select(`
@@ -177,6 +214,7 @@ class EmailController {
           title,
           summary,
           user_id,
+          lastTimeEmailSent,
           users!inner(
             id,
             email,
@@ -200,6 +238,25 @@ class EmailController {
         });
       }
 
+      // Check cooldown period (1 minute = 60 seconds)
+      const now = new Date();
+      const lastEmailSent = meetingData.lastTimeEmailSent ? new Date(meetingData.lastTimeEmailSent) : null;
+      
+      if (lastEmailSent) {
+        const timeDiffSeconds = (now - lastEmailSent) / 1000;
+        const cooldownSeconds = 60; // 1 minute
+        
+        if (timeDiffSeconds < cooldownSeconds) {
+          const remainingSeconds = Math.ceil(cooldownSeconds - timeDiffSeconds);
+          return res.status(429).json({
+            error: 'Email cooldown active',
+            message: `Please wait ${remainingSeconds} seconds before sending another email`,
+            cooldownRemaining: remainingSeconds,
+            lastEmailSent: lastEmailSent.toISOString()
+          });
+        }
+      }
+
       const userEmail = meetingData.users.email;
       const userName = meetingData.users.user_metadata?.name || userEmail;
       const meetingTitle = meetingData.title || `Meeting ${meetingId}`;
@@ -212,12 +269,19 @@ class EmailController {
         meetingData.summary
       );
 
+      // Update lastTimeEmailSent timestamp
+      await mysqlClient
+        .from('meetings')
+        .update({ lastTimeEmailSent: now.toISOString() })
+        .eq('id', meetingId);
+
       res.json({
         data: { 
           success: true,
           message: 'Meeting summary email sent successfully',
           meetingId: meetingId,
-          userEmail: userEmail
+          userEmail: userEmail,
+          emailSentAt: now.toISOString()
         },
         error: null
       });
