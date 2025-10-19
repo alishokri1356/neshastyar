@@ -552,7 +552,10 @@ const MeetingDetail = () => {
       }
 
       // Call the webhook endpoint (no authentication required)
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/sendmail/${meeting.id}`, {
+      const webhookUrl = `https://modiryar.online/sendmail/${meeting.id}`;
+      console.log('🔗 Calling webhook:', webhookUrl);
+      
+      const response = await fetch(webhookUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -561,6 +564,7 @@ const MeetingDetail = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.log('❌ Webhook error:', response.status, errorData);
         
         // Handle cooldown error specifically
         if (response.status === 429 && errorData.cooldownRemaining) {
@@ -576,6 +580,7 @@ const MeetingDetail = () => {
       }
 
       const result = await response.json();
+      console.log('✅ Webhook response:', result);
       
       toast({
         title: "خلاصه ارسال شد",
