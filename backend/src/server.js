@@ -55,6 +55,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', emailRoutes);
+app.use('/api/email', emailRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/meeting-tags', meetingTagRoutes);
