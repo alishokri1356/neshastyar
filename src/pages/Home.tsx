@@ -275,6 +275,16 @@ const Home = () => {
     staleTime: 2 * 60 * 1000, // 2 minutes stale time
   });
 
+  // Helper function to check if summary is JSON and return parsed object
+  const parseJsonSummary = (summaryText: string) => {
+    try {
+      const parsed = JSON.parse(summaryText);
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
        // Merge initial meetings with new ones and group by date, tags, or participants
        const { meetings, meetingsByDate, meetingsByTags, meetingsByParticipants } = React.useMemo(() => {
          if (!newMeetings.length && !initialMeetings.length) return { meetings: [], meetingsByDate: {}, meetingsByTags: {}, meetingsByParticipants: {} };
@@ -406,16 +416,6 @@ const Home = () => {
         return 'bg-success/10 text-success border-success/20';
       default:
         return 'bg-muted/10 text-muted-foreground border-muted/20';
-    }
-  };
-
-  // Helper function to check if summary is JSON and return parsed object
-  const parseJsonSummary = (summaryText: string) => {
-    try {
-      const parsed = JSON.parse(summaryText);
-      return parsed;
-    } catch {
-      return null;
     }
   };
 
