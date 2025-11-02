@@ -1346,4 +1346,3 @@ const MeetingDetail = () => {
 };
 
 export default MeetingDetail;
-export default MeetingDetail;
