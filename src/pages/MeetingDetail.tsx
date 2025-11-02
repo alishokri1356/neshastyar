@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,7 @@ const MeetingDetail = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { tags, addTag } = useMeetingStore();
   
@@ -24,6 +25,7 @@ const MeetingDetail = () => {
   const [localAllUserTags, setLocalAllUserTags] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
+  const [originalSummary, setOriginalSummary] = useState('');
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [showAddTag, setShowAddTag] = useState(false);
@@ -239,11 +241,12 @@ const MeetingDetail = () => {
   }, [allUserTags]);
 
   // Update summary when status data changes (for auto-refresh)
+  // Don't update if user is currently editing
   useEffect(() => {
-    if (statusData?.summary && statusData.summary !== summary) {
+    if (statusData?.summary && statusData.summary !== summary && !isEditingSummary) {
       setSummary(statusData.summary);
     }
-  }, [statusData?.summary]);
+  }, [statusData?.summary, isEditingSummary]);
 
   // Note: Real-time subscriptions are not implemented in the MySQL client
   // The component will rely on React Query's refetchInterval for updates
@@ -305,6 +308,12 @@ const MeetingDetail = () => {
       if (error) throw error;
 
       setMeeting(prev => ({ ...prev, summary }));
+      setIsEditingSummary(false);
+      
+      // Invalidate queries to refetch latest data
+      queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
+      queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
+      
       toast({
         title: "خلاصه ذخیره شد",
         description: "خلاصه جلسه با موفقیت به‌روزرسانی شد.",
@@ -1129,7 +1138,7 @@ const MeetingDetail = () => {
                     <Button 
                       onClick={() => {
                         setIsEditingSummary(false);
-                        setSummary(meeting.summary);
+                        setSummary(originalSummary);
                       }} 
                       variant="outline" 
                       size="sm"
@@ -1141,7 +1150,12 @@ const MeetingDetail = () => {
                   </>
                 ) : (
                   <Button 
-                    onClick={() => setIsEditingSummary(true)} 
+                    onClick={() => {
+                      const currentSummary = statusData?.summary || summary;
+                      setOriginalSummary(currentSummary);
+                      setSummary(currentSummary);
+                      setIsEditingSummary(true);
+                    }} 
                     variant="outline" 
                     size="sm"
                     className="w-full sm:w-auto"
@@ -1158,10 +1172,23 @@ const MeetingDetail = () => {
               const currentSummary = statusData?.summary || summary;
               const jsonData = parseJsonSummary(currentSummary);
               
-              if (isEditingSummary || !currentSummary) {
+              if (isEditingSummary) {
                 return (
                   <Textarea
-                    value={currentSummary}
+                    value={summary}
+                    onChange={(e) => setSummary(e.target.value)}
+                    placeholder="خلاصه جلسه را وارد کنید..."
+                    className="min-h-[200px] resize-none"
+                  />
+                );
+              }
+              
+              if (!currentSummary) {
+                // If no summary exists, show Textarea
+                // User must click Edit button to enter edit mode and see Save button
+                return (
+                  <Textarea
+                    value={summary}
                     onChange={(e) => setSummary(e.target.value)}
                     placeholder="خلاصه جلسه را وارد کنید..."
                     className="min-h-[200px] resize-none"
@@ -1318,4 +1345,5 @@ const MeetingDetail = () => {
   );
 };
 
+export default MeetingDetail;
 export default MeetingDetail;
