@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +24,9 @@ const Record = () => {
   // State for multiple audio files
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
   const [showFilesList, setShowFilesList] = useState(false);
+  
+  // State for comment text
+  const [commentText, setCommentText] = useState<string>('');
   
   // State for audio playback
   const [playingFileId, setPlayingFileId] = useState<string | null>(null);
@@ -487,6 +492,20 @@ const Record = () => {
               </div>
             </div>
           )}
+
+          {/* Comment Text Input */}
+          <div className="max-w-2xl mx-auto mb-8">
+            <Label htmlFor="comment-text" className="text-lg font-semibold text-foreground mb-2 block">
+              Comment Text
+            </Label>
+            <Textarea
+              id="comment-text"
+              placeholder="Enter your comment here..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="min-h-[100px] w-full"
+            />
+          </div>
 
           {/* Action Buttons */}
           <div className="text-center space-y-6">
