@@ -284,10 +284,11 @@ const Record = () => {
       return;
     }
 
-    // Navigate to tag selection with all audio files
+    // Navigate to tag selection with all audio files and comment text
     navigate('/tag-selection', { 
       state: { 
-        audioFiles: audioFiles
+        audioFiles: audioFiles,
+        commentText: commentText
       }
     });
   };

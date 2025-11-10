@@ -56,9 +56,9 @@ class MeetingService {
 
     const sql = `
       INSERT INTO meetings (
-        id, user_id, title, meeting_date, status, summary, 
+        id, user_id, title, meeting_date, status, summary, CommentText,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     // Convert dates to MySQL format
@@ -73,6 +73,7 @@ class MeetingService {
       meetingDate,
       meetingData.status || 'pending',
       meetingData.summary || null,
+      meetingData.CommentText || null,
       toMySQLDateTime(now),
       toMySQLDateTime(now)
     ];
@@ -83,7 +84,7 @@ class MeetingService {
 
   // Update meeting
   async updateMeeting(id, userId, updates) {
-    const allowedFields = ['title', 'meeting_date', 'status', 'summary'];
+    const allowedFields = ['title', 'meeting_date', 'status', 'summary', 'CommentText'];
     const updateFields = [];
     const values = [];
 

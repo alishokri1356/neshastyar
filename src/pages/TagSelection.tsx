@@ -55,6 +55,7 @@ const TagSelection = () => {
   }, [fileUploadProgress]);
 
   const audioFiles = location.state?.audioFiles as AudioFile[] | null;
+  const commentText = location.state?.commentText as string | undefined;
   
 
   // Fetch user's tags from database on component mount
@@ -346,7 +347,8 @@ const TagSelection = () => {
           user_id: user.id,
           summary: '',
           title: meetingTitle,
-          status: 'آماده پردازش'
+          status: 'آماده پردازش',
+          CommentText: commentText || null
         });
 
       if (meetingError) {
