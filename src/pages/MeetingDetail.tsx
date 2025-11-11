@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 
 import { mysqlClient } from '@/lib/mysql-client';
 
+const DEFAULT_PROCESSING_REQUEST = 'فایل/ فایل های صوتی پیوست در خصوص یک جلسه است . خلاصه جلسه و نکات مهم و شرکت کنندگان را استخراج کن';
+
 const MeetingDetail = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
@@ -160,7 +162,7 @@ const MeetingDetail = () => {
           title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
           date: new Date(meetingData.meeting_date),
           summary: meetingData.summary || '',
-          commentText: meetingData.CommentText || '',
+          commentText: meetingData.CommentText || null, // Keep null to distinguish from user-entered value
           status: meetingData.status,
           tags: tags,
           userId: meetingData.user_id,
@@ -236,6 +238,7 @@ const MeetingDetail = () => {
       setMeeting(meetingData);
       setMeetingTags(meetingData.tags);
       setSummary(meetingData.summary);
+      // Set commentText to database value (can be null/empty, default will be shown in UI)
       setCommentText(meetingData.commentText || '');
       setEditedTitle(meetingData.title);
     }
@@ -348,14 +351,14 @@ const MeetingDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
 
       toast({
-        title: "یادداشت ذخیره شد",
-        description: "یادداشت جلسه با موفقیت به‌روزرسانی شد.",
+        title: "توضیح درخواست پردازش ذخیره شد",
+        description: "توضیح درخواست پردازش با موفقیت به‌روزرسانی شد.",
       });
     } catch (error) {
       console.error('Error saving comment text:', error);
       toast({
         title: "خطا",
-        description: "ذخیره یادداشت ناموفق بود. لطفاً دوباره تلاش کنید.",
+        description: "ذخیره توضیح درخواست پردازش ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     }
@@ -1146,11 +1149,11 @@ const MeetingDetail = () => {
           </Card>
         )}
 
-        {/* CommentText (Note) */}
+        {/* CommentText (Processing Request Description) */}
         <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">یادداشت جلسه</CardTitle>
+              <CardTitle className="text-lg text-card-foreground">توضیح درخواست پردازش</CardTitle>
               <div className="flex gap-3">
                 {isEditingCommentText ? (
                   <>
@@ -1161,7 +1164,9 @@ const MeetingDetail = () => {
                     <Button
                       onClick={() => {
                         setIsEditingCommentText(false);
-                        setCommentText(originalCommentText);
+                        // Restore to original database value (which might be empty)
+                        const dbValue = meeting?.commentText || '';
+                        setCommentText(dbValue);
                       }}
                       variant="outline"
                       size="sm"
@@ -1173,9 +1178,12 @@ const MeetingDetail = () => {
                 ) : (
                   <Button
                     onClick={() => {
-                      const current = meeting?.commentText || commentText || '';
-                      setOriginalCommentText(current);
-                      setCommentText(current);
+                      // Get database value
+                      const dbValue = meeting?.commentText || commentText || '';
+                      // For editing, show default if database value is empty
+                      const editValue = dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
+                      setOriginalCommentText(editValue);
+                      setCommentText(editValue);
                       setIsEditingCommentText(true);
                     }}
                     variant="outline"
@@ -1193,16 +1201,16 @@ const MeetingDetail = () => {
               <Textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="یادداشت یا توضیحات جلسه را وارد کنید..."
+                placeholder="توضیح درخواست پردازش را وارد کنید..."
                 className="min-h-[140px] resize-none"
               />
             ) : (
               <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
-                {(meeting?.commentText || commentText || '').trim() !== '' ? (
-                  meeting?.commentText || commentText
-                ) : (
-                  <span className="text-muted-foreground">یادداشتی ثبت نشده است.</span>
-                )}
+                {(() => {
+                  const dbValue = meeting?.commentText || commentText;
+                  // Show default if database value is empty/null, otherwise show database value
+                  return dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
+                })()}
               </div>
             )}
           </CardContent>
