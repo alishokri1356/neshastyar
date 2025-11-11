@@ -946,6 +946,13 @@ const MeetingDetail = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             بازگشت به خانه
           </Button>
+          <Button 
+            onClick={handleAutoGenerateSummary}
+            className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            درخواست پردازش
+          </Button>
         </div>
 
         {/* Meeting Info */}
@@ -1207,14 +1214,6 @@ const MeetingDetail = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-card-foreground">خلاصه جلسه</CardTitle>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button 
-                  onClick={handleAutoGenerateSummary}
-                  size="sm"
-                  className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
-                >
-                  <Sparkles className="mr-1 sm:mr-2 h-4 w-4" />
-                  تولید خلاصه خودکار
-                </Button>
                 <Button 
                   onClick={handleSendSummaryToEmail}
                   size="sm"
