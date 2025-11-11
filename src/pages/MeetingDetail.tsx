@@ -34,6 +34,9 @@ const MeetingDetail = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [originalCommentText, setOriginalCommentText] = useState('');
+  const [isEditingCommentText, setIsEditingCommentText] = useState(false);
   
   // Audio player state
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
@@ -157,6 +160,7 @@ const MeetingDetail = () => {
           title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
           date: new Date(meetingData.meeting_date),
           summary: meetingData.summary || '',
+          commentText: meetingData.CommentText || '',
           status: meetingData.status,
           tags: tags,
           userId: meetingData.user_id,
@@ -232,6 +236,7 @@ const MeetingDetail = () => {
       setMeeting(meetingData);
       setMeetingTags(meetingData.tags);
       setSummary(meetingData.summary);
+      setCommentText(meetingData.commentText || '');
       setEditedTitle(meetingData.title);
     }
   }, [meetingData]);
@@ -323,6 +328,34 @@ const MeetingDetail = () => {
       toast({
         title: "خطا",
         description: "ذخیره خلاصه ناموفق بود. لطفاً دوباره تلاش کنید.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveCommentText = async () => {
+    try {
+      const { error } = await mysqlClient
+        .from('meetings')
+        .update({ CommentText: commentText } as any)
+        .eq('id', meeting.id);
+
+      if (error) throw error;
+
+      setMeeting(prev => ({ ...prev, commentText }));
+      setIsEditingCommentText(false);
+
+      queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
+
+      toast({
+        title: "یادداشت ذخیره شد",
+        description: "یادداشت جلسه با موفقیت به‌روزرسانی شد.",
+      });
+    } catch (error) {
+      console.error('Error saving comment text:', error);
+      toast({
+        title: "خطا",
+        description: "ذخیره یادداشت ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
     }
@@ -1105,6 +1138,68 @@ const MeetingDetail = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* CommentText (Note) */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg text-card-foreground">یادداشت جلسه</CardTitle>
+              <div className="flex gap-3">
+                {isEditingCommentText ? (
+                  <>
+                    <Button onClick={handleSaveCommentText} size="sm">
+                      <Save className="mr-2 h-4 w-4" />
+                      ذخیره
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setIsEditingCommentText(false);
+                        setCommentText(originalCommentText);
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      لغو
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      const current = meeting?.commentText || commentText || '';
+                      setOriginalCommentText(current);
+                      setCommentText(current);
+                      setIsEditingCommentText(true);
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    ویرایش
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isEditingCommentText ? (
+              <Textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="یادداشت یا توضیحات جلسه را وارد کنید..."
+                className="min-h-[140px] resize-none"
+              />
+            ) : (
+              <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
+                {(meeting?.commentText || commentText || '').trim() !== '' ? (
+                  meeting?.commentText || commentText
+                ) : (
+                  <span className="text-muted-foreground">یادداشتی ثبت نشده است.</span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Summary */}
         <Card className="bg-card border-border">

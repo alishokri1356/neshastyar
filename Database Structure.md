@@ -11,7 +11,7 @@ Total Tables: 6
 
 ## Table: `audio_files`
 
-**Row Count**: 6
+**Row Count**: 18
 
 ### Columns
 
@@ -24,6 +24,7 @@ Total Tables: 6
 | file_size | bigint | YES |  | NULL |  |
 | duration | int | YES |  | 0 |  |
 | format | varchar(50) | YES |  | NULL |  |
+| storage_type | enum('local','s3','supabase','other') | YES |  | local |  |
 | upload_order | int | YES | MUL | 1 |  |
 | created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 | updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
@@ -49,6 +50,7 @@ CREATE TABLE `audio_files` (
   `file_size` bigint DEFAULT NULL,
   `duration` int DEFAULT '0',
   `format` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `storage_type` enum('local','s3','supabase','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'local',    
   `upload_order` int DEFAULT '1' COMMENT 'Order of upload for this meeting',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -63,7 +65,7 @@ CREATE TABLE `audio_files` (
 
 ## Table: `meeting_tags`
 
-**Row Count**: 14
+**Row Count**: 11
 
 ### Columns
 
@@ -105,7 +107,7 @@ CREATE TABLE `meeting_tags` (
 
 ## Table: `meetings`
 
-**Row Count**: 6
+**Row Count**: 11
 
 ### Columns
 
@@ -125,6 +127,8 @@ CREATE TABLE `meeting_tags` (
 | title | varchar(255) | YES | MUL | NULL |  |
 | html | text | YES |  | NULL |  |
 | details | text | YES |  | NULL |  |
+| lastTimeEmailSent | datetime | YES | MUL | NULL |  |
+| CommentText | text | YES |  | NULL |  |
 
 ### Indexes
 
@@ -134,6 +138,7 @@ CREATE TABLE `meeting_tags` (
 - **idx_meeting_date** (INDEX): meeting_date
 - **idx_created_at** (INDEX): created_at
 - **idx_title** (INDEX): title
+- **idx_meetings_last_email_sent** (INDEX): lastTimeEmailSent
 
 ### CREATE TABLE Statement
 
@@ -153,12 +158,15 @@ CREATE TABLE `meetings` (
   `title` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `html` text COLLATE utf8mb4_unicode_ci,
   `details` text COLLATE utf8mb4_unicode_ci,
+  `lastTimeEmailSent` datetime DEFAULT NULL,
+  `CommentText` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_status` (`status`),
   KEY `idx_meeting_date` (`meeting_date`),
   KEY `idx_created_at` (`created_at`),
-  KEY `idx_title` (`title`)
+  KEY `idx_title` (`title`),
+  KEY `idx_meetings_last_email_sent` (`lastTimeEmailSent`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ```
 
@@ -206,7 +214,7 @@ CREATE TABLE `sessions` (
 
 ## Table: `tags`
 
-**Row Count**: 11
+**Row Count**: 20
 
 ### Columns
 
@@ -245,7 +253,7 @@ CREATE TABLE `tags` (
 
 ## Table: `users`
 
-**Row Count**: 8
+**Row Count**: 3
 
 ### Columns
 
@@ -295,4 +303,3 @@ CREATE TABLE `users` (
 ```
 
 ---
-
