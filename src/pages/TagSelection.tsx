@@ -475,6 +475,204 @@ const TagSelection = () => {
     }
   };
 
+  const handleSaveMeetingWithoutWebhook = async () => {
+    if (!audioFiles || audioFiles.length === 0) {
+      toast({
+        title: "خطا",
+        description: "هیچ فایل صوتی یافت نشد",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadCancelled(false);
+
+    try {
+      // Get current user
+      const { data: { session } } = await mysqlClient.auth.getSession();
+      const user = session?.user;
+      
+      if (!user) {
+        toast({
+          title: "احراز هویت الزامی است",
+          description: "لطفاً برای ذخیره جلسات وارد شوید",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Calculate total duration
+      const totalDuration = audioFiles.reduce((sum, file) => sum + file.duration, 0);
+      
+      // Generate meeting title from first file
+      const firstFile = audioFiles[0];
+      const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg)$/i, '') || 'جلسه';
+
+      // Upload all audio files
+      const uploadedFiles = [];
+      
+      for (let i = 0; i < audioFiles.length; i++) {
+        const file = audioFiles[i];
+        const fileName = `${Date.now()}-${i}-${file.name}`;
+        
+        // Initialize progress for this file
+        setFileUploadProgress(prev => new Map(prev).set(file.id, 0));
+        
+        const formData = new FormData();
+        formData.append('audio', file.blob, fileName);
+
+        // Create XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        const uploadPromise = new Promise((resolve, reject) => {
+          xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              setFileUploadProgress(prev => {
+                const newMap = new Map(prev).set(file.id, percentComplete);
+                
+                // Calculate overall progress - ensure all files are counted
+                const totalProgress = audioFiles.reduce((sum, file) => {
+                  const fileProgress = newMap.get(file.id) || 0;
+                  return sum + fileProgress;
+                }, 0);
+                const averageProgress = Math.round(totalProgress / audioFiles.length);
+                setUploadProgress(averageProgress);
+                
+                return newMap;
+              });
+            }
+          });
+
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const uploadResult = JSON.parse(xhr.responseText);
+              resolve(uploadResult);
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          });
+
+          xhr.addEventListener('error', () => {
+            reject(new Error('Upload failed'));
+          });
+
+          xhr.open('POST', `${API_BASE_URL}/upload/audio`);
+          xhr.setRequestHeader('Authorization', `Bearer ${session.access_token || session.token}`);
+          xhr.send(formData);
+        });
+
+        try {
+          const uploadResult = await uploadPromise;
+          uploadedFiles.push({
+            fileName: fileName,
+            filePath: uploadResult.data.relativePath,
+            fileSize: uploadResult.data.size,
+            duration: file.duration,
+            format: uploadResult.data.format,
+            uploadOrder: i + 1
+          });
+          
+          // Set progress to 100% for completed file
+          setFileUploadProgress(prev => {
+            const newMap = new Map(prev).set(file.id, 100);
+            
+            // Calculate overall progress - ensure all files are counted
+            const totalProgress = audioFiles.reduce((sum, file) => {
+              const fileProgress = newMap.get(file.id) || 0;
+              return sum + fileProgress;
+            }, 0);
+            const averageProgress = Math.round(totalProgress / audioFiles.length);
+            setUploadProgress(averageProgress);
+            
+            return newMap;
+          });
+        } catch (error) {
+          throw new Error(error instanceof Error ? error.message : 'بارگذاری فایل ناموفق بود');
+        }
+      }
+
+      // Create meeting in database
+      const { data: meetingData, error: meetingError } = await mysqlClient
+        .from('meetings')
+        .insert({
+          meeting_date: new Date().toISOString(),
+          user_id: user.id,
+          summary: '',
+          title: meetingTitle,
+          status: 'ذخیره موقت',
+          CommentText: commentText || null
+        });
+
+      if (meetingError) {
+        throw new Error(meetingError.message);
+      }
+
+      // Insert audio files into audio_files table
+      for (const uploadedFile of uploadedFiles) {
+        const { error: audioFileError } = await mysqlClient
+          .from('audio_files')
+          .insert({
+            meeting_id: meetingData.id || meetingData[0]?.id,
+            file_name: uploadedFile.fileName,
+            file_path: uploadedFile.filePath,
+            file_size: uploadedFile.fileSize,
+            duration: uploadedFile.duration,
+            format: uploadedFile.format,
+            upload_order: uploadedFile.uploadOrder
+          });
+
+        if (audioFileError) {
+          console.error('Error inserting audio file:', audioFileError);
+        }
+      }
+
+      // Create meeting-tag relationships
+      if (selectedTags.length > 0) {
+        // Create relationships one by one since backend expects single relationship per request
+        for (const tag of selectedTags) {
+          const { error: tagsError } = await mysqlClient
+            .from('meeting_tags')
+            .insert({
+              meeting_id: meetingData.id || meetingData[0]?.id,
+              tag_id: tag.id
+            });
+
+          if (tagsError) {
+            toast({
+              title: "خطا در پیوند برچسب‌ها",
+              description: tagsError.message,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+
+      // Note: Webhook is NOT called in this function
+      
+      toast({
+        title: "جلسه ذخیره شد",
+        description: "جلسه با موفقیت ذخیره شد.",
+      });
+
+      navigate('/home');
+    } catch (error) {
+      toast({
+        title: "خطا",
+        description: "ذخیره جلسه ناموفق بود",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadCancelled(false);
+      setFileUploadProgress(new Map()); // Clear individual file progress
+    }
+  };
+
   const handleCancelUpload = () => {
     setUploadCancelled(true);
     setIsUploading(false);
@@ -762,7 +960,7 @@ const TagSelection = () => {
           </div>
         )}
 
-        {/* Save Button */}
+        {/* Save Buttons */}
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
           {isUploading ? (
             <div className="bg-card border border-border rounded-full p-4 shadow-2xl">
@@ -799,17 +997,31 @@ const TagSelection = () => {
               </div>
             </div>
           ) : (
-            <Button
-              onClick={handleSaveMeeting}
-              className="h-14 px-8 rounded-full shadow-2xl"
-            >
-              ذخیره جلسه
-              {selectedTags.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {selectedTags.length}
-                </Badge>
-              )}
-            </Button>
+            <div className="flex gap-3 items-center">
+              <Button
+                onClick={handleSaveMeetingWithoutWebhook}
+                variant="outline"
+                className="h-14 px-6 rounded-full shadow-2xl"
+              >
+                ذخیره موقت
+                {selectedTags.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {selectedTags.length}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                onClick={handleSaveMeeting}
+                className="h-14 px-8 rounded-full shadow-2xl"
+              >
+                ذخیره جلسه
+                {selectedTags.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {selectedTags.length}
+                  </Badge>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </div>
