@@ -76,19 +76,35 @@ const TagList = () => {
         let untaggedMeetingsCount = 0;
 
         if (allMeetings && allMeetings.length > 0) {
-          // Get all meeting tags for this user
-          const { data: allMeetingTags, error: tagsCountError } = await mysqlClient
-            .from('meeting_tags')
-            .select('meeting_id');
-
-          if (tagsCountError) {
-            console.error('Error fetching tagged meetings:', tagsCountError);
-            return;
+          // Create a set of user's meeting IDs for fast lookup
+          const userMeetingIds = new Set(allMeetings.map(m => m.id));
+          
+          // Collect all meeting_ids from the tags we fetched
+          // The nested meeting_tags query should return an array of objects with meeting_id
+          const taggedMeetingIds = new Set<string>();
+          
+          if (tagsData && Array.isArray(tagsData)) {
+            tagsData.forEach(tag => {
+              // Check if meeting_tags exists and is an array
+              if (tag.meeting_tags && Array.isArray(tag.meeting_tags)) {
+                tag.meeting_tags.forEach((mt: any) => {
+                  // Handle both object format {meeting_id: "..."} and direct ID format
+                  const meetingId = typeof mt === 'object' && mt !== null 
+                    ? (mt.meeting_id || mt.id) 
+                    : mt;
+                  
+                  // Only add if it's one of the user's meetings
+                  if (meetingId && userMeetingIds.has(meetingId)) {
+                    taggedMeetingIds.add(meetingId);
+                  }
+                });
+              }
+            });
           }
 
           // Calculate untagged meetings count
-          const taggedIds = new Set(allMeetingTags?.map(item => item.meeting_id) || []);
-          untaggedMeetingsCount = allMeetings.filter(meeting => !taggedIds.has(meeting.id)).length;
+          // A meeting is untagged if it's not in the taggedMeetingIds set
+          untaggedMeetingsCount = allMeetings.filter(meeting => !taggedMeetingIds.has(meeting.id)).length;
         } else {
           // If no meetings exist, untagged count is 0
           untaggedMeetingsCount = 0;
