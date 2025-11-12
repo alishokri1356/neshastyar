@@ -82,18 +82,26 @@ const TagDetail = () => {
         return { tag, meetings: transformedMeetings };
       } else {
         // Handle regular tag case
-        // Fetch tag details
-        const { data: tagData, error: tagError } = await mysqlClient
-          .from('tags')
-          .select('*')
-          .eq('id', tagId)
-          .eq('user_id', user.id)
-          .single();
+        // Fetch tag details using the API endpoint to ensure correct filtering
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+        const authHeaders = (mysqlClient as any).getAuthHeaders();
+        
+        const tagResponse = await fetch(
+          `${API_BASE_URL}/tags/${tagId}`,
+          {
+            headers: {
+              ...authHeaders,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
 
-        if (tagError) {
-          console.error('Error fetching tag:', tagError);
-          throw new Error(tagError.message);
+        if (!tagResponse.ok) {
+          const errorData = await tagResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to fetch tag');
         }
+
+        const tagData = await tagResponse.json();
 
         if (tagData) {
           const tag = {
@@ -105,8 +113,6 @@ const TagDetail = () => {
 
           // Fetch meetings associated with this tag using the proper API endpoint
           // This ensures we get meetings filtered by both tag and user
-          const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-          const authHeaders = (mysqlClient as any).getAuthHeaders();
           
           const meetingsResponse = await fetch(
             `${API_BASE_URL}/meeting-tags/tags/${tagId}/meetings`,
