@@ -234,8 +234,8 @@ const TagDetail = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-foreground mb-4">برچسب پیدا نشد</h2>
-          <Button onClick={() => navigate('/home')}>
-            بازگشت به خانه
+          <Button onClick={() => navigate('/tags')}>
+            بازگشت به لیست برچسب‌ها
           </Button>
         </div>
       </div>
@@ -247,9 +247,9 @@ const TagDetail = () => {
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <Button onClick={() => navigate('/home')} variant="outline">
+          <Button onClick={() => navigate('/tags')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            بازگشت به خانه
+            بازگشت به لیست برچسب‌ها
           </Button>
         </div>
       </div>
@@ -260,7 +260,7 @@ const TagDetail = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/home')}
+              onClick={() => navigate('/tags')}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
