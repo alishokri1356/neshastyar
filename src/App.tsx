@@ -19,6 +19,8 @@ import TagSelection from "./pages/TagSelection";
 import NotFound from "./pages/NotFound";
 import UntaggedMeetings from "./pages/UntaggedMeetings";
 import TagList from "./pages/TagList";
+import ParticipantsList from "./pages/ParticipantsList";
+import ParticipantDetail from "./pages/ParticipantDetail";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 
@@ -93,6 +95,16 @@ const App = () => {
             <Route path="/tags" element={
               <ProtectedRoute>
                 <TagList />
+              </ProtectedRoute>
+            } />
+            <Route path="/participants" element={
+              <ProtectedRoute>
+                <ParticipantsList />
+              </ProtectedRoute>
+            } />
+            <Route path="/participant/:participantName" element={
+              <ProtectedRoute>
+                <ParticipantDetail />
               </ProtectedRoute>
             } />
             

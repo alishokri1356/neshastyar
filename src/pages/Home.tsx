@@ -582,7 +582,7 @@ const Home = () => {
             <Button
               variant={sortBy === 'participants' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSortBy('participants')}
+              onClick={() => navigate('/participants')}
               className="flex items-center gap-2"
             >
               <User className="h-4 w-4" />
