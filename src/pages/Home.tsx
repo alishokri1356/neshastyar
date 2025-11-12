@@ -573,7 +573,7 @@ const Home = () => {
             <Button
               variant={sortBy === 'tags' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSortBy('tags')}
+              onClick={() => navigate('/tags')}
               className="flex items-center gap-2"
             >
               <FileText className="h-4 w-4" />
