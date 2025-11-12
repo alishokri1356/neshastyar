@@ -28,17 +28,10 @@ const TagList = () => {
       try {
         if (!user) return;
 
-        // Fetch tags with meeting counts
+        // Fetch tags
         const { data: tagsData, error: tagsError } = await mysqlClient
           .from('tags')
-          .select(`
-            id,
-            name,
-            color,
-            meeting_tags (
-              meeting_id
-            )
-          `)
+          .select('id, name, color')
           .eq('user_id', user.id);
 
         if (tagsError) {
@@ -51,15 +44,66 @@ const TagList = () => {
           return;
         }
 
-        // Transform tags data to include meeting count
-        const formattedTags = tagsData?.map(tag => ({
-          id: tag.id,
-          name: tag.name,
-          color: tag.color,
-          meetingCount: tag.meeting_tags?.length || 0
-        })) || [];
+        // Fetch meeting counts for each tag using the API endpoint
+        // This ensures we only count meetings that belong to the user
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+        const authHeaders = (mysqlClient as any).getAuthHeaders();
+        const taggedMeetingIds = new Set<string>();
 
-        setTags(formattedTags);
+        const tagPromises = (tagsData || []).map(async (tag) => {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/meeting-tags/tags/${tag.id}/meetings`,
+              {
+                headers: {
+                  ...authHeaders,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            if (response.ok) {
+              const meetings = await response.json();
+              const meetingCount = Array.isArray(meetings) ? meetings.length : 0;
+              
+              // Track which meetings are tagged
+              if (Array.isArray(meetings)) {
+                meetings.forEach((meeting: any) => {
+                  if (meeting.id) {
+                    taggedMeetingIds.add(meeting.id);
+                  }
+                });
+              }
+              
+              return {
+                id: tag.id,
+                name: tag.name,
+                color: tag.color,
+                meetingCount
+              };
+            }
+            return {
+              id: tag.id,
+              name: tag.name,
+              color: tag.color,
+              meetingCount: 0
+            };
+          } catch (error) {
+            console.error(`Error fetching meetings for tag ${tag.id}:`, error);
+            return {
+              id: tag.id,
+              name: tag.name,
+              color: tag.color,
+              meetingCount: 0
+            };
+          }
+        });
+
+        const formattedTags = await Promise.all(tagPromises);
+        
+        // Filter out tags with no meetings
+        const tagsWithMeetings = formattedTags.filter(tag => tag.meetingCount > 0);
+        setTags(tagsWithMeetings);
 
         // Fetch untagged meetings count
         // Get all meetings for this user
@@ -76,34 +120,9 @@ const TagList = () => {
         let untaggedMeetingsCount = 0;
 
         if (allMeetings && allMeetings.length > 0) {
-          // Create a set of user's meeting IDs for fast lookup
-          const userMeetingIds = new Set(allMeetings.map(m => m.id));
-          
-          // Collect all meeting_ids from the tags we fetched
-          // The nested meeting_tags query should return an array of objects with meeting_id
-          const taggedMeetingIds = new Set<string>();
-          
-          if (tagsData && Array.isArray(tagsData)) {
-            tagsData.forEach(tag => {
-              // Check if meeting_tags exists and is an array
-              if (tag.meeting_tags && Array.isArray(tag.meeting_tags)) {
-                tag.meeting_tags.forEach((mt: any) => {
-                  // Handle both object format {meeting_id: "..."} and direct ID format
-                  const meetingId = typeof mt === 'object' && mt !== null 
-                    ? (mt.meeting_id || mt.id) 
-                    : mt;
-                  
-                  // Only add if it's one of the user's meetings
-                  if (meetingId && userMeetingIds.has(meetingId)) {
-                    taggedMeetingIds.add(meetingId);
-                  }
-                });
-              }
-            });
-          }
-
           // Calculate untagged meetings count
           // A meeting is untagged if it's not in the taggedMeetingIds set
+          // (taggedMeetingIds was populated when we fetched meetings for each tag above)
           untaggedMeetingsCount = allMeetings.filter(meeting => !taggedMeetingIds.has(meeting.id)).length;
         } else {
           // If no meetings exist, untagged count is 0
