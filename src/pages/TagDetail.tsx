@@ -103,41 +103,41 @@ const TagDetail = () => {
             userId: tagData.user_id
           };
 
-          // Fetch meetings associated with this tag
-          const { data: meetingsData, error: meetingsError } = await mysqlClient
-            .from('meeting_tags')
-              .select(`
-                meetings (
-                  id,
-                  meeting_date,
-                  audio_file_name,
-                  title,
-                  summary,
-                  status,
-                  duration
-                )
-              `)
-            .eq('tag_id', tagId);
+          // Fetch meetings associated with this tag using the proper API endpoint
+          // This ensures we get meetings filtered by both tag and user
+          const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+          const authHeaders = (mysqlClient as any).getAuthHeaders();
+          
+          const meetingsResponse = await fetch(
+            `${API_BASE_URL}/meeting-tags/tags/${tagId}/meetings`,
+            {
+              headers: {
+                ...authHeaders,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
 
-          if (meetingsError) {
-            console.error('Error fetching meetings:', meetingsError);
-            throw new Error(meetingsError.message);
+          if (!meetingsResponse.ok) {
+            const errorData = await meetingsResponse.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to fetch meetings for tag');
           }
 
+          const meetingsData = await meetingsResponse.json();
+
           // Transform the data to match the expected format
-          const transformedMeetings = meetingsData
-            ?.map(item => item.meetings)
-            .filter(Boolean)
-            .map((meeting: any) => ({
-              id: meeting.id,
-              fileName: (meeting as any).title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
-              date: new Date(meeting.meeting_date),
-              summary: meeting.summary || '',
-              status: meeting.status,
-              duration: meeting.duration || 0,
-              tags: [],
-              userId: user.id
-            })) || [];
+          const transformedMeetings = Array.isArray(meetingsData)
+            ? meetingsData.map((meeting: any) => ({
+                id: meeting.id,
+                fileName: meeting.title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+                date: new Date(meeting.meeting_date),
+                summary: meeting.summary || '',
+                status: meeting.status,
+                duration: meeting.duration || 0,
+                tags: [],
+                userId: user.id
+              }))
+            : [];
 
           return { tag, meetings: transformedMeetings };
         }
