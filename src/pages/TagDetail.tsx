@@ -354,7 +354,7 @@ const TagDetail = () => {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <div
                 className="w-4 h-4 rounded-full"
                 style={{ backgroundColor: tag.color }}
@@ -362,13 +362,14 @@ const TagDetail = () => {
               <h1 className="text-xl font-bold text-foreground">{tag.name}</h1>
               {tagId !== 'untagged' && (
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant="outline"
+                  size="sm"
                   onClick={handleOpenRenameDialog}
-                  className="h-8 w-8"
+                  className="flex items-center gap-2"
                   aria-label="تغییر نام برچسب"
                 >
                   <Pencil className="h-4 w-4" />
+                  تغییر نام
                 </Button>
               )}
             </div>
