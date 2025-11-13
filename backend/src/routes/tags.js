@@ -9,6 +9,12 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(requireEmailVerification);
 
+// GET /api/tags/management
+router.get('/management', tagController.getManagementData);
+
+// POST /api/tags/merge
+router.post('/merge', tagController.mergeTags);
+
 // GET /api/tags
 router.get('/', tagController.getTags);
 

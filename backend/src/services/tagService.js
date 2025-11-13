@@ -33,6 +33,37 @@ class TagService {
     return await db.query(sql, [userId]);
   }
 
+  // Get tag management overview data
+  async getTagManagementData(userId) {
+    const [tagsWithCount, totalMeetingsRows, taggedMeetingsRows] = await Promise.all([
+      this.getTagsWithCount(userId),
+      db.query('SELECT COUNT(*) AS total FROM meetings WHERE user_id = ?', [userId]),
+      db.query(
+        `
+          SELECT COUNT(DISTINCT mt.meeting_id) AS tagged
+          FROM meeting_tags mt
+          INNER JOIN meetings m ON mt.meeting_id = m.id
+          WHERE m.user_id = ?
+        `,
+        [userId]
+      ),
+    ]);
+
+    const totalMeetings = Number(totalMeetingsRows?.[0]?.total ?? 0);
+    const taggedMeetings = Number(taggedMeetingsRows?.[0]?.tagged ?? 0);
+    const untaggedMeetingsCount = Math.max(totalMeetings - taggedMeetings, 0);
+
+    const normalizedTags = (tagsWithCount || []).map((tag) => ({
+      ...tag,
+      meeting_count: Number(tag.meeting_count ?? 0),
+    }));
+
+    return {
+      tags: normalizedTags,
+      untaggedMeetingsCount,
+    };
+  }
+
   // Get tag by ID
   async getTagById(id, userId) {
     const sql = 'SELECT * FROM tags WHERE id = ? AND user_id = ?';
@@ -134,6 +165,145 @@ class TagService {
     `;
 
     return await db.query(sql, [tagId, userId]);
+  }
+
+  // Merge multiple tags into a target tag name
+  async mergeTags(userId, sourceTagNames, targetTagName) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const normalizedSources = Array.from(
+      new Set(
+        (Array.isArray(sourceTagNames) ? sourceTagNames : [])
+          .map((name) => (typeof name === 'string' ? name.trim() : ''))
+          .filter((name) => name.length > 0)
+      )
+    );
+
+    const normalizedTarget = typeof targetTagName === 'string' ? targetTagName.trim() : '';
+
+    if (normalizedSources.length < 2) {
+      throw new Error('At least two tag names are required to merge');
+    }
+
+    if (!normalizedTarget) {
+      throw new Error('A target tag name is required');
+    }
+
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const namePlaceholders = normalizedSources.map(() => '?').join(', ');
+      const [sourceTags] = await connection.query(
+        `SELECT * FROM tags WHERE user_id = ? AND name IN (${namePlaceholders})`,
+        [userId, ...normalizedSources]
+      );
+
+      if (!sourceTags || sourceTags.length === 0) {
+        throw new Error('No tags found for provided names');
+      }
+
+      const foundNames = new Set(sourceTags.map((tag) => tag.name.trim().toLowerCase()));
+      const missingNames = normalizedSources.filter(
+        (name) => !foundNames.has(name.toLowerCase())
+      );
+
+      if (missingNames.length > 0) {
+        throw new Error(`Tags not found: ${missingNames.join(', ')}`);
+      }
+
+      let targetTag =
+        sourceTags.find(
+          (tag) => tag.name.trim().toLowerCase() === normalizedTarget.toLowerCase()
+        ) || null;
+
+      if (!targetTag) {
+        const [existingTargets] = await connection.query(
+          'SELECT * FROM tags WHERE user_id = ? AND name = ? LIMIT 1',
+          [userId, normalizedTarget]
+        );
+
+        if (existingTargets && existingTargets.length > 0) {
+          targetTag = existingTargets[0];
+        }
+      }
+
+      let createdTarget = false;
+      const now = new Date();
+
+      if (!targetTag) {
+        const newId = authService.generateId();
+        const baseColor = sourceTags[0]?.color || null;
+
+        await connection.query(
+          'INSERT INTO tags (id, user_id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [newId, userId, normalizedTarget, baseColor, now, now]
+        );
+
+        targetTag = {
+          id: newId,
+          user_id: userId,
+          name: normalizedTarget,
+          color: baseColor,
+          created_at: now,
+          updated_at: now,
+        };
+        createdTarget = true;
+      } else if (targetTag.name !== normalizedTarget) {
+        await connection.query(
+          'UPDATE tags SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+          [normalizedTarget, now, targetTag.id, userId]
+        );
+        targetTag.name = normalizedTarget;
+      }
+
+      const tagsToReassign = sourceTags.filter((tag) => tag.id !== targetTag.id);
+      const tagsToReassignIds = tagsToReassign.map((tag) => tag.id);
+
+      let updatedMeetings = 0;
+
+      if (tagsToReassignIds.length > 0) {
+        const idPlaceholders = tagsToReassignIds.map(() => '?').join(', ');
+
+        const [affectedMeetings] = await connection.query(
+          `SELECT DISTINCT meeting_id FROM meeting_tags WHERE tag_id IN (${idPlaceholders})`,
+          tagsToReassignIds
+        );
+
+        updatedMeetings = Array.isArray(affectedMeetings) ? affectedMeetings.length : 0;
+
+        await connection.query(
+          `UPDATE meeting_tags SET tag_id = ? WHERE tag_id IN (${idPlaceholders})`,
+          [targetTag.id, ...tagsToReassignIds]
+        );
+
+        await connection.query(
+          `DELETE FROM tags WHERE id IN (${idPlaceholders}) AND user_id = ?`,
+          [...tagsToReassignIds, userId]
+        );
+      }
+
+      await connection.commit();
+
+      return {
+        targetTag: {
+          id: targetTag.id,
+          name: targetTag.name,
+          color: targetTag.color,
+        },
+        mergedTagIds: tagsToReassignIds,
+        createdTarget,
+        updatedMeetings,
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 }
 
