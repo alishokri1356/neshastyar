@@ -153,6 +153,137 @@ class MeetingService {
 
     return await db.query(sql, [userId]);
   }
+
+  // Rename a participant across all meetings for a user
+  async renameParticipant(userId, oldName, newName) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const trimmedOldName = (oldName ?? '').trim();
+    const trimmedNewName = (newName ?? '').trim();
+
+    if (!trimmedOldName || !trimmedNewName) {
+      throw new Error('Both old and new participant names are required');
+    }
+
+    if (trimmedOldName === trimmedNewName) {
+      return { updatedMeetings: 0 };
+    }
+
+    const meetings = await db.query(
+      'SELECT id, summary, people FROM meetings WHERE user_id = ?',
+      [userId]
+    );
+
+    let updatedCount = 0;
+
+    const replaceNamesInArray = (list) => {
+      let changed = false;
+      const updatedList = list.map((name) => {
+        if (typeof name === 'string' && name.trim() === trimmedOldName) {
+          changed = true;
+          return trimmedNewName;
+        }
+        return name;
+      });
+      return { changed, updatedList };
+    };
+
+    for (const meeting of meetings) {
+      let hasChanges = false;
+      let updatedPeople = meeting.people ?? null;
+      let updatedSummary = meeting.summary ?? null;
+
+      if (meeting.people) {
+        let peopleChanged = false;
+
+        try {
+          const parsedPeople = JSON.parse(meeting.people);
+
+          if (Array.isArray(parsedPeople)) {
+            const { changed, updatedList } = replaceNamesInArray(parsedPeople);
+            if (changed) {
+              updatedPeople = JSON.stringify(updatedList);
+              peopleChanged = true;
+            }
+          } else if (
+            parsedPeople &&
+            typeof parsedPeople === 'object' &&
+            Array.isArray(parsedPeople.people)
+          ) {
+            const { changed, updatedList } = replaceNamesInArray(parsedPeople.people);
+            if (changed) {
+              parsedPeople.people = updatedList;
+              updatedPeople = JSON.stringify(parsedPeople);
+              peopleChanged = true;
+            }
+          }
+        } catch {
+          const rawPeople = meeting.people
+            .split(',')
+            .map((name) => name.trim())
+            .filter((name) => name.length > 0);
+
+          if (rawPeople.length > 0) {
+            const { changed, updatedList } = replaceNamesInArray(rawPeople);
+            if (changed) {
+              updatedPeople = updatedList.join(', ');
+              peopleChanged = true;
+            }
+          }
+        }
+
+        if (peopleChanged) {
+          hasChanges = true;
+        }
+      }
+
+      if (meeting.summary) {
+        try {
+          const summaryData = JSON.parse(meeting.summary);
+
+          if (summaryData && typeof summaryData === 'object') {
+            const participantKeys = [
+              'People in meetings',
+              'People in Meetings',
+              'participants',
+              'Participants'
+            ];
+
+            let summaryChanged = false;
+
+            participantKeys.forEach((key) => {
+              if (Array.isArray(summaryData[key])) {
+                const { changed, updatedList } = replaceNamesInArray(summaryData[key]);
+                if (changed) {
+                  summaryData[key] = updatedList;
+                  summaryChanged = true;
+                }
+              }
+            });
+
+            if (summaryChanged) {
+              updatedSummary = JSON.stringify(summaryData);
+              hasChanges = true;
+            }
+          }
+        } catch {
+          // Non-JSON summaries are ignored to avoid unintended replacements
+        }
+      }
+
+      if (hasChanges) {
+        await db.query(
+          'UPDATE meetings SET people = ?, summary = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+          [updatedPeople, updatedSummary, meeting.id, userId]
+        );
+        updatedCount += 1;
+      }
+    }
+
+    return { updatedMeetings: updatedCount };
+  }
 }
 
 module.exports = new MeetingService();

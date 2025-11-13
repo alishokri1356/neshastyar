@@ -1,18 +1,30 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, FileText, Clock, UserCircle } from 'lucide-react';
-import { mysqlClient } from '@/lib/mysql-client';
-import { useToast } from '@/components/ui/use-toast';
-import moment from 'moment-jalaali';
+import { useState, useEffect, type KeyboardEvent } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  ArrowLeft,
+  Calendar,
+  FileText,
+  Clock,
+  UserCircle,
+  Loader2,
+} from "lucide-react";
+import { mysqlClient } from "@/lib/mysql-client";
+import { useToast } from "@/components/ui/use-toast";
+import moment from "moment-jalaali";
 
 const ParticipantDetail = () => {
   const { participantName } = useParams<{ participantName: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const queryClient = useQueryClient();
+
   // Helper function to parse JSON summary
   const parseJsonSummary = (summaryText: string) => {
     try {
@@ -26,12 +38,12 @@ const ParticipantDetail = () => {
   // Helper function to extract participants from a meeting
   const extractParticipants = (meeting: any): string[] => {
     let participants: string[] = [];
-    
+
     // Try to get participants from summary JSON first
-    const summaryData = parseJsonSummary(meeting.summary || '');
-    if (summaryData && summaryData['People in meetings']) {
-      participants = Array.isArray(summaryData['People in meetings']) 
-        ? summaryData['People in meetings'] 
+    const summaryData = parseJsonSummary(meeting.summary || "");
+    if (summaryData && summaryData["People in meetings"]) {
+      participants = Array.isArray(summaryData["People in meetings"])
+        ? summaryData["People in meetings"]
         : [];
     } else if (meeting.people) {
       // Fallback to people field if it exists
@@ -40,74 +52,86 @@ const ParticipantDetail = () => {
         participants = Array.isArray(peopleData) ? peopleData : [];
       } catch {
         // If people field is not JSON, treat as plain text
-        participants = meeting.people.split(',').map((p: string) => p.trim()).filter((p: string) => p);
+        participants = meeting.people
+          .split(",")
+          .map((p: string) => p.trim())
+          .filter((p: string) => p);
       }
     }
-    
+
     return participants;
   };
 
   // Fetch participant and its meetings from database
   const { data: participantAndMeetings, isLoading } = useQuery({
-    queryKey: ['participant-detail', participantName],
+    queryKey: ["participant-detail", participantName],
     queryFn: async () => {
       if (!participantName) return null;
-      
-      const { data: { user } } = await mysqlClient.auth.getUser();
+
+      const {
+        data: { user },
+      } = await mysqlClient.auth.getUser();
       if (!user) return null;
 
       // Decode the participant name
       const decodedName = decodeURIComponent(participantName);
 
       // Handle no participants case
-      if (decodedName === 'no-participants') {
+      if (decodedName === "no-participants") {
         const participant = {
-          name: 'بدون شرکت‌کننده',
-          userId: user.id
+          name: "بدون شرکت‌کننده",
+          userId: user.id,
         };
 
         // Get all meetings for this user
         const { data: allMeetings, error: meetingsError } = await mysqlClient
-          .from('meetings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+          .from("meetings")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
         if (meetingsError) {
-          console.error('Error fetching meetings:', meetingsError);
+          console.error("Error fetching meetings:", meetingsError);
           throw new Error(meetingsError.message);
         }
 
         // Filter meetings without participants
-        const meetingsWithoutParticipants = (allMeetings || []).filter((meeting) => {
-          const participants = extractParticipants(meeting);
-          return participants.length === 0;
-        });
+        const meetingsWithoutParticipants = (allMeetings || []).filter(
+          (meeting) => {
+            const participants = extractParticipants(meeting);
+            return participants.length === 0;
+          },
+        );
 
         // Transform the data to match the expected format
-        const transformedMeetings = meetingsWithoutParticipants.map((meeting: any) => ({
-          id: meeting.id,
-          fileName: meeting.title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
-          date: new Date(meeting.meeting_date),
-          summary: meeting.summary || '',
-          status: meeting.status,
-          duration: meeting.duration || 0,
-          tags: [],
-          userId: user.id
-        }));
+        const transformedMeetings = meetingsWithoutParticipants.map(
+          (meeting: any) => ({
+            id: meeting.id,
+            fileName:
+              meeting.title ||
+              meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, "") ||
+              `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+            date: new Date(meeting.meeting_date),
+            summary: meeting.summary || "",
+            status: meeting.status,
+            duration: meeting.duration || 0,
+            tags: [],
+            userId: user.id,
+          }),
+        );
 
         return { participant, meetings: transformedMeetings };
       } else {
         // Handle regular participant case
         // Get all meetings for this user
         const { data: allMeetings, error: meetingsError } = await mysqlClient
-          .from('meetings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+          .from("meetings")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
         if (meetingsError) {
-          console.error('Error fetching meetings:', meetingsError);
+          console.error("Error fetching meetings:", meetingsError);
           throw new Error(meetingsError.message);
         }
 
@@ -119,19 +143,22 @@ const ParticipantDetail = () => {
 
         const participant = {
           name: decodedName,
-          userId: user.id
+          userId: user.id,
         };
 
         // Transform the data to match the expected format
         const transformedMeetings = participantMeetings.map((meeting: any) => ({
           id: meeting.id,
-          fileName: meeting.title || meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, '') || `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
+          fileName:
+            meeting.title ||
+            meeting.audio_file_name?.replace(/\.(wav|mp3|m4a)$/i, "") ||
+            `Meeting ${new Date(meeting.meeting_date).toLocaleDateString()}`,
           date: new Date(meeting.meeting_date),
-          summary: meeting.summary || '',
+          summary: meeting.summary || "",
           status: meeting.status,
           duration: meeting.duration || 0,
           tags: [],
-          userId: user.id
+          userId: user.id,
         }));
 
         return { participant, meetings: transformedMeetings };
@@ -147,16 +174,173 @@ const ParticipantDetail = () => {
   const participant = (participantAndMeetings as any)?.participant || null;
   const meetings = (participantAndMeetings as any)?.meetings || [];
 
+  useEffect(() => {
+    if (participant?.name) {
+      setEditedName(participant.name);
+    }
+  }, [participant?.name]);
+
+  const canEditParticipant =
+    !!participant &&
+    participantName !== "no-participants" &&
+    participant.name !== "بدون شرکت‌کننده";
+
+  const renameParticipantMutation = useMutation({
+    mutationFn: async ({
+      oldName,
+      newName,
+    }: {
+      oldName: string;
+      newName: string;
+    }) => {
+      const response = await mysqlClient.participants.rename({
+        oldName,
+        newName,
+      });
+
+      if ((response as any)?.error) {
+        const rawError = (response as any).error;
+        const message =
+          typeof rawError === "string"
+            ? rawError
+            : rawError?.message ||
+              rawError?.error ||
+              "خطایی در بروزرسانی نام رخ داد.";
+        throw new Error(message);
+      }
+
+      return (response as any).data;
+    },
+    onSuccess: (_data, variables) => {
+      const trimmedOldName = variables.oldName.trim();
+      const trimmedNewName = variables.newName.trim();
+      const oldKey: [string, string] = [
+        "participant-detail",
+        encodeURIComponent(trimmedOldName),
+      ];
+      const newKey: [string, string] = [
+        "participant-detail",
+        encodeURIComponent(trimmedNewName),
+      ];
+
+      const existingData = queryClient.getQueryData<any>(oldKey);
+      if (existingData) {
+        const updatedData = {
+          ...existingData,
+          participant: {
+            ...(existingData.participant || {}),
+            name: trimmedNewName,
+          },
+        };
+        queryClient.setQueryData(oldKey, updatedData);
+        queryClient.setQueryData(newKey, updatedData);
+      }
+
+      toast({
+        title: "نام شرکت‌کننده بروزرسانی شد",
+        description: "نام شرکت‌کننده با موفقیت به‌روزرسانی شد.",
+      });
+
+      setIsEditingName(false);
+      setEditedName(trimmedNewName);
+      navigate(`/participant/${encodeURIComponent(trimmedNewName)}`, {
+        replace: true,
+      });
+      queryClient.invalidateQueries({ queryKey: ["participant-detail"] });
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : (error as { message?: string; error?: string })?.message ||
+              (error as { message?: string; error?: string })?.error ||
+              "خطایی در بروزرسانی نام رخ داد.";
+
+      toast({
+        title: "خطا",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCancelEdit = () => {
+    setIsEditingName(false);
+    setEditedName(participant?.name ?? "");
+  };
+
+  const handleSaveName = () => {
+    if (!participant || !canEditParticipant) {
+      return;
+    }
+
+    if (renameParticipantMutation.isPending) {
+      return;
+    }
+
+    const trimmedNewName = editedName.trim();
+    const trimmedCurrentName = (participant.name || "").trim();
+
+    if (!trimmedNewName) {
+      toast({
+        title: "نام نامعتبر است",
+        description: "نام شرکت‌کننده نمی‌تواند خالی باشد.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (trimmedNewName === trimmedCurrentName) {
+      setIsEditingName(false);
+      setEditedName(participant.name || "");
+      return;
+    }
+
+    if (trimmedNewName.toLowerCase() === "no-participants") {
+      toast({
+        title: "نام نامعتبر است",
+        description: "استفاده از این نام مجاز نیست.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    renameParticipantMutation.mutate({
+      oldName: trimmedCurrentName,
+      newName: trimmedNewName,
+    });
+  };
+
+  const handleNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleSaveName();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  const startEditingName = () => {
+    if (!canEditParticipant || !participant?.name) {
+      return;
+    }
+    setEditedName(participant.name);
+    setIsEditingName(true);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'On Process':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'Need Review':
-        return 'bg-warning/10 text-warning border-warning/20';
-      case 'Done':
-        return 'bg-success/10 text-success border-success/20';
+      case "On Process":
+        return "bg-primary/10 text-primary border-primary/20";
+      case "Need Review":
+        return "bg-warning/10 text-warning border-warning/20";
+      case "Done":
+        return "bg-success/10 text-success border-success/20";
       default:
-        return 'bg-muted/10 text-muted-foreground border-muted/20';
+        return "bg-muted/10 text-muted-foreground border-muted/20";
     }
   };
 
@@ -164,7 +348,7 @@ const ParticipantDetail = () => {
     if (!seconds || seconds === 0) return null;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (isLoading) {
@@ -172,7 +356,9 @@ const ParticipantDetail = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">در حال بارگذاری جزئیات شرکت‌کننده...</p>
+          <p className="text-muted-foreground">
+            در حال بارگذاری جزئیات شرکت‌کننده...
+          </p>
         </div>
       </div>
     );
@@ -182,10 +368,10 @@ const ParticipantDetail = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-4">شرکت‌کننده پیدا نشد</h2>
-          <Button onClick={() => navigate('/home')}>
-            بازگشت به خانه
-          </Button>
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            شرکت‌کننده پیدا نشد
+          </h2>
+          <Button onClick={() => navigate("/home")}>بازگشت به خانه</Button>
         </div>
       </div>
     );
@@ -196,25 +382,76 @@ const ParticipantDetail = () => {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/participants')}
+              onClick={() => navigate("/participants")}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <UserCircle className="h-5 w-5 text-primary" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">{participant.name}</h1>
+              {isEditingName ? (
+                <Input
+                  value={editedName}
+                  onChange={(event) => setEditedName(event.target.value)}
+                  onKeyDown={handleNameKeyDown}
+                  autoFocus
+                  disabled={renameParticipantMutation.isPending}
+                  maxLength={120}
+                  placeholder="نام شرکت‌کننده"
+                  className="max-w-xs"
+                />
+              ) : (
+                <h1 className="text-xl font-bold text-foreground">
+                  {participant.name}
+                </h1>
+              )}
             </div>
           </div>
-          
-          <Badge variant="secondary" className="text-sm">
-            {meetings.length} جلسه
-          </Badge>
+
+          <div className="flex items-center gap-3">
+            {canEditParticipant &&
+              (isEditingName ? (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveName}
+                    disabled={
+                      renameParticipantMutation.isPending ||
+                      editedName.trim().length === 0
+                    }
+                  >
+                    {renameParticipantMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        در حال ذخیره...
+                      </>
+                    ) : (
+                      "ذخیره"
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    disabled={renameParticipantMutation.isPending}
+                  >
+                    انصراف
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" onClick={startEditingName}>
+                  ویرایش نام
+                </Button>
+              ))}
+            <Badge variant="secondary" className="text-sm">
+              {meetings.length} جلسه
+            </Badge>
+          </div>
         </div>
       </header>
 
@@ -228,19 +465,20 @@ const ParticipantDetail = () => {
             <p className="text-muted-foreground mb-6">
               ضبط جلسات را شروع کنید تا آنها را اینجا ببینید.
             </p>
-            <Button onClick={() => navigate('/record')}>
-              ضبط جلسه
-            </Button>
+            <Button onClick={() => navigate("/record")}>ضبط جلسه</Button>
           </div>
         ) : (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-foreground">
               جلسات ({meetings.length})
             </h2>
-            
+
             <div className="space-y-3">
               {meetings
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .sort(
+                  (a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime(),
+                )
                 .map((meeting) => (
                   <Card
                     key={meeting.id}
@@ -250,27 +488,25 @@ const ParticipantDetail = () => {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 space-y-2">
-                           <h3 className="font-semibold text-foreground text-lg">
-                             {meeting.fileName}
-                           </h3>
-                           
-                           {meeting.duration > 0 && (
-                             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                               <Clock className="h-3 w-3" />
-                               <span>{formatDuration(meeting.duration)}</span>
-                             </div>
-                           )}
-                           
-                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                             <Calendar className="h-4 w-4" />
-                             <span>
-                               {moment(meeting.date).format('jYYYY/jMM/jDD')}
-                             </span>
-                             <span>•</span>
-                             <span>
-                               {moment(meeting.date).format('HH:mm')}
-                             </span>
-                           </div>
+                          <h3 className="font-semibold text-foreground text-lg">
+                            {meeting.fileName}
+                          </h3>
+
+                          {meeting.duration > 0 && (
+                            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>{formatDuration(meeting.duration)}</span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span>
+                              {moment(meeting.date).format("jYYYY/jMM/jDD")}
+                            </span>
+                            <span>•</span>
+                            <span>{moment(meeting.date).format("HH:mm")}</span>
+                          </div>
 
                           {meeting.summary && (
                             <p className="text-sm text-muted-foreground line-clamp-2">
@@ -278,7 +514,7 @@ const ParticipantDetail = () => {
                             </p>
                           )}
                         </div>
-                        
+
                         <div className="ml-4">
                           <Badge className={getStatusColor(meeting.status)}>
                             {meeting.status}
@@ -297,4 +533,3 @@ const ParticipantDetail = () => {
 };
 
 export default ParticipantDetail;
-
