@@ -31,9 +31,14 @@ app.use(cors(corsOptions));
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // limit each IP to 500 requests per windowMs
-  message: {
-    error: 'Too many requests',
-    message: 'Too many requests from this IP, please try again later.'
+  handler: (req, res, _next, options) => {
+    const referer = req.get('referer');
+    res.status(options.statusCode).json({
+      error: 'Too many requests',
+      message: 'Too many requests from this IP, please try again later.',
+      route: req.originalUrl,
+      referer: referer || null
+    });
   },
   // Skip rate limiting for successful requests
   skipSuccessfulRequests: false
