@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Pencil, RefreshCw, Trash2, Users } from "lucide-react";
+import { ChevronLeft, GitMerge, Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 
 interface Participant {
   name: string;
@@ -57,6 +59,11 @@ const ParticipantsManager: React.FC = () => {
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeTargetName, setMergeTargetName] = useState("");
+  const [isMerging, setIsMerging] = useState(false);
+
   const loadParticipants = useCallback(
     async (options: { initial?: boolean } = {}) => {
       const { initial = false } = options;
@@ -79,7 +86,11 @@ const ParticipantsManager: React.FC = () => {
         }
 
         const payload = (data ?? {}) as ParticipantsResponse;
-        setParticipants(payload.participants ?? []);
+        const participantList = payload.participants ?? [];
+        setParticipants(participantList);
+        setSelectedParticipants((previous) =>
+          previous.filter((name) => participantList.some((participant) => participant.name === name))
+        );
         setNoParticipantsCount(payload.noParticipantsCount ?? 0);
       } catch (error: any) {
         toast({
@@ -169,8 +180,9 @@ const ParticipantsManager: React.FC = () => {
             : `نام ${selectedParticipant.name} به ${trimmedName} تغییر یافت.`,
       });
 
-      handleRenameDialogChange(false);
-      await loadParticipants();
+        handleRenameDialogChange(false);
+        setSelectedParticipants([]);
+        await loadParticipants();
     } catch (error: any) {
       toast({
         title: "خطا در بروزرسانی نام",
@@ -224,6 +236,8 @@ const ParticipantsManager: React.FC = () => {
             : `${participantToDelete.name} از جلسات حذف شد.`,
       });
 
+        const removedName = participantToDelete.name;
+        setSelectedParticipants((previous) => previous.filter((name) => name !== removedName));
       handleDeleteDialogChange(false);
       await loadParticipants();
     } catch (error: any) {
@@ -236,6 +250,139 @@ const ParticipantsManager: React.FC = () => {
       setIsRemoving(false);
     }
   };
+
+  const handleSelectAllChange = (checked: CheckedState) => {
+    const isChecked = checked === true;
+
+    if (isChecked) {
+      setSelectedParticipants(participants.map((participant) => participant.name));
+    } else {
+      setSelectedParticipants([]);
+    }
+  };
+
+  const handleToggleParticipantSelection = (name: string, checked: boolean) => {
+    setSelectedParticipants((previous) => {
+      if (checked) {
+        if (previous.includes(name)) {
+          return previous;
+        }
+        return [...previous, name];
+      }
+      return previous.filter((item) => item !== name);
+    });
+  };
+
+  const handleOpenMergeDialog = () => {
+    if (selectedParticipants.length < 2) {
+      toast({
+        title: "انتخاب ناکافی",
+        description: "برای ادغام، حداقل دو شرکت‌کننده را انتخاب کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const defaultTarget =
+      selectedParticipants
+        .slice()
+        .sort((a, b) => {
+          const countA = participants.find((participant) => participant.name === a)?.meetingCount ?? 0;
+          const countB = participants.find((participant) => participant.name === b)?.meetingCount ?? 0;
+          return countB - countA;
+        })[0] ?? "";
+
+    setMergeTargetName(defaultTarget);
+    setMergeDialogOpen(true);
+  };
+
+  const handleMergeDialogChange = (open: boolean) => {
+    if (!open && isMerging) {
+      return;
+    }
+
+    setMergeDialogOpen(open);
+
+    if (!open) {
+      setMergeTargetName("");
+    }
+  };
+
+  const handleMergeParticipants = async () => {
+    const trimmedTarget = mergeTargetName.trim();
+
+    if (selectedParticipants.length < 2) {
+      toast({
+        title: "انتخاب ناکافی",
+        description: "برای ادغام، حداقل دو شرکت‌کننده را انتخاب کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!trimmedTarget) {
+      toast({
+        title: "نام مقصد وارد نشده است",
+        description: "لطفاً نام نهایی شرکت‌کننده را وارد کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let mergeSucceeded = false;
+
+    try {
+      setIsMerging(true);
+      const { data, error } = await mysqlClient.participants.merge({
+        sourceNames: selectedParticipants,
+        targetName: trimmedTarget,
+      });
+
+      if (error) {
+        const message =
+          typeof error === "string"
+            ? error
+            : error?.message || error?.error || "خطایی در ادغام شرکت‌کنندگان رخ داد.";
+        throw new Error(message);
+      }
+
+      mergeSucceeded = true;
+
+      toast({
+        title: "شرکت‌کنندگان ادغام شدند",
+        description:
+          data?.updatedMeetings !== undefined
+            ? `${data.updatedMeetings} جلسه بروزرسانی شد و شرکت‌کنندگان انتخاب‌شده در ${trimmedTarget} ادغام شدند.`
+            : `شرکت‌کنندگان انتخاب‌شده در ${trimmedTarget} ادغام شدند.`,
+      });
+
+      setSelectedParticipants([]);
+      await loadParticipants();
+    } catch (error: any) {
+      toast({
+        title: "خطا در ادغام شرکت‌کنندگان",
+        description: error?.message || "امکان ادغام شرکت‌کنندگان انتخاب‌شده وجود ندارد.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMerging(false);
+      if (mergeSucceeded) {
+        setMergeDialogOpen(false);
+        setMergeTargetName("");
+      }
+    }
+  };
+
+  const selectedCount = selectedParticipants.length;
+  const allSelected = participants.length > 0 && selectedCount === participants.length;
+  const partiallySelected = selectedCount > 0 && selectedCount < participants.length;
+  const selectedParticipantsByCount = selectedParticipants
+    .slice()
+    .sort((a, b) => {
+      const countA = participants.find((participant) => participant.name === a)?.meetingCount ?? 0;
+      const countB = participants.find((participant) => participant.name === b)?.meetingCount ?? 0;
+      return countB - countA;
+    });
 
   if (loading) {
     return (
@@ -314,18 +461,39 @@ const ParticipantsManager: React.FC = () => {
         </div>
 
         <Card className="border-0 bg-white/80 backdrop-blur shadow-soft">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="text-lg font-semibold text-foreground">فهرست شرکت‌کنندگان</CardTitle>
               <CardDescription>
-                نام شرکت‌کنندگان را بروزرسانی یا حذف کنید تا تمامی جلسات مرتبط اصلاح شوند.
+                نام شرکت‌کنندگان را بروزرسانی یا حذف کنید تا تمامی جلسات مرتبط اصلاح شوند. همچنین می‌توانید چند
+                شرکت‌کننده را در یک نام مشترک ادغام کنید.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>تعداد:</span>
-              <Badge variant="secondary" className="text-xs">
-                {participants.length}
-              </Badge>
+            <div className="flex flex-col w-full sm:w-auto gap-2">
+              <div className="flex items-center justify-between sm:justify-end gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span>تعداد:</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {participants.length}
+                  </Badge>
+                </div>
+                {selectedCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="hidden sm:inline">انتخاب‌شده:</span>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedCount}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              <Button
+                onClick={handleOpenMergeDialog}
+                disabled={selectedCount < 2}
+                className="flex items-center gap-2 w-full sm:w-auto"
+              >
+                <GitMerge className="h-4 w-4" />
+                ادغام شرکت‌کنندگان
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
@@ -338,56 +506,72 @@ const ParticipantsManager: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-1/2">نام شرکت‌کننده</TableHead>
-                      <TableHead className="w-1/4 text-center">تعداد جلسات</TableHead>
-                      <TableHead className="w-1/4 text-left">اقدامات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.name}>
-                        <TableCell className="font-medium text-foreground">{participant.name}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="secondary" className="text-xs px-2 py-1">
-                            {participant.meetingCount} جلسه
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenRenameDialog(participant)}
-                              aria-label={`تغییر نام ${participant.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => handleOpenDeleteDialog(participant)}
-                              aria-label={`حذف ${participant.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12 text-center">
+                          <Checkbox
+                            checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                            onCheckedChange={handleSelectAllChange}
+                            aria-label="انتخاب همه شرکت‌کنندگان"
+                          />
+                        </TableHead>
+                        <TableHead className="w-1/2">نام شرکت‌کننده</TableHead>
+                        <TableHead className="w-1/4 text-center">تعداد جلسات</TableHead>
+                        <TableHead className="w-1/4 text-left">اقدامات</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {participants.map((participant) => (
+                        <TableRow key={participant.name}>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={selectedParticipants.includes(participant.name)}
+                              onCheckedChange={(checked) =>
+                                handleToggleParticipantSelection(participant.name, checked === true)
+                              }
+                              aria-label={`انتخاب ${participant.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-foreground">{participant.name}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="text-xs px-2 py-1">
+                              {participant.meetingCount} جلسه
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenRenameDialog(participant)}
+                                aria-label={`تغییر نام ${participant.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                onClick={() => handleOpenDeleteDialog(participant)}
+                                aria-label={`حذف ${participant.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
 
-                {isRefreshing && (
-                  <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-                    <RefreshCw className="h-4 w-4 animate-spin ml-2" />
-                    در حال بروزرسانی لیست...
-                  </div>
-                )}
-              </div>
+                  {isRefreshing && (
+                    <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                      <RefreshCw className="h-4 w-4 animate-spin ml-2" />
+                      در حال بروزرسانی لیست...
+                    </div>
+                  )}
+                </div>
             )}
           </CardContent>
         </Card>
@@ -421,6 +605,51 @@ const ParticipantsManager: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+        <Dialog open={mergeDialogOpen} onOpenChange={handleMergeDialogChange}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>ادغام شرکت‌کنندگان</DialogTitle>
+              <DialogDescription>
+                شرکت‌کنندگان انتخاب‌شده در یک نام نهایی ادغام می‌شوند. لطفاً نام مقصد را مشخص کنید.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>شرکت‌کنندگان انتخاب‌شده</Label>
+                {selectedParticipantsByCount.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedParticipantsByCount.map((name) => (
+                      <Badge key={name} variant="secondary" className="text-xs">
+                        {name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">هیچ شرکت‌کننده‌ای انتخاب نشده است.</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="merge-target-name">نام مقصد</Label>
+                <Input
+                  id="merge-target-name"
+                  value={mergeTargetName}
+                  onChange={(event) => setMergeTargetName(event.target.value)}
+                  disabled={isMerging}
+                  placeholder="نام شرکت‌کننده نهایی را وارد کنید"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => handleMergeDialogChange(false)} disabled={isMerging}>
+                انصراف
+              </Button>
+              <Button onClick={handleMergeParticipants} disabled={isMerging}>
+                {isMerging ? "در حال ادغام..." : "ادغام"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent>

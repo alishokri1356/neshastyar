@@ -185,6 +185,28 @@ class MySQLClient {
           return { data: null, error };
         }
       },
+      merge: async ({ sourceNames, targetName }: { sourceNames: string[]; targetName: string }) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants/merge`, {
+            method: 'POST',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sourceNames, targetName }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
       rename: async ({ oldName, newName }: { oldName: string; newName: string }) => {
         try {
           const response = await fetch(`${API_BASE_URL}/participants/rename`, {
@@ -209,16 +231,13 @@ class MySQLClient {
       },
       remove: async (name: string) => {
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/participants/${encodeURIComponent(name)}`,
-            {
-              method: 'DELETE',
-              headers: {
-                ...this.getAuthHeaders(),
-                'Content-Type': 'application/json',
-              },
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/participants/${encodeURIComponent(name)}`, {
+            method: 'DELETE',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
 
           const data = await response.json();
 

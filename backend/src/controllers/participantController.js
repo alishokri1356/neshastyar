@@ -62,6 +62,61 @@ class ParticipantController {
     }
   }
 
+  async mergeParticipants(req, res) {
+    try {
+      const userId = req.user?.sub;
+      const { sourceNames, targetName } = req.body || {};
+
+      if (!userId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication is required',
+        });
+      }
+
+      if (!Array.isArray(sourceNames) || sourceNames.length < 2) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'At least two participant names are required to merge',
+        });
+      }
+
+      const trimmedSources = Array.from(
+        new Set(
+          sourceNames
+            .map((name) => (typeof name === 'string' ? name.trim() : ''))
+            .filter((name) => name.length > 0)
+        )
+      );
+
+      const trimmedTarget = typeof targetName === 'string' ? targetName.trim() : '';
+
+      if (trimmedSources.length < 2 || !trimmedTarget) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'A target name and at least two valid participant names are required',
+        });
+      }
+
+      const result = await meetingService.mergeParticipants(userId, trimmedSources, trimmedTarget);
+
+      return res.json(result);
+    } catch (error) {
+      const status =
+        error.message === 'User ID is required' ||
+        error.message === 'A target name is required' ||
+        error.message === 'At least two participant names are required to merge'
+          ? 400
+          : 500;
+
+      console.error('Merge participants error:', error);
+      return res.status(status).json({
+        error: 'Failed to merge participants',
+        message: error.message || 'An unexpected error occurred while merging participants',
+      });
+    }
+  }
+
   async removeParticipant(req, res) {
     try {
       const userId = req.user?.sub;
