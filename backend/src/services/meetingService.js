@@ -54,6 +54,49 @@ const removeNameFromList = (list, nameToRemove) => {
   return { changed, updatedList };
 };
 
+const mergeNamesIntoTarget = (list, sourceNamesSet, targetName) => {
+  if (!Array.isArray(list)) {
+    return { changed: false, updatedList: list };
+  }
+
+  const targetTrimmed = targetName.trim();
+  let changed = false;
+  const updatedList = [];
+  const seen = new Set();
+
+  for (const value of list) {
+    if (typeof value !== 'string') {
+      updatedList.push(value);
+      continue;
+    }
+
+    const trimmedValue = value.trim();
+
+    if (sourceNamesSet.has(trimmedValue)) {
+      if (!seen.has(targetTrimmed)) {
+        updatedList.push(targetTrimmed);
+        seen.add(targetTrimmed);
+      } else {
+        changed = true;
+      }
+
+      if (trimmedValue !== targetTrimmed) {
+        changed = true;
+      }
+      continue;
+    }
+
+    if (!seen.has(trimmedValue)) {
+      updatedList.push(value);
+      seen.add(trimmedValue);
+    } else {
+      changed = true;
+    }
+  }
+
+  return { changed, updatedList };
+};
+
 const extractParticipantsFromMeeting = (meeting) => {
   const names = new Set();
 
@@ -416,8 +459,149 @@ class MeetingService {
     return { updatedMeetings: updatedCount };
   }
 
-    // Remove a participant across all meetings for a user
-    async removeParticipant(userId, participantName) {
+  async mergeParticipants(userId, sourceNames, targetName) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const normalizedSources = Array.from(
+      new Set(
+        (Array.isArray(sourceNames) ? sourceNames : [])
+          .map((name) => (typeof name === 'string' ? name.trim() : ''))
+          .filter((name) => name.length > 0)
+      )
+    );
+
+    const normalizedTarget = typeof targetName === 'string' ? targetName.trim() : '';
+
+    if (normalizedSources.length < 2) {
+      throw new Error('At least two participant names are required to merge');
+    }
+
+    if (!normalizedTarget) {
+      throw new Error('A target name is required');
+    }
+
+    const sourceNamesSet = new Set(normalizedSources);
+
+    const meetings = await db.query(
+      'SELECT id, summary, people FROM meetings WHERE user_id = ?',
+      [userId]
+    );
+
+    let updatedCount = 0;
+
+    for (const meeting of meetings) {
+      let hasChanges = false;
+      let updatedPeople = meeting.people ?? null;
+      let updatedSummary = meeting.summary ?? null;
+
+      if (meeting.people) {
+        let peopleChanged = false;
+
+        try {
+          const parsedPeople = JSON.parse(meeting.people);
+
+          if (Array.isArray(parsedPeople)) {
+            const { changed, updatedList } = mergeNamesIntoTarget(
+              parsedPeople,
+              sourceNamesSet,
+              normalizedTarget
+            );
+            if (changed) {
+              updatedPeople = updatedList.length > 0 ? JSON.stringify(updatedList) : null;
+              peopleChanged = true;
+            }
+          } else if (
+            parsedPeople &&
+            typeof parsedPeople === 'object' &&
+            Array.isArray(parsedPeople.people)
+          ) {
+            const { changed, updatedList } = mergeNamesIntoTarget(
+              parsedPeople.people,
+              sourceNamesSet,
+              normalizedTarget
+            );
+            if (changed) {
+              parsedPeople.people = updatedList.length > 0 ? updatedList : [];
+              updatedPeople =
+                parsedPeople.people.length > 0 ? JSON.stringify(parsedPeople) : null;
+              peopleChanged = true;
+            }
+          }
+        } catch {
+          const rawPeople = meeting.people
+            .split(',')
+            .map((name) => name.trim())
+            .filter((name) => name.length > 0);
+
+          if (rawPeople.length > 0) {
+            const { changed, updatedList } = mergeNamesIntoTarget(
+              rawPeople,
+              sourceNamesSet,
+              normalizedTarget
+            );
+            if (changed) {
+              updatedPeople = updatedList.length > 0 ? updatedList.join(', ') : null;
+              peopleChanged = true;
+            }
+          }
+        }
+
+        if (peopleChanged) {
+          hasChanges = true;
+        }
+      }
+
+      if (meeting.summary) {
+        try {
+          const summaryData = JSON.parse(meeting.summary);
+
+          if (summaryData && typeof summaryData === 'object') {
+            let summaryChanged = false;
+
+            PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
+              if (Array.isArray(summaryData[key])) {
+                const { changed, updatedList } = mergeNamesIntoTarget(
+                  summaryData[key],
+                  sourceNamesSet,
+                  normalizedTarget
+                );
+                if (changed) {
+                  summaryData[key] = updatedList;
+                  summaryChanged = true;
+                }
+              }
+            });
+
+            if (summaryChanged) {
+              updatedSummary = JSON.stringify(summaryData);
+              hasChanges = true;
+            }
+          }
+        } catch {
+          // Non-JSON summaries are ignored to avoid unintended replacements
+        }
+      }
+
+      if (hasChanges) {
+        await db.query(
+          'UPDATE meetings SET people = ?, summary = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+          [updatedPeople, updatedSummary, meeting.id, userId]
+        );
+        updatedCount += 1;
+      }
+    }
+
+    return {
+      updatedMeetings: updatedCount,
+      mergedParticipants: Array.from(sourceNamesSet),
+      targetName: normalizedTarget,
+    };
+  }
+
+  // Remove a participant across all meetings for a user
+  async removeParticipant(userId, participantName) {
       if (!userId) {
         throw new Error('User ID is required');
       }

@@ -10,6 +10,7 @@ router.use(requireEmailVerification);
 
 router.get('/', participantController.listParticipants);
 router.put('/rename', participantController.renameParticipant);
+router.post('/merge', participantController.mergeParticipants);
 router.delete('/:name', participantController.removeParticipant);
 
 module.exports = router;
