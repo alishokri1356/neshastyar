@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Calendar, FileText, Clock, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Clock, Trash2, Settings } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import moment from 'moment-jalaali';
@@ -273,9 +273,20 @@ const TagDetail = () => {
             </div>
           </div>
           
-          <Badge variant="secondary" className="text-sm">
-            {meetings.length} جلسه
-          </Badge>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/tags/manage')}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              مدیریت برچسب‌ها
+            </Button>
+            <Badge variant="secondary" className="text-sm">
+              {meetings.length} جلسه
+            </Badge>
+          </div>
         </div>
       </header>
 
