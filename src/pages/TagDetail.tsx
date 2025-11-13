@@ -1,11 +1,21 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Calendar, FileText, Clock, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Clock, Trash2, Pencil } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import moment from 'moment-jalaali';
@@ -15,6 +25,12 @@ const TagDetail = () => {
   const navigate = useNavigate();
   const { tags } = useMeetingStore();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Rename dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
   
   // Fetch tag and its meetings from database with auto-refresh
   const { data: tagAndMeetings, isLoading } = useQuery({
@@ -180,6 +196,80 @@ const TagDetail = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleOpenRenameDialog = () => {
+    if (!tag) return;
+    setNameInput(tag.name);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameDialogChange = (open: boolean) => {
+    if (!open && isRenaming) {
+      return;
+    }
+    setRenameDialogOpen(open);
+    if (!open) {
+      setNameInput('');
+    }
+  };
+
+  const handleRenameTag = async () => {
+    if (!tagId || !tag) return;
+
+    const trimmedName = nameInput.trim();
+
+    if (!trimmedName) {
+      toast({
+        title: "نام جدید وارد نشده است",
+        description: "لطفاً یک نام معتبر برای برچسب وارد کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (trimmedName === tag.name) {
+      toast({
+        title: "نام بدون تغییر است",
+        description: "برای بروزرسانی، نام جدیدی وارد کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsRenaming(true);
+      const { data, error } = await mysqlClient.tags.rename({
+        id: tagId,
+        newName: trimmedName,
+      });
+
+      if (error) {
+        const message =
+          typeof error === "string"
+            ? error
+            : error?.message || error?.error || "خطایی در بروزرسانی نام برچسب رخ داد.";
+        throw new Error(message);
+      }
+
+      toast({
+        title: "نام برچسب بروزرسانی شد",
+        description: `${tag.name} به ${trimmedName} تغییر یافت.`,
+      });
+
+      handleRenameDialogChange(false);
+      
+      // Invalidate and refetch the tag data
+      await queryClient.invalidateQueries({ queryKey: ['tag-detail', tagId] });
+    } catch (error: any) {
+      toast({
+        title: "خطا در بروزرسانی برچسب",
+        description: error?.message || "امکان بروزرسانی نام برچسب وجود ندارد.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   const handleDeleteTag = async () => {
     if (!tagId) return;
     
@@ -270,6 +360,17 @@ const TagDetail = () => {
                 style={{ backgroundColor: tag.color }}
               />
               <h1 className="text-xl font-bold text-foreground">{tag.name}</h1>
+              {tagId !== 'untagged' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleOpenRenameDialog}
+                  className="h-8 w-8"
+                  aria-label="تغییر نام برچسب"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
           
@@ -365,6 +466,41 @@ const TagDetail = () => {
           </div>
         )}
       </div>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={handleRenameDialogChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تغییر نام برچسب</DialogTitle>
+            <DialogDescription>
+              نام جدید برچسب را وارد کنید تا تمامی جلسات مرتبط با آن بروزرسانی شوند.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="tag-new-name">نام جدید</Label>
+            <Input
+              id="tag-new-name"
+              value={nameInput}
+              onChange={(event) => setNameInput(event.target.value)}
+              disabled={isRenaming}
+              placeholder="نام جدید را وارد کنید"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isRenaming) {
+                  handleRenameTag();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleRenameDialogChange(false)} disabled={isRenaming}>
+              انصراف
+            </Button>
+            <Button onClick={handleRenameTag} disabled={isRenaming}>
+              {isRenaming ? "در حال بروزرسانی..." : "ذخیره تغییرات"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
