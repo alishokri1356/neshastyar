@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
+import { formatRateLimitError } from "@/lib/utils";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 
 interface Participant {
@@ -93,9 +94,11 @@ const ParticipantsManager: React.FC = () => {
         );
         setNoParticipantsCount(payload.noParticipantsCount ?? 0);
       } catch (error: any) {
+        // Check if it's a rate limit error and format it accordingly
+        const formattedError = formatRateLimitError(error);
         toast({
-          title: "خطا در بارگذاری شرکت‌کنندگان",
-          description: error?.message || "امکان دریافت اطلاعات شرکت‌کنندگان وجود ندارد.",
+          title: formattedError.title === 'خطا' ? "خطا در بارگذاری شرکت‌کنندگان" : formattedError.title,
+          description: formattedError.description,
           variant: "destructive",
         });
       } finally {

@@ -34,11 +34,68 @@ const limiter = rateLimit({
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // limit each IP to 500 requests per windowMs
   handler: (req, res, _next, options) => {
     const referer = req.get('referer');
+    const method = req.method;
+    const route = req.originalUrl;
+    
+    // Extract page name from referer URL
+    let pageName = 'Unknown Page';
+    if (referer) {
+      try {
+        const url = new URL(referer);
+        const pathname = url.pathname;
+        
+        // Map common routes to readable page names
+        const pageMap = {
+          '/': 'Home',
+          '/home': 'Home',
+          '/tags': 'Tag List',
+          '/tag/': 'Tag Detail',
+          '/tags/manage': 'Tag Management',
+          '/meetings': 'Meetings',
+          '/meeting/': 'Meeting Detail',
+          '/meetings/untagged': 'Untagged Meetings',
+          '/participants': 'Participants',
+          '/participant/': 'Participant Detail',
+          '/participants/manage': 'Participant Management',
+          '/record': 'Record Meeting',
+          '/tag-selection': 'Tag Selection',
+          '/login': 'Login',
+          '/signup': 'Sign Up',
+        };
+        
+        // Find matching page name
+        for (const [key, name] of Object.entries(pageMap)) {
+          if (pathname === key || pathname.startsWith(key)) {
+            pageName = name;
+            break;
+          }
+        }
+        
+        // If no match found, use the pathname itself
+        if (pageName === 'Unknown Page') {
+          pageName = pathname || 'Unknown Page';
+        }
+      } catch (e) {
+        // If URL parsing fails, use referer as is
+        pageName = referer;
+      }
+    }
+    
+    // Build detailed error message
+    const apiEndpoint = `${method} ${route}`;
+    const detailedMessage = `Too many requests from this IP. Page: ${pageName}, API: ${apiEndpoint}. Please try again later.`;
+    
     res.status(options.statusCode).json({
       error: 'Too many requests',
-      message: 'Too many requests from this IP, please try again later.',
-      route: req.originalUrl,
-      referer: referer || null
+      message: detailedMessage,
+      details: {
+        page: pageName,
+        apiEndpoint: apiEndpoint,
+        route: route,
+        method: method,
+        referer: referer || null,
+        ip: req.ip || req.connection.remoteAddress
+      }
     });
   },
   // Skip rate limiting for successful requests

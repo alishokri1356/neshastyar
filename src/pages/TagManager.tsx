@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
+import { formatRateLimitError } from "@/lib/utils";
 import { ChevronLeft, GitMerge, Pencil, RefreshCw, Tag as TagIcon, Tags, Trash2 } from "lucide-react";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 
@@ -104,9 +105,11 @@ const TagManager: React.FC = () => {
         setSelectedTagIds((previous) => previous.filter((id) => tagList.some((tag) => tag.id === id)));
         setUntaggedMeetingsCount(Number(payload.untaggedMeetingsCount ?? 0));
       } catch (error: any) {
+        // Check if it's a rate limit error and format it accordingly
+        const formattedError = formatRateLimitError(error);
         toast({
-          title: "خطا در بارگذاری برچسب‌ها",
-          description: error?.message || "امکان دریافت اطلاعات برچسب‌ها وجود ندارد.",
+          title: formattedError.title === 'خطا' ? "خطا در بارگذاری برچسب‌ها" : formattedError.title,
+          description: formattedError.description,
           variant: "destructive",
         });
       } finally {
