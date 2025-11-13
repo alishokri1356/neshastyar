@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowRight, ChevronLeft, Tag } from 'lucide-react';
+import { ArrowRight, ChevronLeft, Tag, Settings } from 'lucide-react';
 
 interface DatabaseTag {
   id: string;
@@ -175,7 +175,15 @@ const TagList = () => {
           
           <h1 className="text-lg font-semibold text-foreground">لیست جلسات بر اساس برچسب ها</h1>
           
-          <div className="w-[100px]" /> {/* Spacer for centering */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/tags/manage')}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            مدیریت برچسب‌ها
+          </Button>
         </div>
       </header>
 
