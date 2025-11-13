@@ -124,44 +124,155 @@ class MySQLClient {
       return { data: { session: data.data.session }, error: null };
     },
 
-    getUser: async () => {
-      if (!this.session) {
-        return { data: { user: null }, error: null };
-      }
-
-      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-        method: 'POST',
-        headers: {
-          ...this.getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        // Don't clear session on rate limit errors (429)
-        if (response.status === 429) {
-          console.log('🔍 Rate limit hit in getUser, keeping session');
-          return { data: { user: this.session?.user || null }, error: null };
+      getUser: async () => {
+        if (!this.session) {
+          return { data: { user: null }, error: null };
         }
-        this.saveSession(null);
-        return { data: { user: null }, error: null };
-      }
 
-      const data = await response.json();
-      return { data: { user: data.data.session?.user }, error: null };
-    },
+        const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+          method: 'POST',
+          headers: {
+            ...this.getAuthHeaders(),
+            'Content-Type': 'application/json',
+          },
+        });
 
-    onAuthStateChange: (callback: (event: string, session: any) => void) => {
-      // Simple implementation - just check current session
-      this.auth.getSession().then(({ data }) => {
-        callback(data.session ? 'SIGNED_IN' : 'SIGNED_OUT', data.session);
-      });
+        if (!response.ok) {
+          // Don't clear session on rate limit errors (429)
+          if (response.status === 429) {
+            console.log('🔍 Rate limit hit in getUser, keeping session');
+            return { data: { user: this.session?.user || null }, error: null };
+          }
+          this.saveSession(null);
+          return { data: { user: null }, error: null };
+        }
 
-      return {
-        data: { subscription: { unsubscribe: () => {} } },
+        const data = await response.json();
+        return { data: { user: data.data.session?.user }, error: null };
+      },
+
+      onAuthStateChange: (callback: (event: string, session: any) => void) => {
+        // Simple implementation - just check current session
+        this.auth.getSession().then(({ data }) => {
+          callback(data.session ? 'SIGNED_IN' : 'SIGNED_OUT', data.session);
+        });
+
+        return {
+          data: { subscription: { unsubscribe: () => {} } },
+        };
+      },
+    };
+
+    tags = {
+      management: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/tags/management`, {
+            method: 'GET',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      rename: async ({ id, newName }: { id: string; newName: string }) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/tags/${id}`, {
+            method: 'PUT',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: newName }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      update: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/tags/${id}`, {
+            method: 'PUT',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updates),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      remove: async (id: string) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/tags/${id}`, {
+            method: 'DELETE',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      merge: async ({ sourceTagNames, targetTagName }: { sourceTagNames: string[]; targetTagName: string }) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/tags/merge`, {
+            method: 'POST',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sourceTagNames, targetTagName }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+        },
       };
-    },
-  };
 
     participants = {
       list: async () => {

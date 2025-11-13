@@ -38,6 +38,29 @@ class TagController {
     }
   }
 
+  // GET /api/tags/management
+  async getManagementData(req, res) {
+    try {
+      const userId = req.user?.sub;
+
+      if (!userId) {
+        return res.status(400).json({
+          error: 'User ID required',
+          message: 'User ID is required to fetch tag management data'
+        });
+      }
+
+      const data = await tagService.getTagManagementData(userId);
+      res.json(data);
+    } catch (error) {
+      console.error('Get tag management data error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch tag management data',
+        message: 'An error occurred while fetching the tag management overview'
+      });
+    }
+  }
+
   // GET /api/tags/:id
   async getTagById(req, res) {
     try {
@@ -58,6 +81,67 @@ class TagController {
       res.status(500).json({
         error: 'Failed to fetch tag',
         message: 'An error occurred while fetching the tag'
+      });
+    }
+  }
+
+  // POST /api/tags/merge
+  async mergeTags(req, res) {
+    try {
+      const userId = req.user.sub;
+      const { sourceTagNames, targetTagName } = req.body || {};
+
+      if (!Array.isArray(sourceTagNames) || sourceTagNames.length < 2) {
+        return res.status(400).json({
+          error: 'Invalid source tags',
+          message: 'حداقل دو برچسب برای ادغام لازم است.'
+        });
+      }
+
+      if (!targetTagName || typeof targetTagName !== 'string' || !targetTagName.trim()) {
+        return res.status(400).json({
+          error: 'Invalid target tag',
+          message: 'نام مقصد برای ادغام برچسب‌ها الزامی است.'
+        });
+      }
+
+      const result = await tagService.mergeTags(userId, sourceTagNames, targetTagName);
+
+      res.json(result);
+    } catch (error) {
+      console.error('Merge tags error:', error);
+
+      if (error.message === 'At least two tag names are required to merge') {
+        return res.status(400).json({
+          error: 'Invalid source tags',
+          message: 'حداقل دو برچسب برای ادغام لازم است.'
+        });
+      }
+
+      if (error.message === 'A target tag name is required') {
+        return res.status(400).json({
+          error: 'Invalid target tag',
+          message: 'نام مقصد برای ادغام برچسب‌ها الزامی است.'
+        });
+      }
+
+      if (error.message === 'Target tag could not be determined') {
+        return res.status(400).json({
+          error: 'Target tag missing',
+          message: 'برچسب مقصد یافت نشد یا قابل ایجاد نیست.'
+        });
+      }
+
+      if (error.code === 'ER_DUP_ENTRY' || error.message.includes('already exists')) {
+        return res.status(409).json({
+          error: 'Tag name already exists',
+          message: 'برچسبی با این نام از قبل وجود دارد.'
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to merge tags',
+        message: 'در ادغام برچسب‌ها خطایی رخ داد.'
       });
     }
   }

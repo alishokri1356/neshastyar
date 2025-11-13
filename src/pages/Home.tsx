@@ -411,8 +411,8 @@ const Home = () => {
 
   const handleTagManagement = () => {
     setIsPanelOpen(false);
-    // Navigate to tag management page or show tag management modal
-    navigate('/tags');
+    // Navigate to tag management page
+    navigate('/tags/manage');
   };
 
   const handleAccountManagement = () => {
