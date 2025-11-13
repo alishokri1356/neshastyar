@@ -163,30 +163,75 @@ class MySQLClient {
     },
   };
 
-  participants = {
-    rename: async ({ oldName, newName }: { oldName: string; newName: string }) => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/participants/rename`, {
-          method: 'PUT',
-          headers: {
-            ...this.getAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ oldName, newName }),
-        });
+    participants = {
+      list: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants`, {
+            method: 'GET',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
 
-        const data = await response.json();
+          const data = await response.json();
 
-        if (!response.ok) {
-          return { data: null, error: data };
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
         }
+      },
+      rename: async ({ oldName, newName }: { oldName: string; newName: string }) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants/rename`, {
+            method: 'PUT',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ oldName, newName }),
+          });
 
-        return { data, error: null };
-      } catch (error) {
-        return { data: null, error };
-      }
-    },
-  };
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      remove: async (name: string) => {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/participants/${encodeURIComponent(name)}`,
+            {
+              method: 'DELETE',
+              headers: {
+                ...this.getAuthHeaders(),
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+    };
 
   // Database methods
   from(table: string) {

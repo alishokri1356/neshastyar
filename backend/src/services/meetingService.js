@@ -1,6 +1,94 @@
 const db = require('../config/database');
 const authService = require('./authService');
 
+const PARTICIPANT_SUMMARY_KEYS = [
+  'People in meetings',
+  'People in Meetings',
+  'participants',
+  'Participants',
+];
+
+const safeJsonParse = (value) => {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const normalizeAndFilterNames = (list) =>
+  (Array.isArray(list) ? list : [])
+    .filter((name) => typeof name === 'string')
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+
+const replaceNameInList = (list, oldName, newName) => {
+  let changed = false;
+
+  const updatedList = (Array.isArray(list) ? list : []).map((name) => {
+    if (typeof name === 'string' && name.trim() === oldName) {
+      changed = true;
+      return newName;
+    }
+    return name;
+  });
+
+  return { changed, updatedList };
+};
+
+const removeNameFromList = (list, nameToRemove) => {
+  let changed = false;
+
+  const updatedList = (Array.isArray(list) ? list : []).filter((name) => {
+    if (typeof name === 'string' && name.trim() === nameToRemove) {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+
+  return { changed, updatedList };
+};
+
+const extractParticipantsFromMeeting = (meeting) => {
+  const names = new Set();
+
+  if (meeting.summary) {
+    const summaryData = safeJsonParse(meeting.summary);
+    if (summaryData && typeof summaryData === 'object') {
+      PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
+        normalizeAndFilterNames(summaryData[key]).forEach((name) => names.add(name));
+      });
+    }
+  }
+
+  if (meeting.people) {
+    const parsedPeople = safeJsonParse(meeting.people);
+
+    if (Array.isArray(parsedPeople)) {
+      normalizeAndFilterNames(parsedPeople).forEach((name) => names.add(name));
+    } else if (
+      parsedPeople &&
+      typeof parsedPeople === 'object' &&
+      Array.isArray(parsedPeople.people)
+    ) {
+      normalizeAndFilterNames(parsedPeople.people).forEach((name) => names.add(name));
+    } else if (!parsedPeople) {
+      meeting.people
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0)
+        .forEach((name) => names.add(name));
+    }
+  }
+
+  return Array.from(names);
+};
+
 // Helper function to convert ISO datetime to MySQL format
 function toMySQLDateTime(date) {
   if (!date) return null;
@@ -141,20 +229,66 @@ class MeetingService {
     return await db.query(sql, [userId, userId]);
   }
 
-  // Get untagged meetings
-  async getUntaggedMeetings(userId) {
-    const sql = `
-      SELECT m.*
-      FROM meetings m
-      LEFT JOIN meeting_tags mt ON m.id = mt.meeting_id
-      WHERE m.user_id = ? AND mt.meeting_id IS NULL
-      ORDER BY m.created_at DESC
-    `;
+    // Get untagged meetings
+    async getUntaggedMeetings(userId) {
+      const sql = `
+        SELECT m.*
+        FROM meetings m
+        LEFT JOIN meeting_tags mt ON m.id = mt.meeting_id
+        WHERE m.user_id = ? AND mt.meeting_id IS NULL
+        ORDER BY m.created_at DESC
+      `;
 
-    return await db.query(sql, [userId]);
-  }
+      return await db.query(sql, [userId]);
+    }
 
-  // Rename a participant across all meetings for a user
+    async getParticipants(userId) {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
+      const meetings = await db.query(
+        'SELECT id, summary, people FROM meetings WHERE user_id = ?',
+        [userId]
+      );
+
+      const participantCounts = new Map();
+      let noParticipantsCount = 0;
+
+      for (const meeting of meetings) {
+        const participantNames = extractParticipantsFromMeeting(meeting);
+
+        if (participantNames.length === 0) {
+          noParticipantsCount += 1;
+          continue;
+        }
+
+        const uniqueNames = new Set(participantNames);
+        uniqueNames.forEach((name) => {
+          const currentCount = participantCounts.get(name) || 0;
+          participantCounts.set(name, currentCount + 1);
+        });
+      }
+
+      const participants = Array.from(participantCounts.entries()).map(([name, meetingCount]) => ({
+        name,
+        meetingCount,
+      }));
+
+      participants.sort((a, b) => {
+        if (b.meetingCount !== a.meetingCount) {
+          return b.meetingCount - a.meetingCount;
+        }
+        return a.name.localeCompare(b.name, 'fa');
+      });
+
+      return {
+        participants,
+        noParticipantsCount,
+      };
+    }
+
+    // Rename a participant across all meetings for a user
   async renameParticipant(userId, oldName, newName) {
     if (!userId) {
       throw new Error('User ID is required');
@@ -178,18 +312,6 @@ class MeetingService {
 
     let updatedCount = 0;
 
-    const replaceNamesInArray = (list) => {
-      let changed = false;
-      const updatedList = list.map((name) => {
-        if (typeof name === 'string' && name.trim() === trimmedOldName) {
-          changed = true;
-          return trimmedNewName;
-        }
-        return name;
-      });
-      return { changed, updatedList };
-    };
-
     for (const meeting of meetings) {
       let hasChanges = false;
       let updatedPeople = meeting.people ?? null;
@@ -202,7 +324,11 @@ class MeetingService {
           const parsedPeople = JSON.parse(meeting.people);
 
           if (Array.isArray(parsedPeople)) {
-            const { changed, updatedList } = replaceNamesInArray(parsedPeople);
+              const { changed, updatedList } = replaceNameInList(
+                parsedPeople,
+                trimmedOldName,
+                trimmedNewName
+              );
             if (changed) {
               updatedPeople = JSON.stringify(updatedList);
               peopleChanged = true;
@@ -212,7 +338,11 @@ class MeetingService {
             typeof parsedPeople === 'object' &&
             Array.isArray(parsedPeople.people)
           ) {
-            const { changed, updatedList } = replaceNamesInArray(parsedPeople.people);
+              const { changed, updatedList } = replaceNameInList(
+                parsedPeople.people,
+                trimmedOldName,
+                trimmedNewName
+              );
             if (changed) {
               parsedPeople.people = updatedList;
               updatedPeople = JSON.stringify(parsedPeople);
@@ -226,7 +356,11 @@ class MeetingService {
             .filter((name) => name.length > 0);
 
           if (rawPeople.length > 0) {
-            const { changed, updatedList } = replaceNamesInArray(rawPeople);
+              const { changed, updatedList } = replaceNameInList(
+                rawPeople,
+                trimmedOldName,
+                trimmedNewName
+              );
             if (changed) {
               updatedPeople = updatedList.join(', ');
               peopleChanged = true;
@@ -243,19 +377,16 @@ class MeetingService {
         try {
           const summaryData = JSON.parse(meeting.summary);
 
-          if (summaryData && typeof summaryData === 'object') {
-            const participantKeys = [
-              'People in meetings',
-              'People in Meetings',
-              'participants',
-              'Participants'
-            ];
-
+            if (summaryData && typeof summaryData === 'object') {
             let summaryChanged = false;
 
-            participantKeys.forEach((key) => {
+              PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
               if (Array.isArray(summaryData[key])) {
-                const { changed, updatedList } = replaceNamesInArray(summaryData[key]);
+                  const { changed, updatedList } = replaceNameInList(
+                    summaryData[key],
+                    trimmedOldName,
+                    trimmedNewName
+                  );
                 if (changed) {
                   summaryData[key] = updatedList;
                   summaryChanged = true;
@@ -284,6 +415,116 @@ class MeetingService {
 
     return { updatedMeetings: updatedCount };
   }
+
+    // Remove a participant across all meetings for a user
+    async removeParticipant(userId, participantName) {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
+      const trimmedName = (participantName ?? '').trim();
+
+      if (!trimmedName) {
+        throw new Error('Participant name is required');
+      }
+
+      const meetings = await db.query(
+        'SELECT id, summary, people FROM meetings WHERE user_id = ?',
+        [userId]
+      );
+
+      let updatedCount = 0;
+
+      for (const meeting of meetings) {
+        let hasChanges = false;
+        let updatedPeople = meeting.people ?? null;
+        let updatedSummary = meeting.summary ?? null;
+
+        if (meeting.people) {
+          let peopleChanged = false;
+
+          try {
+            const parsedPeople = JSON.parse(meeting.people);
+
+            if (Array.isArray(parsedPeople)) {
+              const { changed, updatedList } = removeNameFromList(parsedPeople, trimmedName);
+              if (changed) {
+                updatedPeople = updatedList.length > 0 ? JSON.stringify(updatedList) : null;
+                peopleChanged = true;
+              }
+            } else if (
+              parsedPeople &&
+              typeof parsedPeople === 'object' &&
+              Array.isArray(parsedPeople.people)
+            ) {
+              const { changed, updatedList } = removeNameFromList(parsedPeople.people, trimmedName);
+              if (changed) {
+                parsedPeople.people = updatedList;
+                updatedPeople = parsedPeople.people.length > 0 ? JSON.stringify(parsedPeople) : null;
+                peopleChanged = true;
+              }
+            }
+          } catch {
+            const rawPeople = meeting.people
+              .split(',')
+              .map((name) => name.trim())
+              .filter((name) => name.length > 0);
+
+            if (rawPeople.length > 0) {
+              const { changed, updatedList } = removeNameFromList(rawPeople, trimmedName);
+              if (changed) {
+                updatedPeople = updatedList.length > 0 ? updatedList.join(', ') : null;
+                peopleChanged = true;
+              }
+            }
+          }
+
+          if (peopleChanged) {
+            hasChanges = true;
+          }
+        }
+
+        if (meeting.summary) {
+          try {
+            const summaryData = JSON.parse(meeting.summary);
+
+            if (summaryData && typeof summaryData === 'object') {
+              let summaryChanged = false;
+
+              PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
+                if (Array.isArray(summaryData[key])) {
+                  const { changed, updatedList } = removeNameFromList(
+                    summaryData[key],
+                    trimmedName
+                  );
+                  if (changed) {
+                    summaryData[key] = updatedList;
+                    summaryChanged = true;
+                  }
+                }
+              });
+
+              if (summaryChanged) {
+                updatedSummary = JSON.stringify(summaryData);
+                hasChanges = true;
+              }
+            }
+          } catch {
+            // Non-JSON summaries are ignored to avoid unintended replacements
+          }
+        }
+
+        if (hasChanges) {
+          await db.query(
+            'UPDATE meetings SET people = ?, summary = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+            [updatedPeople, updatedSummary, meeting.id, userId]
+          );
+          updatedCount += 1;
+        }
+      }
+
+      return { updatedMeetings: updatedCount };
+    }
 }
 
 module.exports = new MeetingService();
