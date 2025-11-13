@@ -1,6 +1,28 @@
 const meetingService = require('../services/meetingService');
 
 class ParticipantController {
+  async listParticipants(req, res) {
+    try {
+      const userId = req.user?.sub;
+
+      if (!userId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication is required',
+        });
+      }
+
+      const data = await meetingService.getParticipants(userId);
+      return res.json(data);
+    } catch (error) {
+      console.error('List participants error:', error);
+      return res.status(500).json({
+        error: 'Failed to fetch participants',
+        message: error.message || 'An unexpected error occurred while fetching participants',
+      });
+    }
+  }
+
   async renameParticipant(req, res) {
     try {
       const userId = req.user?.sub;
@@ -36,6 +58,44 @@ class ParticipantController {
       return res.status(status).json({
         error: 'Failed to rename participant',
         message: error.message || 'An unexpected error occurred while renaming the participant',
+      });
+    }
+  }
+
+  async removeParticipant(req, res) {
+    try {
+      const userId = req.user?.sub;
+      const participantName = req.params.name ?? req.body?.name;
+
+      if (!userId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication is required',
+        });
+      }
+
+      if (!participantName) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Participant name is required',
+        });
+      }
+
+      const result = await meetingService.removeParticipant(userId, participantName);
+
+      return res.json({
+        updatedMeetings: result.updatedMeetings,
+      });
+    } catch (error) {
+      const status =
+        error.message === 'Participant name is required' || error.message === 'User ID is required'
+          ? 400
+          : 500;
+
+      console.error('Remove participant error:', error);
+      return res.status(status).json({
+        error: 'Failed to remove participant',
+        message: error.message || 'An unexpected error occurred while removing the participant',
       });
     }
   }

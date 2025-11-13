@@ -23,6 +23,7 @@ import ParticipantsList from "./pages/ParticipantsList";
 import ParticipantDetail from "./pages/ParticipantDetail";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
+import ParticipantsManager from "./pages/ParticipantsManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,21 +83,26 @@ const App = () => {
                 <Record />
               </ProtectedRoute>
             } />
-            <Route path="/tag-selection" element={
-              <ProtectedRoute>
-                <TagSelection />
-              </ProtectedRoute>
-            } />
-            <Route path="/meetings/untagged" element={
-              <ProtectedRoute>
-                <UntaggedMeetings />
-              </ProtectedRoute>
-            } />
-            <Route path="/tags" element={
-              <ProtectedRoute>
-                <TagList />
-              </ProtectedRoute>
-            } />
+              <Route path="/tag-selection" element={
+                <ProtectedRoute>
+                  <TagSelection />
+                </ProtectedRoute>
+              } />
+              <Route path="/meetings/untagged" element={
+                <ProtectedRoute>
+                  <UntaggedMeetings />
+                </ProtectedRoute>
+              } />
+              <Route path="/tags" element={
+                <ProtectedRoute>
+                  <TagList />
+                </ProtectedRoute>
+              } />
+              <Route path="/participants/manage" element={
+                <ProtectedRoute>
+                  <ParticipantsManager />
+                </ProtectedRoute>
+              } />
             <Route path="/participants" element={
               <ProtectedRoute>
                 <ParticipantsList />
