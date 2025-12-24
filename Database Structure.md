@@ -11,7 +11,7 @@ Total Tables: 6
 
 ## Table: `audio_files`
 
-**Row Count**: 18
+**Row Count**: 25
 
 ### Columns
 
@@ -50,7 +50,7 @@ CREATE TABLE `audio_files` (
   `file_size` bigint DEFAULT NULL,
   `duration` int DEFAULT '0',
   `format` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `storage_type` enum('local','s3','supabase','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'local',    
+  `storage_type` enum('local','s3','supabase','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'local',
   `upload_order` int DEFAULT '1' COMMENT 'Order of upload for this meeting',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -107,7 +107,7 @@ CREATE TABLE `meeting_tags` (
 
 ## Table: `meetings`
 
-**Row Count**: 11
+**Row Count**: 15
 
 ### Columns
 
@@ -253,7 +253,7 @@ CREATE TABLE `tags` (
 
 ## Table: `users`
 
-**Row Count**: 3
+**Row Count**: 4
 
 ### Columns
 
@@ -270,6 +270,7 @@ CREATE TABLE `tags` (
 | password_reset_expires | timestamp | YES |  | NULL |  |
 | created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 | updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
+| baleID | varchar(20) | YES |  | NULL |  |
 
 ### Indexes
 
@@ -294,6 +295,7 @@ CREATE TABLE `users` (
   `password_reset_expires` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `baleID` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   KEY `idx_email` (`email`),
@@ -303,3 +305,4 @@ CREATE TABLE `users` (
 ```
 
 ---
+
