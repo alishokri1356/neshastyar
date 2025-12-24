@@ -161,6 +161,51 @@ class MySQLClient {
           data: { subscription: { unsubscribe: () => {} } },
         };
       },
+
+      getProfile: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: 'GET',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data: data.data.user, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+
+      updateProfile: async (updates: { name?: string; baleID?: string }) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: 'PUT',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updates),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data: data.data.user, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
     };
 
     tags = {

@@ -57,14 +57,14 @@ class UserService {
 
   // Update user
   async updateUser(id, updates) {
-    const allowedFields = ['name', 'email'];
+    const allowedFields = ['name', 'email', 'baleID'];
     const updateFields = [];
     const values = [];
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        updateFields.push(`${key} = ?`);
-        values.push(value);
+        updateFields.push(`\`${key}\` = ?`);
+        values.push(value === '' ? null : value);
       }
     }
 

@@ -83,4 +83,11 @@ router.post('/logout', authController.logout);
 // POST /api/auth/verify
 router.post('/verify', authController.verify);
 
+// GET /api/auth/profile - Get user profile (requires authentication)
+const { authenticateToken } = require('../middleware/auth');
+router.get('/profile', authenticateToken, authController.getProfile);
+
+// PUT /api/auth/profile - Update user profile (requires authentication)
+router.put('/profile', authenticateToken, authController.updateProfile);
+
 module.exports = router;

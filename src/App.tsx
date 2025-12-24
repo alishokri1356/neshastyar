@@ -25,6 +25,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 import ParticipantsManager from "./pages/ParticipantsManager";
 import TagManager from "./pages/TagManager";
+import AccountManagement from "./pages/AccountManagement";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +118,11 @@ const App = () => {
             <Route path="/participant/:participantName" element={
               <ProtectedRoute>
                 <ParticipantDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/account/manage" element={
+              <ProtectedRoute>
+                <AccountManagement />
               </ProtectedRoute>
             } />
             

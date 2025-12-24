@@ -173,6 +173,73 @@ class AuthController {
       });
     }
   }
+
+  // GET /api/auth/profile - Get user profile
+  async getProfile(req, res) {
+    try {
+      const userId = req.user.sub;
+      const user = await userService.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found',
+          message: 'User not found'
+        });
+      }
+
+      // Remove sensitive fields before sending response
+      const { password_hash, email_verification_token, email_verification_expires, 
+              password_reset_token, password_reset_expires, ...userResponse } = user;
+
+      res.json({
+        data: { user: userResponse },
+        error: null
+      });
+    } catch (error) {
+      console.error('Get profile error:', error);
+      res.status(500).json({
+        error: 'Failed to get profile',
+        message: 'An error occurred while retrieving the profile'
+      });
+    }
+  }
+
+  // PUT /api/auth/profile - Update user profile
+  async updateProfile(req, res) {
+    try {
+      const userId = req.user.sub;
+      const updates = req.body;
+
+      // Only allow updating specific fields
+      const allowedUpdates = {};
+      if (updates.name !== undefined) allowedUpdates.name = updates.name;
+      if (updates.baleID !== undefined) allowedUpdates.baleID = updates.baleID;
+
+      if (Object.keys(allowedUpdates).length === 0) {
+        return res.status(400).json({
+          error: 'No valid fields to update',
+          message: 'Please provide at least one valid field to update'
+        });
+      }
+
+      const updatedUser = await userService.updateUser(userId, allowedUpdates);
+      
+      // Remove sensitive fields before sending response
+      const { password_hash, email_verification_token, email_verification_expires, 
+              password_reset_token, password_reset_expires, ...userResponse } = updatedUser;
+
+      res.json({
+        data: { user: userResponse },
+        error: null
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({
+        error: 'Failed to update profile',
+        message: error.message || 'An error occurred while updating the profile'
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();

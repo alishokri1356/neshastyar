@@ -417,11 +417,7 @@ const Home = () => {
 
   const handleAccountManagement = () => {
     setIsPanelOpen(false);
-    // Navigate to account management page or show account settings modal
-    toast({
-      title: "مدیریت حساب",
-      description: "این قابلیت به زودی اضافه خواهد شد.",
-    });
+    navigate('/account/manage');
   };
 
   const handleLogoutFromPanel = async () => {
