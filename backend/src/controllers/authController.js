@@ -47,9 +47,27 @@ class AuthController {
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({
+      const isDbError = Boolean(
+        error &&
+        (error.code === 'ECONNREFUSED' ||
+          error.code === 'ER_ACCESS_DENIED_ERROR' ||
+          error.code === 'ENOTFOUND' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'PROTOCOL_CONNECTION_LOST')
+      );
+
+      if (isDbError) {
+        return res.status(503).json({
+          error: 'Database unavailable',
+          message: 'Login is temporarily unavailable. Please try again in a few minutes.',
+          code: error.code
+        });
+      }
+
+      return res.status(500).json({
         error: 'Login failed',
-        message: 'An error occurred during login'
+        message: 'An error occurred during login',
+        code: error.code || null
       });
     }
   }
