@@ -35,7 +35,7 @@ cp env.example .env
 
 4. Update the `.env` file with your configuration:
 ```env
-DB_HOST=195.248.240.30
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_NAME=modiryar
 DB_USER=modiryar_app

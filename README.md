@@ -30,7 +30,7 @@ This project uses a **full-stack architecture** with:
 
 ### Database
 - **Type**: MySQL
-- **Host**: 195.248.240.30
+- **Host**: 127.0.0.1
 - **Database**: modiryar
 - **User**: modiryar_app
 
@@ -216,7 +216,7 @@ http://localhost:3001/api/download/audio/5a325f95-5915-4d91-8050-5aea3fec3a74
 
 The application connects to a MySQL database with the following configuration:
 
-- **Host**: 195.248.240.30
+- **Host**: 127.0.0.1
 - **Database**: modiryar
 - **User**: modiryar_app
 - **Password**: MY-PASSWORD
@@ -257,7 +257,7 @@ The application uses Gmail SMTP for email confirmation functionality with the fo
 ### Backend (.env)
 ```env
 # Database Configuration
-DB_HOST=195.248.240.30
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_NAME=modiryar
 DB_USER=modiryar_app

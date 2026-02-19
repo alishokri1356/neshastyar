@@ -3,7 +3,7 @@ import fs from 'fs';
 
 // Database connection configuration
 const dbConfig = {
-  host: '195.248.240.30',
+  host: '127.0.0.1',
   user: 'modiryar_app',
   password: 'Terraworld2020',
   database: 'modiryar',

@@ -2,7 +2,7 @@ const mysql = require('mysql2/promise');
 
 async function runMigration() {
   const connection = await mysql.createConnection({
-    host: '195.248.240.30',
+    host: '127.0.0.1',
     port: 3306,
     user: 'modiryar_app',
     password: 'Terraworld2020',

@@ -1,7 +1,7 @@
 # 🚀 Complete Deployment Guide for Ubuntu VPS
 ## Modiryar Audio Storage Implementation
 
-**Server IP:** 195.248.240.30  
+**Server IP:** 127.0.0.1  
 **Approach:** Option 1 - Filesystem Storage (Recommended for 100MB+ files)
 
 ---
@@ -21,9 +21,9 @@
 
 ```bash
 # From your local machine
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 # Or if you have a specific user
-ssh your_username@195.248.240.30
+ssh your_username@127.0.0.1
 ```
 
 ---
@@ -60,13 +60,13 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 ```bash
 # SSH into your VPS first
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # Connect to MySQL
 mysql -u root -p modiryar
 
 # Or connect remotely from your local machine
-mysql -h 195.248.240.30 -u root -p modiryar
+mysql -h 127.0.0.1 -u root -p modiryar
 
 # Then paste the SQL commands from Option A
 ```
@@ -77,7 +77,7 @@ mysql -h 195.248.240.30 -u root -p modiryar
 
 ```bash
 # SSH into your VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # Navigate to your application directory
 cd /var/www/modiryar.online
@@ -129,7 +129,7 @@ git commit -m "Add audio file storage with filesystem approach"
 git push origin main
 
 # SSH into your VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # Navigate to your app directory
 cd /var/www/modiryar
@@ -195,7 +195,7 @@ git commit -m "Implement audio file upload with filesystem storage"
 git push origin main
 
 # 2. SSH into your VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # 3. Navigate to your app directory
 cd /var/www/modiryar.online
@@ -231,7 +231,7 @@ For production, use PM2 to manage your Node.js process:
 
 ```bash
 # SSH into your VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # Install PM2 globally (if not installed)
 npm install -g pm2

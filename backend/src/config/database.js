@@ -10,7 +10,7 @@ class Database {
   async init() {
     try {
       this.pool = mysql.createPool({
-        host: process.env.DB_HOST || '195.248.240.30',
+        host: process.env.DB_HOST || '127.0.0.1',
         port: process.env.DB_PORT || 3306,
         user: process.env.DB_USER || 'modiryar_app',
         password: process.env.DB_PASSWORD || 'Terraworld2020',

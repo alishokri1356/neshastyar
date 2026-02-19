@@ -1,7 +1,7 @@
 # 🚀 VPS Deployment Instructions - Step by Step
 
 ## Server Information
-- **IP**: 195.248.240.30
+- **IP**: 127.0.0.1
 - **Username**: root
 - **Password**: MY-PASSWORD
 - **Directory**: /var/www/modiryar.online
@@ -49,7 +49,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 2. **SSH into your VPS:**
    - Use PuTTY, Terminal, or any SSH client
-   - Host: 195.248.240.30
+   - Host: 127.0.0.1
    - Username: root
    - Password: MY-PASSWORD
 
@@ -75,7 +75,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 1. **SSH into VPS:**
    ```bash
-   ssh root@195.248.240.30
+   ssh root@127.0.0.1
    # Password: MY-PASSWORD
    ```
 
@@ -197,7 +197,7 @@ npm --version
 ## 📱 Test the Upload Feature
 
 1. **Go to your frontend:**
-   - URL: http://modiryar.online (or http://195.248.240.30)
+   - URL: http://modiryar.online (or http://127.0.0.1)
 
 2. **Login to your account**
 

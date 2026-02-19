@@ -100,7 +100,7 @@ server {
 
 ```bash
 # SSH into your VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # Edit the Nginx configuration
 sudo nano /etc/nginx/sites-available/modiryar

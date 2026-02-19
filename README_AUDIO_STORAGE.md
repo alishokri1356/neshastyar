@@ -8,7 +8,7 @@ All code has been implemented and tested. The audio storage system is ready to h
 
 ## 📍 VPS Information
 
-- **Server IP**: 195.248.240.30
+- **Server IP**: 127.0.0.1
 - **App Directory**: `/var/www/modiryar.online`
 - **Domain**: modiryar.online
 - **Backend Port**: 3001
@@ -71,7 +71,7 @@ git commit -m "Implement audio file storage"
 git push origin main
 
 # SSH to VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # Update code
 cd /var/www/modiryar.online

@@ -70,7 +70,7 @@ git commit -m "Add audio file storage"
 git push origin main
 
 # 2. SSH to VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # 3. Update code
 cd /var/www/modiryar.online

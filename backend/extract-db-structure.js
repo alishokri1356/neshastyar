@@ -5,7 +5,7 @@ require('dotenv').config();
 
 // Database connection configuration
 const dbConfig = {
-  host: process.env.DB_HOST || '195.248.240.30',
+  host: process.env.DB_HOST || '127.0.0.1',
   user: process.env.DB_USER || 'modiryar_app',
   password: process.env.DB_PASSWORD || 'Terraworld2020',
   database: process.env.DB_NAME || 'modiryar',

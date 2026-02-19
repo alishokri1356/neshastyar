@@ -1,6 +1,6 @@
 === COPY AND PASTE THESE COMMANDS IN YOUR VPS ===
 
-# You are currently logged in as root@195.248.240.30
+# You are currently logged in as root@127.0.0.1
 # You are in /var/www/modiryar.online (WRONG LOCATION)
 
 # 1. Go to home directory

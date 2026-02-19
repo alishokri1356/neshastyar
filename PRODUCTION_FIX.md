@@ -31,7 +31,7 @@ SSH to your VPS and run the deployment script:
 
 ```bash
 # SSH to VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 # Password: MY-PASSWORD
 
 # Navigate to project

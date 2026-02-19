@@ -1,7 +1,7 @@
 # Database Structure - Modiryar
 
 ## Database Information
-- **Host**: 195.248.240.30
+- **Host**: 127.0.0.1
 - **Database**: modiryar
 - **User**: modiryar_app
 - **Port**: 3306

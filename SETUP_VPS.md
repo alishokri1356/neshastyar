@@ -1,7 +1,7 @@
 # 🚀 VPS Setup Instructions
 
 ## Server Information
-- **IP**: 195.248.240.30
+- **IP**: 127.0.0.1
 - **Username**: root
 - **Password**: MY-PASSWORD
 - **GitHub Repo**: https://github.com/alishokri1356/modiryar.git
@@ -13,7 +13,7 @@
 ### Step 1: SSH into your VPS
 
 ```bash
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 # Password: MY-PASSWORD
 ```
 
@@ -179,7 +179,7 @@ When you push changes to GitHub:
 
 ```bash
 # 1. SSH to VPS
-ssh root@195.248.240.30
+ssh root@127.0.0.1
 
 # 2. Run deployment script
 cd /root/modiryar
