@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const { pool } = require('../config/database');
+const db = require('../config/database');
 
 // Configure multer for large file uploads
 const storage = multer.diskStorage({
@@ -528,7 +528,7 @@ class FileController {
         WHERE id = ? AND user_id = ?
       `;
       
-      const [meetingRows] = await pool.query(meetingQuery, [meetingId, requestingUserId]);
+      const meetingRows = await db.query(meetingQuery, [meetingId, requestingUserId]);
       
       if (meetingRows.length === 0) {
         return res.status(404).json({
@@ -554,7 +554,7 @@ class FileController {
         ORDER BY upload_order ASC, created_at ASC
       `;
       
-      const [audioFilesRows] = await pool.query(audioFilesQuery, [meetingId]);
+      const audioFilesRows = await db.query(audioFilesQuery, [meetingId]);
       
       res.json({
         data: audioFilesRows,
@@ -582,7 +582,7 @@ class FileController {
         WHERE id = ? AND user_id = ?
       `;
       
-      const [meetingRows] = await pool.query(meetingQuery, [meeting_id, userId]);
+      const meetingRows = await db.query(meetingQuery, [meeting_id, userId]);
       
       if (meetingRows.length === 0) {
         return res.status(404).json({
@@ -602,7 +602,7 @@ class FileController {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `;
       
-      const [result] = await pool.query(insertQuery, [
+      await db.query(insertQuery, [
         audioFileId, meeting_id, file_name, file_path, file_size, 
         duration, format, upload_order || 1
       ]);

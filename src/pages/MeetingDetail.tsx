@@ -127,19 +127,40 @@ const MeetingDetail = () => {
 
         console.log('🔍 Meeting tags data:', tags, tagError);
 
-        // Fetch audio files using the new API endpoint
+        // Fetch audio files using API endpoint with fallback to relational query data.
         const { data: { session } } = await mysqlClient.auth.getSession();
-        const audioFilesResponse = await fetch(`/api/meetings/${meetingId}/audio-files`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
+        const token = session?.access_token || session?.token;
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+        let audioFiles: any[] = [];
+
+        if (token) {
+          try {
+            const audioFilesResponse = await fetch(`${API_BASE_URL}/meetings/${meetingId}/audio-files`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            const audioFilesData = await audioFilesResponse.json();
+            console.log('🔍 Audio files API response:', audioFilesData);
+
+            if (audioFilesResponse.ok && Array.isArray(audioFilesData.data)) {
+              audioFiles = audioFilesData.data;
+            } else {
+              // If endpoint fails (401/403/404/429), fallback to joined meeting data.
+              audioFiles = Array.isArray(meetingData.audio_files) ? meetingData.audio_files : [];
+            }
+          } catch (audioFilesError) {
+            console.error('Error fetching audio files from API:', audioFilesError);
+            audioFiles = Array.isArray(meetingData.audio_files) ? meetingData.audio_files : [];
           }
-        });
-        
-        const audioFilesData = await audioFilesResponse.json();
-        console.log('🔍 Audio files API response:', audioFilesData);
-        
-        const audioFiles = audioFilesData.data || [];
+        } else {
+          console.warn('No token found for audio files endpoint, using meeting relation fallback');
+          audioFiles = Array.isArray(meetingData.audio_files) ? meetingData.audio_files : [];
+        }
+
         console.log('🔍 Final audio files to process:', audioFiles);
         
         const processedAudioFiles = await Promise.all(
