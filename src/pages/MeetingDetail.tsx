@@ -564,32 +564,37 @@ const MeetingDetail = () => {
       const userEmail = user?.email || '';
       
       
-      // Try multiple approaches to ensure the request gets through
       const requestData = {};
+      const webhookTestUrl = 'https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd';
+      const webhookMainUrl = 'https://n8nnew.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd';
 
-      // Approach 1: Try with no-cors first
-
+      let webhookSucceeded = false;
       try {
-        await fetch('https://n8nnew.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+        const testResponse = await fetch(webhookTestUrl, {
           method: 'POST',
-          mode: 'no-cors',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestData)
+          body: JSON.stringify(requestData),
         });
+        webhookSucceeded = testResponse.ok;
       } catch (e) {
+        webhookSucceeded = false;
       }
-/*
-      // Approach 2: Try with dynamic image for GET request with query params
-      try {
-        const img = new Image();
-//        const url = new URL('https://n8n.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
-        const url = new URL('https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
-        img.src = url.toString();
-      } catch (e) {
+
+      if (!webhookSucceeded) {
+        try {
+          await fetch(webhookMainUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData),
+          });
+        } catch (e) {
+        }
       }
-*/
       toast({
         title: "درخواست تولید اتوماتیک خلاصه ارسال شد",
         description: "خلاصه جلسه پی از تکمیل به ایمیل شما ارسال خواهد شد.",
