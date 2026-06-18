@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check, Mail } from 'lucide-react';
+import { ArrowLeft, Save, Play, Pause, Plus, X, Trash2, Sparkles, Edit, Check, Mail, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 import { mysqlClient } from '@/lib/mysql-client';
@@ -39,6 +39,7 @@ const MeetingDetail = () => {
   const [commentText, setCommentText] = useState('');
   const [originalCommentText, setOriginalCommentText] = useState('');
   const [isEditingCommentText, setIsEditingCommentText] = useState(false);
+  const [isAudioSectionExpanded, setIsAudioSectionExpanded] = useState(false);
   
   // Audio player state
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
@@ -979,11 +980,22 @@ const MeetingDetail = () => {
         {/* Audio Player */}
         {meeting?.audioFiles && meeting.audioFiles.length > 0 ? (
           <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-card-foreground">
-                ضبط صوتی ({meeting.audioFiles.length} فایل)
-              </CardTitle>
+            <CardHeader
+              className="cursor-pointer select-none"
+              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-card-foreground">
+                  ضبط صوتی ({meeting.audioFiles.length} فایل)
+                </CardTitle>
+                <ChevronDown
+                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                    isAudioSectionExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
             </CardHeader>
+            {isAudioSectionExpanded && (
             <CardContent className="space-y-4">
               {/* Audio File List */}
               <div className="space-y-2">
@@ -1071,12 +1083,24 @@ const MeetingDetail = () => {
                 </div>
               )}
             </CardContent>
+            )}
           </Card>
         ) : (
           <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
+            <CardHeader
+              className="cursor-pointer select-none"
+              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
+                <ChevronDown
+                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                    isAudioSectionExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
             </CardHeader>
+            {isAudioSectionExpanded && (
             <CardContent>
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">
@@ -1087,6 +1111,7 @@ const MeetingDetail = () => {
                 </p>
               </div>
             </CardContent>
+            )}
           </Card>
         )}
 
