@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft, GripVertical } from 'lucide-react';
+import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft, GripVertical, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AudioFile {
@@ -557,6 +557,20 @@ const Record = () => {
             </div>
           )}
 
+          {audioFiles.length > 0 && (
+            <div className="max-w-2xl mx-auto mb-6 flex justify-center">
+              <Button
+                onClick={handleFileSelect}
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                aria-label="اضافه کردن فایل صوتی"
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </div>
+          )}
+
           {/* Comment Text Input */}
           <div className="max-w-2xl mx-auto mb-8">
             <Label htmlFor="comment-text" className="text-lg font-semibold text-foreground mb-2 block">
@@ -573,17 +587,19 @@ const Record = () => {
 
           {/* Action Buttons */}
           <div className="text-center space-y-6">
-            <div className="flex justify-center">
-              <Button
-                onClick={handleFileSelect}
-                variant="outline"
-                size="sm"
-                className="h-12 px-6 rounded-full text-base font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <Upload className="h-5 w-5 ml-2" />
-                اضافه کردن فایل صوتی
-              </Button>
-            </div>
+            {audioFiles.length === 0 && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleFileSelect}
+                  variant="outline"
+                  size="sm"
+                  className="h-12 px-6 rounded-full text-base font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                >
+                  <Upload className="h-5 w-5 ml-2" />
+                  اضافه کردن فایل صوتی
+                </Button>
+              </div>
+            )}
 
             {/* Done Button */}
             {audioFiles.length > 0 && (
