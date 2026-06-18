@@ -99,9 +99,6 @@ const TagSelection = () => {
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
-  const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadCancelled, setUploadCancelled] = useState(false);
@@ -218,6 +215,15 @@ const TagSelection = () => {
       .map((item) => item.tag);
   }, [tagSearchQuery, tags, selectedTags]);
 
+  const hasExactTagMatch = useMemo(() => {
+    const query = normalizeSearchText(tagSearchQuery);
+    if (!query) return false;
+
+    return tags.some((tag) => normalizeSearchText(tag.name) === query);
+  }, [tagSearchQuery, tags]);
+
+  const canCreateNewTag = tagSearchQuery.trim().length > 0 && !hasExactTagMatch;
+
   const tagColors = [
     '#3B82F6', // Blue
     '#EF4444', // Red
@@ -244,66 +250,61 @@ const TagSelection = () => {
   };
 
   const handleCreateTag = async () => {
-    if (newTagName.trim()) {
-      try {
-        // Get current user
-        const { data: { session } } = await mysqlClient.auth.getSession();
-        
-        if (!session) {
-          toast({
-            title: "احراز هویت الزامی است",
-            description: "لطفاً برای ایجاد برچسب وارد شوید",
-            variant: "destructive",
-          });
-          return;
-        }
+    const tagName = tagSearchQuery.trim();
+    if (!tagName || hasExactTagMatch) return;
 
-        // Save tag to database
-        const { data, error } = await mysqlClient
-          .from('tags')
-          .insert({
-            name: newTagName.trim(),
-            color: newTagColor,
-            user_id: session.user.id
-          });
+    try {
+      const { data: { session } } = await mysqlClient.auth.getSession();
 
-        if (error) {
-          toast({
-            title: "خطا در ایجاد برچسب",
-            description: error.message || "ایجاد برچسب ناموفق بود",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Create the full tag object for selection using the database ID
-        const fullNewTag = {
-          id: data.id, // Use the actual UUID from database
-          name: data.name,
-          color: data.color,
-          userId: data.user_id
-        };
-        
-        // Add to local store with the database ID
-        addTag(fullNewTag);
-        
-        setNewTagName('');
-        setIsCreatingTag(false);
-        
-        // Auto-select the newly created tag
-        setSelectedTags(prev => [...prev, fullNewTag]);
-        
+      if (!session) {
         toast({
-          title: "برچسب ایجاد شد",
-          description: `"${fullNewTag.name}" با موفقیت ایجاد شد`,
-        });
-      } catch (error) {
-        toast({
-          title: "خطا",
-          description: "ایجاد برچسب ناموفق بود",
+          title: "احراز هویت الزامی است",
+          description: "لطفاً برای ایجاد برچسب وارد شوید",
           variant: "destructive",
         });
+        return;
       }
+
+      const newTagColor = tagColors[Math.floor(Math.random() * tagColors.length)];
+
+      const { data, error } = await mysqlClient
+        .from('tags')
+        .insert({
+          name: tagName,
+          color: newTagColor,
+          user_id: session.user.id
+        });
+
+      if (error) {
+        toast({
+          title: "خطا در ایجاد برچسب",
+          description: error.message || "ایجاد برچسب ناموفق بود",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const fullNewTag = {
+        id: data.id,
+        name: data.name,
+        color: data.color,
+        userId: data.user_id
+      };
+
+      addTag(fullNewTag);
+      setTagSearchQuery('');
+      setSelectedTags((prev) => [...prev, fullNewTag]);
+
+      toast({
+        title: "برچسب ایجاد شد",
+        description: `"${fullNewTag.name}" با موفقیت ایجاد شد`,
+      });
+    } catch (error) {
+      toast({
+        title: "خطا",
+        description: "ایجاد برچسب ناموفق بود",
+        variant: "destructive",
+      });
     }
   };
 
@@ -946,7 +947,8 @@ const TagSelection = () => {
             <Button
               variant="destructive"
               size="lg"
-              onClick={() => setIsCreatingTag(!isCreatingTag)}
+              onClick={handleCreateTag}
+              disabled={!canCreateNewTag}
               className="h-12 px-6 font-semibold"
             >
               <Plus className="h-5 w-5 ml-2" />
