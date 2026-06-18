@@ -1080,22 +1080,12 @@ const TagSelection = () => {
                 className="h-14 px-6 rounded-full shadow-2xl"
               >
                 ذخیره موقت
-                {selectedTags.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {selectedTags.length}
-                  </Badge>
-                )}
               </Button>
               <Button
                 onClick={handleSaveMeeting}
                 className="h-14 px-8 rounded-full shadow-2xl"
               >
                 ذخیره جلسه
-                {selectedTags.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {selectedTags.length}
-                  </Badge>
-                )}
               </Button>
             </div>
           )}
