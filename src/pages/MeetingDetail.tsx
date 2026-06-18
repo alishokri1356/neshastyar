@@ -1374,6 +1374,40 @@ const MeetingDetail = () => {
                       className="w-12 h-10 rounded border border-border cursor-pointer"
                     />
                   </div>
+
+                  {/* Available Tags */}
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      برچسب‌های موجود:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {localAllUserTags
+                        .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
+                        .length > 0 ? (
+                        localAllUserTags
+                          .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
+                          .map((tag) => (
+                            <button
+                              key={tag.id}
+                              onClick={() => handleAddExistingTag(tag)}
+                              className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors"
+                              style={{ 
+                                backgroundColor: `${tag.color}10`, 
+                                borderColor: `${tag.color}40`,
+                                color: tag.color 
+                              }}
+                            >
+                              {tag.name}
+                            </button>
+                          ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          همه برچسب‌های شما به این جلسه اضافه شده‌اند.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <Button onClick={handleAddTag} size="sm">
                       افزودن برچسب
@@ -1388,39 +1422,6 @@ const MeetingDetail = () => {
                   </div>
                 </div>
               )}
-
-              {/* Available Tags */}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">
-                  برچسب‌های موجود:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {localAllUserTags
-                    .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
-                    .length > 0 ? (
-                    localAllUserTags
-                      .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
-                      .map((tag) => (
-                        <button
-                          key={tag.id}
-                          onClick={() => handleAddExistingTag(tag)}
-                          className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors"
-                          style={{ 
-                            backgroundColor: `${tag.color}10`, 
-                            borderColor: `${tag.color}40`,
-                            color: tag.color 
-                          }}
-                        >
-                          {tag.name}
-                        </button>
-                      ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      همه برچسب‌های شما به این جلسه اضافه شده‌اند.
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
