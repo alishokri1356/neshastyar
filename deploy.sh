@@ -31,7 +31,8 @@ echo ""
 
 # 2. Pull latest code from GitHub
 echo "--- Pulling latest changes from GitHub ---"
-git pull origin main
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git pull origin "$BRANCH"
 echo -e "${GREEN}✅ Code updated${NC}"
 echo ""
 
