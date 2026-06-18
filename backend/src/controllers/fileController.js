@@ -31,23 +31,53 @@ const upload = multer({
     fileSize: 500 * 1024 * 1024 // 500MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Allow audio files
     const allowedMimes = [
       'audio/mpeg',
-      'audio/mp3', 
+      'audio/mp3',
       'audio/wav',
       'audio/wave',
       'audio/x-wav',
-      'audio/ogg',
-      'audio/webm',
+      'audio/aac',
       'audio/mp4',
-      'audio/x-m4a'
+      'audio/x-m4a',
+      'audio/m4a',
+      'audio/ogg',
+      'audio/opus',
+      'audio/webm',
+      'audio/3gpp',
+      'audio/3gpp2',
+      'audio/amr',
+      'audio/amr-wb',
+      'audio/flac',
+      'audio/x-caf',
+      'audio/caf',
+      'audio/aiff',
+      'audio/x-aiff',
     ];
-    
-    if (allowedMimes.includes(file.mimetype)) {
+
+    const allowedExtensions = [
+      '.mp3',
+      '.wav',
+      '.aac',
+      '.m4a',
+      '.ogg',
+      '.opus',
+      '.webm',
+      '.3gp',
+      '.3gpp',
+      '.amr',
+      '.flac',
+      '.caf',
+      '.aiff',
+      '.aif',
+    ];
+
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(extension)) {
       cb(null, true);
     } else {
-      cb(new Error(`Invalid file type: ${file.mimetype}. Only audio files are allowed.`));
+      cb(new Error(`Invalid file type: ${file.mimetype || extension || 'unknown'}. Only audio files are allowed.`));
     }
   }
 });

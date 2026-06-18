@@ -17,6 +17,23 @@ interface AudioFile {
   type: 'recording' | 'upload';
 }
 
+const SUPPORTED_AUDIO_EXTENSIONS = [
+  '.mp3',
+  '.wav',
+  '.aac',
+  '.m4a',
+  '.ogg',
+  '.opus',
+  '.webm',
+  '.3gp',
+  '.3gpp',
+  '.amr',
+  '.flac',
+  '.caf',
+  '.aiff',
+  '.aif',
+] as const;
+
 const SUPPORTED_AUDIO_MIME_TYPES = [
   'audio/mpeg',
   'audio/mp3',
@@ -26,37 +43,42 @@ const SUPPORTED_AUDIO_MIME_TYPES = [
   'audio/aac',
   'audio/mp4',
   'audio/x-m4a',
+  'audio/m4a',
   'audio/ogg',
+  'audio/opus',
   'audio/webm',
   'audio/3gpp',
+  'audio/3gpp2',
   'audio/amr',
+  'audio/amr-wb',
   'audio/flac',
+  'audio/x-caf',
+  'audio/caf',
+  'audio/aiff',
+  'audio/x-aiff',
 ];
 
-const SUPPORTED_AUDIO_EXTENSIONS = [
-  '.mp3',
-  '.wav',
-  '.aac',
-  '.m4a',
-  '.ogg',
-  '.webm',
-  '.3gp',
-  '.amr',
-  '.flac',
-];
+const SUPPORTED_FORMATS_LABEL = 'MP3، WAV، AAC، M4A، OGG، OPUS، FLAC، WebM، 3GP، AMR، CAF، AIFF';
 
-const SUPPORTED_FORMATS_LABEL = 'MP3، WAV، AAC، M4A، OGG، FLAC، WebM، 3GP، AMR';
+const FILE_INPUT_ACCEPT = `audio/*,${SUPPORTED_AUDIO_EXTENSIONS.join(',')}`;
+
+const getFileExtension = (fileName: string) => {
+  if (!fileName.includes('.')) return '';
+  return fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+};
 
 const isSupportedAudioFile = (file: File) => {
-  if (SUPPORTED_AUDIO_MIME_TYPES.includes(file.type)) {
+  const extension = getFileExtension(file.name);
+
+  if (extension && SUPPORTED_AUDIO_EXTENSIONS.includes(extension as typeof SUPPORTED_AUDIO_EXTENSIONS[number])) {
     return true;
   }
 
-  const extension = file.name.includes('.')
-    ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
-    : '';
+  if (file.type && SUPPORTED_AUDIO_MIME_TYPES.includes(file.type)) {
+    return true;
+  }
 
-  return SUPPORTED_AUDIO_EXTENSIONS.includes(extension);
+  return false;
 };
 
 const getUnsupportedFileError = (fileNames: string[]) => {
@@ -551,15 +573,18 @@ const Record = () => {
 
           {/* Action Buttons */}
           <div className="text-center space-y-6">
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-3">
               <Button
                 onClick={handleFileSelect}
                 variant="outline"
                 className="h-16 px-8 rounded-full text-lg font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
                 <Upload className="h-6 w-6 ml-3" />
-                انتخاب فایل
+                انتخاب فایل صوتی
               </Button>
+              <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
+                فرمت‌های پشتیبانی‌شده (اندروید و آیفون): {SUPPORTED_FORMATS_LABEL}
+              </p>
             </div>
 
             {/* Done Button */}
@@ -577,7 +602,7 @@ const Record = () => {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/aac,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,audio/3gpp,audio/amr,audio/flac,.mp3,.wav,.aac,.m4a,.ogg,.3gp,.amr,.flac"
+              accept={FILE_INPUT_ACCEPT}
               onChange={handleFileChange}
               className="hidden"
             />
