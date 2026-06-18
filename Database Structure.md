@@ -1,7 +1,7 @@
 # Database Structure - Modiryar
 
 ## Database Information
-- **Host**: 127.0.0.1
+- **Host**: 195.248.240.30
 - **Database**: modiryar
 - **User**: modiryar_app
 - **Port**: 3306
@@ -11,7 +11,7 @@ Total Tables: 6
 
 ## Table: `audio_files`
 
-**Row Count**: 25
+**Row Count**: 31
 
 ### Columns
 
@@ -65,7 +65,7 @@ CREATE TABLE `audio_files` (
 
 ## Table: `meeting_tags`
 
-**Row Count**: 11
+**Row Count**: 28
 
 ### Columns
 
@@ -107,7 +107,7 @@ CREATE TABLE `meeting_tags` (
 
 ## Table: `meetings`
 
-**Row Count**: 15
+**Row Count**: 21
 
 ### Columns
 
@@ -128,6 +128,7 @@ CREATE TABLE `meeting_tags` (
 | html | text | YES |  | NULL |  |
 | details | text | YES |  | NULL |  |
 | lastTimeEmailSent | datetime | YES | MUL | NULL |  |
+| email_status | varchar(50) | NO |  | Email Not Sent |  |
 | CommentText | text | YES |  | NULL |  |
 
 ### Indexes
@@ -159,6 +160,7 @@ CREATE TABLE `meetings` (
   `html` text COLLATE utf8mb4_unicode_ci,
   `details` text COLLATE utf8mb4_unicode_ci,
   `lastTimeEmailSent` datetime DEFAULT NULL,
+  `email_status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Email Not Sent',
   `CommentText` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
@@ -214,7 +216,7 @@ CREATE TABLE `sessions` (
 
 ## Table: `tags`
 
-**Row Count**: 20
+**Row Count**: 32
 
 ### Columns
 
@@ -253,7 +255,7 @@ CREATE TABLE `tags` (
 
 ## Table: `users`
 
-**Row Count**: 4
+**Row Count**: 6
 
 ### Columns
 
@@ -305,4 +307,3 @@ CREATE TABLE `users` (
 ```
 
 ---
-
