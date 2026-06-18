@@ -24,6 +24,73 @@ import { useToast } from '@/components/ui/use-toast';
 // Get API base URL from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+const normalizeSearchText = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const splitSearchWords = (text: string) =>
+  normalizeSearchText(text)
+    .split(' ')
+    .filter((word) => word.length > 0);
+
+const wordsShareMatch = (queryWord: string, tagWord: string) => {
+  if (queryWord === tagWord) return 100;
+  if (tagWord.startsWith(queryWord) || queryWord.startsWith(tagWord)) return 75;
+  if (tagWord.includes(queryWord) || queryWord.includes(tagWord)) return 55;
+  return 0;
+};
+
+const getTagMatchScore = (query: string, tagName: string): number | null => {
+  const normalizedQuery = normalizeSearchText(query);
+  const normalizedName = normalizeSearchText(tagName);
+
+  if (!normalizedQuery) return null;
+
+  if (normalizedName === normalizedQuery) return 1000;
+  if (normalizedName.startsWith(normalizedQuery)) return 900 - normalizedName.length;
+  if (normalizedName.includes(normalizedQuery)) return 750 - normalizedName.indexOf(normalizedQuery);
+
+  const queryWords = splitSearchWords(normalizedQuery);
+  const tagWords = splitSearchWords(normalizedName);
+
+  if (queryWords.length === 0) return null;
+
+  let matchedQueryWords = 0;
+  let wordMatchScore = 0;
+
+  for (const queryWord of queryWords) {
+    const bestWordScore = tagWords.reduce((best, tagWord) => {
+      return Math.max(best, wordsShareMatch(queryWord, tagWord));
+    }, 0);
+
+    if (bestWordScore > 0) {
+      matchedQueryWords += 1;
+      wordMatchScore += bestWordScore;
+    }
+  }
+
+  if (matchedQueryWords > 0) {
+    const coverage = matchedQueryWords / queryWords.length;
+    return 400 + wordMatchScore + coverage * 120;
+  }
+
+  const queryChars = normalizedQuery.split('');
+  let searchIndex = 0;
+  let matchedChars = 0;
+
+  for (const char of normalizedName) {
+    if (char === queryChars[searchIndex]) {
+      matchedChars += 1;
+      searchIndex += 1;
+      if (searchIndex === queryChars.length) break;
+    }
+  }
+
+  if (matchedChars === queryChars.length) {
+    return 200 + matchedChars * 10;
+  }
+
+  return null;
+};
+
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -136,43 +203,14 @@ const TagSelection = () => {
   }, [setTags, toast, navigate]);
 
   const closestTags = useMemo(() => {
-    const query = tagSearchQuery.trim().toLowerCase();
+    const query = tagSearchQuery.trim();
     if (!query) return [];
 
     return tags
       .filter((tag) => !selectedTags.some((selected) => selected.id === tag.id))
       .map((tag) => {
-        const name = tag.name.toLowerCase();
-
-        if (name === query) {
-          return { tag, score: 1000 };
-        }
-
-        if (name.startsWith(query)) {
-          return { tag, score: 800 - name.length };
-        }
-
-        if (name.includes(query)) {
-          return { tag, score: 500 - name.indexOf(query) };
-        }
-
-        const queryChars = query.split('');
-        let searchIndex = 0;
-        let matchedChars = 0;
-
-        for (const char of name) {
-          if (char === queryChars[searchIndex]) {
-            matchedChars += 1;
-            searchIndex += 1;
-            if (searchIndex === queryChars.length) break;
-          }
-        }
-
-        if (matchedChars === queryChars.length) {
-          return { tag, score: 200 + matchedChars * 10 };
-        }
-
-        return null;
+        const score = getTagMatchScore(query, tag.name);
+        return score === null ? null : { tag, score };
       })
       .filter((item): item is { tag: TagType; score: number } => item !== null)
       .sort((a, b) => b.score - a.score || a.tag.name.localeCompare(b.tag.name, 'fa'))
