@@ -13,6 +13,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Home from "./pages/Home";
 import TagDetail from "./pages/TagDetail";
 import MeetingDetail from "./pages/MeetingDetail";
+import MeetingDetailsOptions from "./pages/MeetingDetailsOptions";
 import DeleteConfirmation from "./pages/DeleteConfirmation";
 import Record from "./pages/Record";
 import TagSelection from "./pages/TagSelection";
@@ -73,6 +74,11 @@ const App = () => {
             <Route path="/meeting/:meetingId" element={
               <ProtectedRoute>
                 <MeetingDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/meeting/:meetingId/meeting_details_options" element={
+              <ProtectedRoute>
+                <MeetingDetailsOptions />
               </ProtectedRoute>
             } />
             <Route path="/meeting/:meetingId/delete" element={
