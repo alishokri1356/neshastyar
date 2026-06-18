@@ -883,40 +883,6 @@ const MeetingDetail = () => {
           </div>
         )}
 
-        {/* People in meetings */}
-        {jsonData["People in meetings"] && jsonData["People in meetings"].length > 0 && (
-          <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">
-              افراد حاضر در جلسه:
-              <span className="text-sm font-normal text-muted-foreground mr-2">(برای افزودن به برچسب‌ها کلیک کنید)</span>
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {jsonData["People in meetings"].map((person: string, index: number) => {
-                // Check if this person is already added as a tag to the meeting
-                const isAdded = meetingTags.some(
-                  mt => mt.name.toLowerCase().trim() === person.toLowerCase().trim()
-                );
-                
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleAddSuggestedTag(person)}
-                    disabled={isAdded}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                      isAdded
-                        ? 'bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60'
-                        : 'bg-secondary/50 text-foreground border-border hover:bg-secondary hover:border-secondary-foreground/20 cursor-pointer transform hover:scale-105'
-                    }`}
-                  >
-                    {person}
-                    {isAdded && ' ✓'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Bullet Points */}
         {jsonData["Bolet Points"] && jsonData["Bolet Points"].length > 0 && (
           <div>
@@ -1285,6 +1251,64 @@ const MeetingDetail = () => {
             })()}
           </CardContent>
         </Card>
+
+        {/* People in Meeting */}
+        {(() => {
+          const currentSummary = statusData?.summary || summary;
+          const jsonData = parseJsonSummary(currentSummary);
+          const people = jsonData?.["People in meetings"];
+          if (!people || !Array.isArray(people) || people.length === 0) return null;
+
+          const addedPeople = people.filter((person: string) =>
+            meetingTags.some(mt => mt.name.toLowerCase().trim() === person.toLowerCase().trim())
+          );
+          const unassignedPeople = people.filter((person: string) =>
+            !meetingTags.some(mt => mt.name.toLowerCase().trim() === person.toLowerCase().trim())
+          );
+
+          return (
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg text-card-foreground">افراد حاضر در جلسه</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {addedPeople.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {addedPeople.map((person: string, index: number) => (
+                        <div
+                          key={index}
+                          className="px-3 py-1 rounded-full text-sm font-medium border bg-green-100 border-green-500 text-green-800"
+                        >
+                          {person}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {unassignedPeople.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">
+                        {addedPeople.length > 0 ? 'برای افزودن به برچسب‌ها کلیک کنید:' : 'برای افزودن به برچسب‌ها روی نام کلیک کنید:'}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {unassignedPeople.map((person: string, index: number) => (
+                          <button
+                            key={index}
+                            onClick={() => handleAddSuggestedTag(person)}
+                            className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
+                          >
+                            {person}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Tags */}
         <Card className="bg-card border-border">
