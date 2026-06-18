@@ -261,20 +261,6 @@ class EmailService {
         `;
       }
       
-      // Tags
-      if (jsonData.Tags && jsonData.Tags.length > 0) {
-        html += `
-          <div style="margin-bottom: 20px;">
-            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">برچسب‌های پیشنهادی:</h4>
-            <div style="text-align: right;">
-              ${jsonData.Tags.map(tag => 
-                `<span style="display: inline-block; background: #e3f2fd; color: #1976d2; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; border: 1px solid #bbdefb;">${tag}</span>`
-              ).join('')}
-            </div>
-          </div>
-        `;
-      }
-      
       return html;
       
     } catch (error) {
