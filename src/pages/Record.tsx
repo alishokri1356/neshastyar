@@ -417,7 +417,7 @@ const Record = () => {
               <div>
                 <h1 className="text-3xl font-bold text-foreground">ضبط جلسه</h1>
                 <p className="text-muted-foreground">
-                  می‌توانید چندین فایل صوتی ضبط یا آپلود کنید. پس از اتمام روی "تمام" کلیک کنید.
+                  می‌توانید چندین فایل صوتی آپلود کنید. پس از اتمام روی "تمام" کلیک کنید.
                 </p>
               </div>
             </div>
@@ -497,11 +497,11 @@ const Record = () => {
           {/* Comment Text Input */}
           <div className="max-w-2xl mx-auto mb-8">
             <Label htmlFor="comment-text" className="text-lg font-semibold text-foreground mb-2 block">
-              Comment Text
+              توضیحات خاص
             </Label>
             <Textarea
               id="comment-text"
-              placeholder="Enter your comment here..."
+              placeholder="توضیحات خود را وارد کنید..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               className="min-h-[100px] w-full"
@@ -510,15 +510,7 @@ const Record = () => {
 
           {/* Action Buttons */}
           <div className="text-center space-y-6">
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button
-                onClick={handleStartRecording}
-                className="bg-green-500 hover:bg-green-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
-              >
-                <Mic className="h-6 w-6 ml-3" />
-                شروع ضبط
-              </Button>
-
+            <div className="flex justify-center">
               <Button
                 onClick={handleFileSelect}
                 variant="outline"
