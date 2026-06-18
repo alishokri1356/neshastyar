@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, FileText, Clock } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import moment from 'moment-jalaali';
+import AppShell from '@/components/layout/AppShell';
+import MeetingCard from '@/components/MeetingCard';
+import EmptyState from '@/components/EmptyState';
 
 const UntaggedMeetings = () => {
   const navigate = useNavigate();
@@ -88,137 +89,67 @@ const UntaggedMeetings = () => {
     fetchUntaggedMeetings();
   }, [toast]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'On Process':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'Need Review':
-        return 'bg-warning/10 text-warning border-warning/20';
-      case 'Done':
-        return 'bg-success/10 text-success border-success/20';
-      default:
-        return 'bg-muted/10 text-muted-foreground border-muted/20';
-    }
-  };
-
   const formatDuration = (seconds: number) => {
-    if (!seconds || seconds === 0) return null;
+    if (!seconds || seconds === 0) return undefined;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getSummaryBullets = (summary: string): string[] => {
+    if (!summary) return [];
+    try {
+      const parsed = JSON.parse(summary);
+      if (Array.isArray(parsed?.['Bolet Points'])) return parsed['Bolet Points'] as string[];
+      if (typeof parsed?.Summary === 'string') return [parsed.Summary];
+    } catch {
+      // not JSON
+    }
+    return summary.split('\n').filter(Boolean);
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <AppShell title="جلسات بدون برچسب" onBack="/home">
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری جلسات بدون برچسب...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/home')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded-full bg-muted-foreground/30 border border-muted-foreground/50" />
-              <h1 className="text-xl font-bold text-foreground">جلسات بدون برچسب</h1>
-            </div>
-          </div>
-          
-          <Badge variant="secondary" className="text-sm">
-            {meetings.length} جلسه
-          </Badge>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        {meetings.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              هیچ جلسه بدون برچسبی یافت نشد
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              تمام جلسات شما دارای برچسب هستند یا هنوز جلسه‌ای ضبط نکرده‌اید.
-            </p>
-            <Button onClick={() => navigate('/record')}>
+    <AppShell title="جلسات بدون برچسب" subtitle={`${meetings.length} جلسه`} onBack="/home">
+      {meetings.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="هیچ جلسه بدون برچسبی یافت نشد"
+          description="تمام جلسات شما دارای برچسب هستند یا هنوز جلسه‌ای ضبط نکرده‌اید."
+          action={
+            <Button variant="primary" onClick={() => navigate('/record')}>
               ضبط جلسه جدید
             </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">
-              جلسات بدون برچسب ({meetings.length})
-            </h2>
-            
-            <div className="space-y-3">
-              {meetings
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((meeting) => (
-                  <Card
-                    key={meeting.id}
-                    className="cursor-pointer hover:shadow-medium transition-all duration-300 hover:scale-[1.02] bg-gradient-card border-0"
-                    onClick={() => navigate(`/meeting/${meeting.id}`)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-2">
-                           <h3 className="font-semibold text-foreground text-lg">
-                             {meeting.fileName}
-                           </h3>
-                           
-                           {meeting.duration > 0 && (
-                             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                               <Clock className="h-3 w-3" />
-                               <span>{formatDuration(meeting.duration)}</span>
-                             </div>
-                           )}
-                           
-                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                             <Calendar className="h-4 w-4" />
-              <span>
-                {moment(meeting.date).format('jYYYY/jMM/jDD')}
-              </span>
-              <span>•</span>
-              <span>
-                {moment(meeting.date).format('HH:mm')}
-              </span>
-                           </div>
-
-                          {meeting.summary && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {meeting.summary}
-                            </p>
-                          )}
-                        </div>
-                        
-                        <div className="ml-4">
-                          <Badge className={getStatusColor(meeting.status)}>
-                            {meeting.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+          }
+        />
+      ) : (
+        <div className="space-y-2">
+          {[...meetings]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .map((meeting) => (
+              <MeetingCard
+                key={meeting.id}
+                title={meeting.fileName}
+                dateText={`${moment(meeting.date).format('jYYYY/jMM/jDD')} - ${moment(meeting.date).format('HH:mm')}`}
+                durationText={formatDuration(meeting.duration)}
+                status={meeting.status}
+                bulletPoints={getSummaryBullets(meeting.summary)}
+                onClick={() => navigate(`/meeting/${meeting.id}`)}
+              />
+            ))}
+        </div>
+      )}
+    </AppShell>
   );
 };
 

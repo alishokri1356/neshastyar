@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mysqlClient } from '@/lib/mysql-client';
+import AppShell from '@/components/layout/AppShell';
 
 const DeleteConfirmation = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -120,38 +121,23 @@ const DeleteConfirmation = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-md mx-auto pt-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">در حال بارگذاری...</p>
-          </div>
+      <AppShell title="تأیید حذف" onBack={handleCancel} hideNav>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-md mx-auto pt-8">
-        {/* Header */}
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleCancel}
-            className="mr-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-xl font-semibold text-foreground">تأیید حذف</h1>
-        </div>
-
+    <AppShell title="تأیید حذف" onBack={handleCancel} hideNav>
+      <div className="mx-auto max-w-md">
         {/* Warning Card */}
         <Card className="mb-6 border-destructive/20 bg-destructive/5">
           <CardContent className="pt-6">
-            <div className="flex items-center mb-4">
-              <div className="bg-destructive/10 p-2 rounded-full mr-3">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-full bg-destructive/10 p-2">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
               </div>
               <div>
@@ -160,12 +146,12 @@ const DeleteConfirmation = () => {
               </div>
             </div>
 
-            <div className="bg-background/50 p-4 rounded-lg mb-4">
-              <p className="text-sm text-muted-foreground mb-2">جلسه مورد نظر:</p>
+            <div className="mb-4 rounded-lg bg-background/50 p-4">
+              <p className="mb-2 text-sm text-muted-foreground">جلسه مورد نظر:</p>
               <p className="font-medium text-foreground">{meetingTitle}</p>
             </div>
 
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               با حذف این جلسه، تمام اطلاعات مربوط به آن از جمله ضبط صوتی، خلاصه و برچسب‌ها برای همیشه از سرورهای ما حذف خواهد شد.
             </p>
           </CardContent>
@@ -179,7 +165,7 @@ const DeleteConfirmation = () => {
             className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
             size="lg"
           >
-            <Trash2 className="h-4 w-4 ml-2" />
+            <Trash2 className="h-4 w-4" />
             {isDeleting ? 'در حال حذف...' : 'حذف جلسه'}
           </Button>
 
@@ -194,7 +180,7 @@ const DeleteConfirmation = () => {
           </Button>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 };
 

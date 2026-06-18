@@ -14,11 +14,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Calendar, FileText, Clock, Trash2, Pencil } from 'lucide-react';
+import { FileText, Trash2, Pencil, MoreVertical } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import moment from 'moment-jalaali';
+import AppShell from '@/components/layout/AppShell';
+import MeetingCard from '@/components/MeetingCard';
+import EmptyState from '@/components/EmptyState';
 
 const TagDetail = () => {
   const { tagId } = useParams<{ tagId: string }>();
@@ -176,24 +185,23 @@ const TagDetail = () => {
   const tag = (tagAndMeetings as any)?.tag || null;
   const meetings = (tagAndMeetings as any)?.meetings || [];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'On Process':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'Need Review':
-        return 'bg-warning/10 text-warning border-warning/20';
-      case 'Done':
-        return 'bg-success/10 text-success border-success/20';
-      default:
-        return 'bg-muted/10 text-muted-foreground border-muted/20';
-    }
-  };
-
   const formatDuration = (seconds: number) => {
-    if (!seconds || seconds === 0) return null;
+    if (!seconds || seconds === 0) return undefined;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getSummaryBullets = (summary: string): string[] => {
+    if (!summary) return [];
+    try {
+      const parsed = JSON.parse(summary);
+      if (Array.isArray(parsed?.['Bolet Points'])) return parsed['Bolet Points'] as string[];
+      if (typeof parsed?.Summary === 'string') return [parsed.Summary];
+    } catch {
+      // not JSON
+    }
+    return summary.split('\n').filter(Boolean);
   };
 
   const handleOpenRenameDialog = () => {
@@ -332,141 +340,62 @@ const TagDetail = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      <div className="container mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <Button onClick={() => navigate('/tags')} variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            بازگشت به لیست برچسب‌ها
+  const headerActions =
+    tagId !== 'untagged' ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="گزینه‌های برچسب">
+            <MoreVertical className="h-5 w-5" />
           </Button>
-        </div>
-      </div>
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/tags')}
-            >
-              <ArrowLeft className="h-5 w-5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-44">
+          <DropdownMenuItem onClick={handleOpenRenameDialog}>
+            <Pencil className="me-2 h-4 w-4" />
+            تغییر نام
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDeleteTag} className="text-destructive focus:text-destructive">
+            <Trash2 className="me-2 h-4 w-4" />
+            حذف برچسب
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : undefined;
+
+  return (
+    <AppShell
+      title={tag.name}
+      subtitle={`${meetings.length} جلسه`}
+      onBack="/tags"
+      actions={headerActions}
+    >
+      {meetings.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="هنوز جلسه‌ای نیست"
+          description="ضبط جلسات را شروع کنید و برچسب بزنید تا آنها را اینجا ببینید."
+          action={
+            <Button variant="primary" onClick={() => navigate('/record')}>
+              ضبط جلسه
             </Button>
-            <div className="flex items-center space-x-3">
-              <div
-                className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: tag.color }}
+          }
+        />
+      ) : (
+        <div className="space-y-2">
+          {[...meetings]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .map((meeting) => (
+              <MeetingCard
+                key={meeting.id}
+                title={meeting.fileName}
+                dateText={`${moment(meeting.date).format('jYYYY/jMM/jDD')} - ${moment(meeting.date).format('HH:mm')}`}
+                durationText={formatDuration(meeting.duration)}
+                status={meeting.status}
+                bulletPoints={getSummaryBullets(meeting.summary)}
+                onClick={() => navigate(`/meeting/${meeting.id}`)}
               />
-              <h1 className="text-xl font-bold text-foreground">{tag.name}</h1>
-              {tagId !== 'untagged' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleOpenRenameDialog}
-                  className="flex items-center gap-2"
-                  aria-label="تغییر نام برچسب"
-                >
-                  <Pencil className="h-4 w-4" />
-                  تغییر نام
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          <Badge variant="secondary" className="text-sm">
-            {meetings.length} جلسه
-          </Badge>
+            ))}
         </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        {meetings.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              هنوز جلسه‌ای نیست
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              ضبط جلسات را شروع کنید و برچسب بزنید تا آنها را اینجا ببینید.
-            </p>
-            <div className="flex flex-col gap-3 items-center">
-              <Button onClick={() => navigate('/record')}>
-                ضبط جلسه
-              </Button>
-              {tagId !== 'untagged' && (
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDeleteTag}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  حذف برچسب
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">
-              جلسات ({meetings.length})
-            </h2>
-            
-            <div className="space-y-3">
-              {meetings
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((meeting) => (
-                  <Card
-                    key={meeting.id}
-                    className="cursor-pointer hover:shadow-medium transition-all duration-300 hover:scale-[1.02] bg-gradient-card border-0"
-                    onClick={() => navigate(`/meeting/${meeting.id}`)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-2">
-                           <h3 className="font-semibold text-foreground text-lg">
-                             {meeting.fileName}
-                           </h3>
-                           
-                           {meeting.duration > 0 && (
-                             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                               <Clock className="h-3 w-3" />
-                               <span>{formatDuration(meeting.duration)}</span>
-                             </div>
-                           )}
-                           
-                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                             <Calendar className="h-4 w-4" />
-                             <span>
-                               {moment(meeting.date).format('jYYYY/jMM/jDD')}
-                             </span>
-                             <span>•</span>
-                             <span>
-                               {moment(meeting.date).format('HH:mm')}
-                             </span>
-                           </div>
-
-                          {meeting.summary && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {meeting.summary}
-                            </p>
-                          )}
-                        </div>
-                        
-                        <div className="ml-4">
-                          <Badge className={getStatusColor(meeting.status)}>
-                            {meeting.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={handleRenameDialogChange}>
@@ -502,7 +431,7 @@ const TagDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppShell>
   );
 };
 

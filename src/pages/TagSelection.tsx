@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Plus, Tag, X, Play, Pause, GripVertical } from 'lucide-react';
+import { Plus, Tag, X, Play, Pause, GripVertical } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
+import AppShell from '@/components/layout/AppShell';
 
 interface AudioFile {
   id: string;
@@ -638,62 +639,43 @@ const TagSelection = () => {
   }, [audioElements]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/record')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-            <h1 className="text-xl font-bold text-foreground">انتخاب برچسب</h1>
-              <p className="text-xs text-muted-foreground">برچسب‌هایی برای جلسه خود انتخاب یا ایجاد کنید</p>
-            </div>
-          </div>
-          
-          <Badge variant="secondary">
-            {selectedTags.length} انتخاب شده
-          </Badge>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8 space-y-8">
+    <AppShell
+      title="انتخاب برچسب"
+      subtitle="برچسب‌هایی برای جلسه انتخاب یا ایجاد کنید"
+      onBack="/record"
+      hideNav
+      actions={<Badge variant="secondary" className="shrink-0">{selectedTags.length} انتخاب شده</Badge>}
+    >
+      <div className="mx-auto max-w-2xl space-y-6 pb-28">
         {/* Audio Files List */}
         {audioFiles && audioFiles.length > 0 && !isUploading && (
-          <Card className="bg-gradient-card border-0 shadow-soft">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-foreground mb-4">
+          <Card className="border border-border/50 bg-card/70 shadow-soft">
+            <CardContent className="p-4">
+              <h3 className="mb-3 font-semibold text-foreground">
                 فایل‌های صوتی ({audioFiles.length})
               </h3>
-              <div className="space-y-3">
-                {audioFiles.map((file, index) => (
-                  <div key={file.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                    <div className="flex items-center space-x-3 flex-1">
-                      <div className="cursor-grab">
-                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+              <div className="space-y-2">
+                {audioFiles.map((file) => (
+                  <div key={file.id} className="flex items-center gap-2 rounded-lg bg-background/60 p-2.5">
+                    <div className="shrink-0 cursor-grab text-muted-foreground">
+                      <GripVertical className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={file.type === 'recording' ? 'default' : 'secondary'} className="shrink-0">
+                          {file.type === 'recording' ? 'ضبط' : 'آپلود'}
+                        </Badge>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
-                            {file.type === 'recording' ? 'ضبط' : 'آپلود'}
-                          </Badge>
-                          <span className="font-medium text-sm">{file.name}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          مدت زمان: {formatTime(file.duration)} • اندازه: {(file.blob.size / (1024 * 1024)).toFixed(1)} MB
-                        </p>
-                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        مدت زمان: {formatTime(file.duration)} • {(file.blob.size / (1024 * 1024)).toFixed(1)} MB
+                      </p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handlePlayPause(file)}
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 shrink-0 p-0"
                     >
                       {playingFileId === file.id ? (
                         <Pause className="h-4 w-4" />
@@ -710,32 +692,26 @@ const TagSelection = () => {
 
         {/* Audio Files Upload Progress */}
         {isUploading && audioFiles && audioFiles.length > 0 && (
-          <Card className="bg-gradient-card border-0 shadow-soft">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-foreground mb-4">
+          <Card className="border border-border/50 bg-card/70 shadow-soft">
+            <CardContent className="p-4">
+              <h3 className="mb-3 font-semibold text-foreground">
                 بارگذاری فایل‌های صوتی ({audioFiles.length})
               </h3>
               <div className="space-y-4">
-                {audioFiles.map((file, index) => {
+                {audioFiles.map((file) => {
                   const progress = fileUploadProgress.get(file.id) || 0;
                   return (
                     <div key={file.id} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Badge variant={file.type === 'recording' ? 'default' : 'secondary'} className="shrink-0">
                             {file.type === 'recording' ? 'ضبط' : 'آپلود'}
                           </Badge>
-                          <span className="font-medium text-sm">{file.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          {progress}%
-                        </span>
+                        <span className="shrink-0 text-sm text-muted-foreground">{progress}%</span>
                       </div>
                       <Progress value={progress} className="h-2" />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>مدت زمان: {Math.floor(file.duration / 60)}:{String(file.duration % 60).padStart(2, '0')}</span>
-                        <span>اندازه: {(file.blob.size / (1024 * 1024)).toFixed(1)} MB</span>
-                      </div>
                     </div>
                   );
                 })}
@@ -743,17 +719,19 @@ const TagSelection = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Tags section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">برچسب‌ها</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-foreground">برچسب‌ها</h2>
             <Button
-              variant="destructive"
-              size="lg"
+              variant="default"
+              size="sm"
               onClick={handleCreateTag}
               disabled={!canCreateNewTag}
-              className="h-12 px-6 font-semibold"
+              className="shrink-0"
             >
-              <Plus className="h-5 w-5 ml-2" />
+              <Plus className="h-4 w-4" />
               برچسب جدید
             </Button>
           </div>
@@ -763,7 +741,7 @@ const TagSelection = () => {
               {selectedTags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border"
+                  className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     borderColor: tag.color,
@@ -797,20 +775,20 @@ const TagSelection = () => {
           {tagSearchQuery.trim() && closestTags.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">نزدیک‌ترین برچسب‌ها:</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {closestTags.map((tag) => (
                   <Card
                     key={tag.id}
-                    className="cursor-pointer transition-all duration-200 border-2 border-transparent bg-gradient-card hover:border-primary/40 hover:shadow-medium"
+                    className="cursor-pointer border-2 border-transparent bg-card/70 transition-all duration-200 hover:border-primary/40 hover:shadow-medium"
                     onClick={() => handleSelectSuggestedTag(tag)}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2">
                         <div
-                          className="w-4 h-4 rounded-full shrink-0"
+                          className="h-4 w-4 shrink-0 rounded-full"
                           style={{ backgroundColor: tag.color }}
                         />
-                        <h4 className="font-medium text-foreground">{tag.name}</h4>
+                        <h4 className="min-w-0 truncate font-medium text-foreground">{tag.name}</h4>
                       </div>
                     </CardContent>
                   </Card>
@@ -827,64 +805,60 @@ const TagSelection = () => {
         </div>
 
         {tags.length === 0 && (
-          <div className="text-center py-12">
-            <Tag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              هنوز برچسبی نیست
-            </h3>
-            <p className="text-muted-foreground">
+          <div className="py-8 text-center">
+            <Tag className="mx-auto mb-4 h-14 w-14 text-muted-foreground" />
+            <h3 className="mb-1 text-base font-semibold text-foreground">هنوز برچسبی نیست</h3>
+            <p className="text-sm text-muted-foreground">
               نام برچسب را در کادر بالا تایپ کنید و روی «برچسب جدید» بزنید.
             </p>
           </div>
         )}
+      </div>
 
-        {/* Save Buttons */}
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
+      {/* Sticky bottom action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-lg pb-safe">
+        <div className="mx-auto w-full max-w-2xl px-4 py-3">
           {isUploading ? (
-            <div className="bg-card border border-border rounded-full p-4 shadow-2xl">
-              <div className="text-center space-y-3">
-                 <div className="text-sm font-medium text-card-foreground">
-                   در حال بارگذاری جلسه... {Math.round(uploadProgress)}%
-                 </div>
-                 <Progress value={uploadProgress} className="w-64" />
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <X className="h-4 w-4 ml-2" />
-                      لغو
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>لغو بارگذاری؟</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        آیا مطمئن هستید که می‌خواهید بارگذاری را لغو کنید؟ این عمل فرآیند بارگذاری فعلی را متوقف می‌کند و باید از ابتدا شروع کنید.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>ادامه بارگذاری</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleCancelUpload}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        بله، لغو بارگذاری
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm font-medium text-card-foreground">
+                <span>در حال بارگذاری جلسه...</span>
+                <span>{Math.round(uploadProgress)}%</span>
               </div>
+              <Progress value={uploadProgress} className="w-full" />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <X className="h-4 w-4" />
+                    لغو بارگذاری
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>لغو بارگذاری؟</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      آیا مطمئن هستید که می‌خواهید بارگذاری را لغو کنید؟ این عمل فرآیند بارگذاری فعلی را متوقف می‌کند و باید از ابتدا شروع کنید.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>ادامه بارگذاری</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancelUpload}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      بله، لغو بارگذاری
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ) : (
-            <Button
-              onClick={handleSaveMeeting}
-              className="h-14 px-8 rounded-full shadow-2xl"
-            >
+            <Button onClick={handleSaveMeeting} variant="primary" size="lg" className="w-full">
               آپلود جلسه
             </Button>
           )}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 };
 

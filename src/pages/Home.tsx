@@ -1,16 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMeetingStore } from '@/store/useMeetingStore';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
-import { Mic2, LogOut, Plus, Calendar, Clock, FileText, User, Settings, X, Tag, UserCircle } from 'lucide-react';
+import { Mic2, LogOut, Calendar, FileText, User, Settings, Tag, UserCircle, ChevronDown } from 'lucide-react';
 import moment from 'moment-jalaali';
+import AppShell from '@/components/layout/AppShell';
+import MeetingCard from '@/components/MeetingCard';
+import EmptyState from '@/components/EmptyState';
+import { cn } from '@/lib/utils';
 
 interface DatabaseTag {
   id: string;
@@ -107,9 +115,6 @@ const Home = () => {
   // State for sorting
   const [sortBy, setSortBy] = React.useState<'date' | 'tags' | 'participants'>('date');
   const [expandedDates, setExpandedDates] = React.useState<Record<string, boolean>>({});
-  
-  // State for slide panel
-  const [isPanelOpen, setIsPanelOpen] = React.useState(false);
 
   // Fetch tags once on load (no aggressive polling)
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
@@ -409,357 +414,182 @@ const Home = () => {
     window.location.href = '/';
   };
 
-  const handleTagManagement = () => {
-    setIsPanelOpen(false);
-    // Navigate to tag management page
-    navigate('/tags/manage');
-  };
-
-  const handleAccountManagement = () => {
-    setIsPanelOpen(false);
-    navigate('/account/manage');
-  };
-
-  const handleLogoutFromPanel = async () => {
-    setIsPanelOpen(false);
-    await handleLogout();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'On Process':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'Need Review':
-        return 'bg-warning/10 text-warning border-warning/20';
-      case 'Done':
-        return 'bg-success/10 text-success border-success/20';
-      default:
-        return 'bg-muted/10 text-muted-foreground border-muted/20';
-    }
-  };
-
   // Reset expanded groups when sort changes
   React.useEffect(() => {
     setExpandedDates({});
   }, [sortBy]);
 
+  const getBulletPoints = (meeting: DatabaseMeeting): string[] => {
+    if (!meeting.summary) return [];
+    const jsonData = parseJsonSummary(meeting.summary);
+    if (Array.isArray(jsonData?.['Bolet Points'])) {
+      return jsonData['Bolet Points'] as string[];
+    }
+    return meeting.summary.split('\n').filter(Boolean);
+  };
+
+  const sortOptions: { key: 'date' | 'tags' | 'participants'; label: string; icon: typeof Calendar; onClick: () => void }[] = [
+    { key: 'date', label: 'تاریخ', icon: Calendar, onClick: () => setSortBy('date') },
+    { key: 'tags', label: 'برچسب‌ها', icon: FileText, onClick: () => navigate('/tags') },
+    { key: 'participants', label: 'افراد', icon: User, onClick: () => navigate('/participants') },
+  ];
+
+  const settingsMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="تنظیمات">
+          <Settings className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/tags/manage')}>
+          <Tag className="me-2 h-4 w-4" />
+          مدیریت برچسب‌ها
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/account/manage')}>
+          <UserCircle className="me-2 h-4 w-4" />
+          مدیریت حساب
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={handleLogout}
+          className="text-destructive focus:text-destructive"
+        >
+          <LogOut className="me-2 h-4 w-4" />
+          خروج از حساب
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const activeGroups = sortBy === 'date' ? meetingsByDate : sortBy === 'tags' ? meetingsByTags : meetingsByParticipants;
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <AppShell title="مدیریار" subtitle="دستیار هوشمند جلسات" actions={settingsMenu}>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <Mic2 className="h-8 w-8 text-primary" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary-glow rounded-full animate-pulse" />
-            </div>
-            <div>
-            <h1 className="text-xl font-bold text-foreground">مدیریار</h1>
-              <p className="text-xs text-muted-foreground">دستیار هوشمند جلسات</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-foreground">{user?.email}</p>
-              <p className="text-xs text-muted-foreground">حرفه‌ای</p>
-              <p className="text-xs text-muted-foreground mt-1">{formatPersianDateTime(new Date())}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setIsPanelOpen(true)}>
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Slide-out Settings Panel */}
-      <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${isPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        {/* Backdrop */}
-        <div 
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          onClick={() => setIsPanelOpen(false)}
-        />
-        
-        {/* Panel */}
-        <div className={`absolute right-0 top-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          {/* Panel Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border/50">
-            <h2 className="text-xl font-semibold text-foreground">تنظیمات</h2>
-            <Button variant="ghost" size="icon" onClick={() => setIsPanelOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {/* Panel Content */}
-          <div className="p-6 space-y-4">
-            {/* Tag Management */}
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-12 text-right"
-              onClick={handleTagManagement}
-            >
-              <Tag className="h-5 w-5 ml-3" />
-              <div className="text-right">
-                <div className="font-medium">مدیریت برچسب‌ها</div>
-                <div className="text-xs text-muted-foreground">ایجاد، ویرایش و حذف برچسب‌ها</div>
-              </div>
-            </Button>
-            
-            {/* Account Management */}
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-12 text-right"
-              onClick={handleAccountManagement}
-            >
-              <UserCircle className="h-5 w-5 ml-3" />
-              <div className="text-right">
-                <div className="font-medium">مدیریت حساب</div>
-                <div className="text-xs text-muted-foreground">تنظیمات پروفایل و امنیت</div>
-              </div>
-            </Button>
-            
-            {/* Divider */}
-            <div className="border-t border-border/50 my-4" />
-            
-            {/* Logout */}
-            <Button
-              variant="ghost"
-              className="w-full justify-start h-12 text-right text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleLogoutFromPanel}
-            >
-              <LogOut className="h-5 w-5 ml-3" />
-              <div className="text-right">
-                <div className="font-medium">خروج از حساب</div>
-                <div className="text-xs text-muted-foreground">خروج از سیستم</div>
-              </div>
-            </Button>
-          </div>
-        </div>
+    <AppShell title="مدیریار" subtitle="دستیار هوشمند جلسات" actions={settingsMenu}>
+      {/* Greeting */}
+      <div className="mb-5">
+        <h2 className="text-xl font-bold text-foreground">
+          {user?.email?.split('@')[0]} خوش آمدید
+        </h2>
+        <p className="text-sm text-muted-foreground">{formatPersianDateTime(new Date())}</p>
       </div>
 
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Welcome Section */}
-        <div className="text-center space-y-4">
-          <h2 className="text-3xl font-bold text-foreground">
-             {user?.email?.split('@')[0]} خوش آمدید
-          </h2>
-          
-          {/* Sorting Buttons */}
-          <div className="flex justify-center gap-2 flex-wrap">
-            <Button
-              variant={sortBy === 'date' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSortBy('date')}
-              className="flex items-center gap-2"
+      {/* Segmented sort control */}
+      <div className="mb-6 grid grid-cols-3 gap-1 rounded-xl border border-border/60 bg-card/60 p-1">
+        {sortOptions.map((opt) => {
+          const Icon = opt.icon;
+          const active = sortBy === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={opt.onClick}
+              className={cn(
+                'flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-soft'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
-              <Calendar className="h-4 w-4" />
-              مرتب‌سازی بر اساس تاریخ
-            </Button>
-            <Button
-              variant={sortBy === 'tags' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => navigate('/tags')}
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              مرتب‌سازی بر اساس برچسب
-            </Button>
-            <Button
-              variant={sortBy === 'participants' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => navigate('/participants')}
-              className="flex items-center gap-2"
-            >
-              <User className="h-4 w-4" />
-              مرتب‌سازی بر اساس شرکت‌کنندگان
-            </Button>
-          </div>
-        </div>
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Meetings List - Grouped by Date, Tags, or Participants */}
-       {Object.keys(
-         sortBy === 'date' ? meetingsByDate : 
-         sortBy === 'tags' ? meetingsByTags : 
-         meetingsByParticipants
-       ).length > 0 && (
-          <div className="space-y-6">
-            
-            {Object.entries(
-              sortBy === 'date' ? meetingsByDate : 
-              sortBy === 'tags' ? meetingsByTags : 
-              meetingsByParticipants
-            ).map(([groupKey, groupMeetings]) => (
-              <div key={groupKey} className="space-y-3">
-                {/* Group Header */}
-                <h4 
-                  className={`text-sm font-medium px-2 ${
+      {/* Meetings list grouped by date */}
+      {Object.keys(activeGroups).length > 0 ? (
+        <div className="space-y-5">
+          {Object.entries(activeGroups).map(([groupKey, groupMeetings]) => (
+            <div key={groupKey} className="space-y-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 text-start"
+                onClick={() =>
+                  setExpandedDates((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))
+                }
+              >
+                <span
+                  className={cn(
+                    'truncate text-sm font-semibold',
                     sortBy === 'tags' || sortBy === 'participants'
-                      ? 'text-primary cursor-pointer hover:underline' 
-                      : 'text-muted-foreground cursor-pointer'
-                  }`}
-                  onClick={() => {
-                    setExpandedDates(prev => ({
-                      ...prev,
-                      [groupKey]: !prev[groupKey]
-                    }));
-                  }}
+                      ? 'text-primary'
+                      : 'text-muted-foreground',
+                  )}
                 >
-                  <span className="inline-flex items-center gap-2">
-                    {groupKey}
-                    <svg
-                      className={`w-4 h-4 transition-transform ${expandedDates[groupKey] ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </span>
-                </h4>
-                
-                {/* Meetings for this group */}
-                {expandedDates[groupKey] && (
+                  {groupKey}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {groupMeetings.length}
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 transition-transform',
+                      expandedDates[groupKey] ? 'rotate-180' : '',
+                    )}
+                  />
+                </span>
+              </button>
+
+              {expandedDates[groupKey] && (
                 <div className="space-y-2">
                   {groupMeetings.map((meeting) => {
-                    const title = meeting.title || 'جلسه';
                     const audioFiles = meeting.audioFiles || [];
-                    const totalDuration = audioFiles.reduce((sum, file) => sum + (file.duration || 0), 0);
-                    const durationText = totalDuration > 0 ? `${Math.round(totalDuration / 60)} min` : '';
-                    const audioCountText = audioFiles.length > 1 ? ` (${audioFiles.length} فایل)` : '';
+                    const totalDuration = audioFiles.reduce(
+                      (sum, file) => sum + (file.duration || 0),
+                      0,
+                    );
+                    const durationText =
+                      totalDuration > 0 ? `${Math.round(totalDuration / 60)} دقیقه` : '';
+                    const audioCountText =
+                      audioFiles.length > 1 ? ` (${audioFiles.length} فایل)` : '';
                     const meetingDate = new Date(meeting.meeting_date || meeting.created_at);
-                    const dateText = formatPersianDateTime(meetingDate);
-                    
+
                     return (
-                      <Card
+                      <MeetingCard
                         key={meeting.id}
-                        className="cursor-pointer hover:shadow-medium transition-all duration-300 bg-white/50 dark:bg-gray-800/50 border-0 hover:bg-white/70 dark:hover:bg-gray-800/70"
+                        title={`${meeting.title || 'جلسه'}${audioCountText}`}
+                        dateText={formatPersianDateTime(meetingDate)}
+                        durationText={durationText}
+                        status={meeting.status}
+                        tags={meeting.tags || []}
+                        bulletPoints={getBulletPoints(meeting)}
                         onClick={() => navigate(`/meeting/${meeting.id}`)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start space-x-3">
-                            {/* Profile Avatar */}
-                            <div className="flex-shrink-0">
-                              <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-glow rounded-full flex items-center justify-center">
-                                <User className="h-5 w-5 text-white" />
-                              </div>
-                            </div>
-                            
-                            {/* Meeting Content */}
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-foreground text-sm leading-tight">
-                                {title}{audioCountText}
-                              </h4>
-                              
-                              <div className="flex items-center space-x-2 mt-1 text-xs text-muted-foreground">
-                                <span>{dateText}</span>
-                                {durationText && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{durationText}</span>
-                                  </>
-                                )}
-                              </div>
-                              
-                              {/* Tags */}
-                              {meeting.tags && meeting.tags.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {meeting.tags.slice(0, 3).map((tag) => (
-                                    <span
-                                      key={tag.id}
-                                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border"
-                                      style={{ 
-                                        backgroundColor: `${tag.color}20`, 
-                                        borderColor: tag.color,
-                                        color: tag.color 
-                                      }}
-                                    >
-                                      {tag.name}
-                                    </span>
-                                  ))}
-                                  {meeting.tags.length > 3 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-muted-foreground border border-border">
-                                      +{meeting.tags.length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Bullet Points (max 3) with ellipsis when more */}
-                              {(meeting.summary) && (() => {
-                                const jsonData = parseJsonSummary(meeting.summary || '');
-                                const boletPoints = Array.isArray(jsonData?.["Bolet Points"]) 
-                                  ? (jsonData["Bolet Points"] as string[])
-                                  : (meeting.summary ? meeting.summary.split('\n').filter(Boolean) : []);
-
-                                if (!boletPoints || boletPoints.length === 0) return null;
-
-                                const visible = boletPoints.slice(0, 3);
-                                const hasMore = boletPoints.length > 3;
-
-                                return (
-                                  <div className="mt-2 space-y-1">
-                                    {visible.map((line, index) => (
-                                      <div key={index} className="flex items-start space-x-2 text-xs text-muted-foreground">
-                                        <span className="text-primary mt-1">•</span>
-                                        <span className="leading-relaxed">
-                                          {line.length > 60 ? line.substring(0, 57) + '...' : line}
-                                        </span>
-                                      </div>
-                                    ))}
-                                    {hasMore && (
-                                      <div className="flex items-start space-x-2 text-xs text-muted-foreground">
-                                        <span className="text-primary mt-1">•</span>
-                                        <span className="leading-relaxed">...</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                            
-                            {/* Status Badge */}
-                            <div className="flex-shrink-0">
-                              <Badge className={`text-xs ${getStatusColor(meeting.status)}`}>
-                                {meeting.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      />
                     );
                   })}
                 </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Record Meeting Button */}
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
-          <Button
-            variant="record"
-            size="lg"
-            className="h-16 px-8 rounded-full shadow-2xl"
-            onClick={() => navigate('/record')}
-          >
-            <Mic2 className="h-6 w-6 ml-3" />
-            شروع
-          </Button>
+              )}
+            </div>
+          ))}
         </div>
-      </div>
-    </div>
+      ) : (
+        <EmptyState
+          icon={Mic2}
+          title="هنوز جلسه‌ای ثبت نشده است"
+          description="برای شروع، روی دکمه ضبط در پایین صفحه بزنید."
+          action={
+            <Button variant="primary" onClick={() => navigate('/record')}>
+              <Mic2 className="h-4 w-4" />
+              ضبط جلسه جدید
+            </Button>
+          }
+        />
+      )}
+    </AppShell>
   );
 };
 

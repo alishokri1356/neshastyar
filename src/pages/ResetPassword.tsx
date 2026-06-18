@@ -89,33 +89,33 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <Card>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4 py-8 sm:py-12">
+      <div className="w-full max-w-md space-y-8">
+        <Card className="shadow-medium border-0 bg-gradient-card">
           <CardHeader className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full">
               {status === 'loading' && (
-                <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
               )}
               {status === 'form' && (
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 font-bold text-lg">🔒</span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <span className="text-lg font-bold text-primary">🔒</span>
                 </div>
               )}
               {status === 'success' && (
-                <CheckCircle className="h-12 w-12 text-green-600" />
+                <CheckCircle className="h-12 w-12 text-success" />
               )}
               {status === 'error' && (
-                <XCircle className="h-12 w-12 text-red-600" />
+                <XCircle className="h-12 w-12 text-destructive" />
               )}
             </div>
-            <CardTitle className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <CardTitle className="mt-6 text-center text-2xl font-extrabold text-foreground sm:text-3xl">
               {status === 'loading' && 'در حال بارگذاری...'}
               {status === 'form' && 'بازنشانی رمز عبور'}
               {status === 'success' && 'رمز عبور تغییر یافت!'}
               {status === 'error' && 'خطا در بازنشانی رمز عبور'}
             </CardTitle>
-            <CardDescription className="mt-2 text-center text-sm text-gray-600">
+            <CardDescription className="mt-2 text-center text-sm text-muted-foreground">
               {status === 'loading' && 'لطفاً صبر کنید...'}
               {status === 'form' && 'رمز عبور جدید خود را وارد کنید'}
               {status === 'success' && 'حالا می‌توانید با رمز عبور جدید وارد شوید'}
@@ -135,12 +135,13 @@ const ResetPassword: React.FC = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="رمز عبور جدید را وارد کنید"
                       required
+                      className="pe-10"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute end-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
@@ -162,12 +163,13 @@ const ResetPassword: React.FC = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="رمز عبور را دوباره وارد کنید"
                       required
+                      className="pe-10"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute end-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? (
@@ -180,7 +182,7 @@ const ResetPassword: React.FC = () => {
                 </div>
 
                 {message && (
-                  <div className="text-sm text-red-600 text-center">
+                  <div className="text-center text-sm text-destructive">
                     {message}
                   </div>
                 )}
@@ -192,7 +194,7 @@ const ResetPassword: React.FC = () => {
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       در حال تغییر رمز عبور...
                     </>
                   ) : (
@@ -204,7 +206,7 @@ const ResetPassword: React.FC = () => {
 
             {status !== 'form' && (
               <div className="text-center">
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   {message}
                 </p>
               </div>

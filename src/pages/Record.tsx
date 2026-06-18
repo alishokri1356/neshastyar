@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { Mic, Pause, Square, Play, Upload, Trash2, Check, ArrowLeft, GripVertical, Plus } from 'lucide-react';
+import { Mic, Pause, Square, Play, Upload, Trash2, Check, GripVertical, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AppShell from '@/components/layout/AppShell';
 
 interface AudioFile {
   id: string;
@@ -469,39 +470,34 @@ const Record = () => {
 
   if (!isRecording) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-        <div className="container mx-auto px-4 py-8">
-          {/* Header with Return Button */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <Mic className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">ضبط جلسه</h1>
-                <p className="text-muted-foreground">
-                  می‌توانید چندین فایل صوتی آپلود کنید. پس از اتمام روی "تمام" کلیک کنید.
-                </p>
-              </div>
-            </div>
-            <Button onClick={() => navigate('/home')} variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              بازگشت به خانه
-            </Button>
-          </div>
+      <AppShell
+        title="ضبط جلسه"
+        subtitle="می‌توانید چند فایل صوتی اضافه کنید"
+        onBack="/home"
+        hideNav
+      >
+        <div className={`mx-auto max-w-2xl ${audioFiles.length > 0 ? 'pb-24' : ''}`}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={FILE_INPUT_ACCEPT}
+            onChange={handleFileChange}
+            className="hidden"
+          />
 
           {/* Audio Files List */}
           {showFilesList && audioFiles.length > 0 && (
-            <div className="max-w-2xl mx-auto mb-8">
-              <h2 className="text-xl font-semibold text-foreground mb-4 text-center">
+            <div className="mb-6">
+              <h2 className="mb-3 text-base font-semibold text-foreground">
                 فایل‌های صوتی ({audioFiles.length})
               </h2>
-              <div className="space-y-3">
-                {audioFiles.map((file, index) => (
-                  <Card 
-                    key={file.id} 
-                    className={`bg-white/50 dark:bg-gray-800/50 transition-all duration-200 ${
-                      draggedItemId === file.id ? 'opacity-50 scale-95' : 'hover:shadow-md'
+              <div className="space-y-2">
+                {audioFiles.map((file) => (
+                  <Card
+                    key={file.id}
+                    className={`border border-border/50 bg-card/70 transition-all duration-200 ${
+                      draggedItemId === file.id ? 'scale-95 opacity-50' : 'hover:shadow-soft'
                     }`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, file.id)}
@@ -509,25 +505,23 @@ const Record = () => {
                     onDrop={(e) => handleDrop(e, file.id)}
                     onDragEnd={handleDragEnd}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3 flex-1">
-                          <div className="cursor-grab active:cursor-grabbing">
-                            <GripVertical className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <Badge variant={file.type === 'recording' ? 'default' : 'secondary'}>
-                                {file.type === 'recording' ? 'ضبط' : 'آپلود'}
-                              </Badge>
-                              <span className="font-medium">{file.name}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              مدت زمان: {formatTime(file.duration)}
-                            </p>
-                          </div>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing">
+                          <GripVertical className="h-5 w-5" />
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={file.type === 'recording' ? 'default' : 'secondary'} className="shrink-0">
+                              {file.type === 'recording' ? 'ضبط' : 'آپلود'}
+                            </Badge>
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            مدت زمان: {formatTime(file.duration)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
                           <Button
                             variant="outline"
                             size="sm"
@@ -544,7 +538,7 @@ const Record = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeAudioFile(file.id)}
-                            className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -554,26 +548,37 @@ const Record = () => {
                   </Card>
                 ))}
               </div>
+
+              <div className="mt-4 flex justify-center">
+                <Button
+                  onClick={handleFileSelect}
+                  variant="outline"
+                  size="icon"
+                  className="h-12 w-12 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                  aria-label="اضافه کردن فایل صوتی"
+                >
+                  <Plus className="h-6 w-6" />
+                </Button>
+              </div>
             </div>
           )}
 
-          {audioFiles.length > 0 && (
-            <div className="max-w-2xl mx-auto mb-6 flex justify-center">
-              <Button
-                onClick={handleFileSelect}
-                variant="outline"
-                size="icon"
-                className="h-12 w-12 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                aria-label="اضافه کردن فایل صوتی"
-              >
-                <Plus className="h-6 w-6" />
-              </Button>
-            </div>
+          {/* Empty state add button */}
+          {audioFiles.length === 0 && (
+            <button
+              type="button"
+              onClick={handleFileSelect}
+              className="mb-6 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/40 bg-card/40 px-6 py-10 text-primary transition-colors hover:bg-primary/5"
+            >
+              <Upload className="h-8 w-8" />
+              <span className="text-base font-semibold">اضافه کردن فایل صوتی</span>
+              <span className="text-xs text-muted-foreground">یا از دکمه ضبط استفاده کنید</span>
+            </button>
           )}
 
           {/* Comment Text Input */}
-          <div className="max-w-2xl mx-auto mb-8">
-            <Label htmlFor="comment-text" className="text-lg font-semibold text-foreground mb-2 block">
+          <div className="mb-6">
+            <Label htmlFor="comment-text" className="mb-2 block text-base font-semibold text-foreground">
               توضیحات خاص
             </Label>
             <Textarea
@@ -581,77 +586,51 @@ const Record = () => {
               placeholder="توضیحات خود را وارد کنید..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="min-h-[100px] w-full"
+              className="min-h-[100px] w-full resize-none"
             />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="text-center space-y-6">
-            {audioFiles.length === 0 && (
-              <div className="flex justify-center">
-                <Button
-                  onClick={handleFileSelect}
-                  variant="outline"
-                  size="sm"
-                  className="h-12 px-6 rounded-full text-base font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                >
-                  <Upload className="h-5 w-5 ml-2" />
-                  اضافه کردن فایل صوتی
-                </Button>
-              </div>
-            )}
-
-            {/* Done Button */}
-            {audioFiles.length > 0 && (
-              <Button
-                onClick={handleDone}
-                className="bg-blue-500 hover:bg-blue-600 text-white h-16 px-8 rounded-full text-lg font-semibold shadow-lg"
-              >
-                <Check className="h-6 w-6 ml-3" />
-                تمام ({audioFiles.length} فایل)
-              </Button>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={FILE_INPUT_ACCEPT}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-
           </div>
         </div>
-      </div>
+
+        {/* Sticky bottom action bar */}
+        {audioFiles.length > 0 && (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-lg pb-safe">
+            <div className="mx-auto w-full max-w-2xl px-4 py-3">
+              <Button onClick={handleDone} variant="primary" size="lg" className="w-full">
+                <Check className="h-5 w-5" />
+                تمام ({audioFiles.length} فایل)
+              </Button>
+            </div>
+          </div>
+        )}
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-background to-red-100 flex items-center justify-center">
-      <div className="text-center space-y-8 p-8">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 via-background to-red-100 px-6 safe-top pb-safe">
+      <div className="space-y-8 p-4 text-center">
         {/* Recording Indicator */}
-        <div className="relative">
-          <div className="w-40 h-40 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
-            <div className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center">
+        <div className="relative mx-auto h-40 w-40">
+          <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-red-500/20">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-red-500">
               <Mic className="h-12 w-12 text-white" />
             </div>
           </div>
-          <div className="absolute inset-0 w-40 h-40 bg-red-500/30 rounded-full animate-pulse mx-auto" />
+          <div className="absolute inset-0 mx-auto h-40 w-40 animate-pulse rounded-full bg-red-500/30" />
         </div>
 
         {/* Recording Status */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
             {isPaused ? 'ضبط متوقف شده' : 'در حال ضبط...'}
           </h1>
-          <div className="text-4xl font-mono font-bold text-red-500">
+          <div className="font-mono text-4xl font-bold text-red-500">
             {formatTime(recordingDuration)}
           </div>
         </div>
 
         {/* Control Buttons */}
-        <div className="flex justify-center space-x-6">
+        <div className="flex justify-center gap-6">
           <Button
             onClick={handlePauseResume}
             variant="outline"
@@ -667,13 +646,13 @@ const Record = () => {
 
           <Button
             onClick={handleStopRecording}
-            className="bg-red-500 hover:bg-red-600 text-white h-16 w-16 rounded-full"
+            className="h-16 w-16 rounded-full bg-red-500 text-white hover:bg-red-600"
           >
             <Square className="h-8 w-8" />
           </Button>
         </div>
 
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
           {isPaused 
             ? 'روی پلی کلیک کنید تا ضبط را ادامه دهید یا استاپ کنید تا تمام شود'
             : 'روی مکث کلیک کنید تا موقتاً متوقف شود یا استاپ کنید تا ضبط تمام شود'

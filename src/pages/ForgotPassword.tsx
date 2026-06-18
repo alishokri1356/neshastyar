@@ -69,11 +69,11 @@ const ForgotPassword = () => {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
         <div className="w-full max-w-md space-y-8">
           {/* Logo and Brand */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center space-x-2">
-              <div className="relative">
-                <Mic2 className="h-8 w-8 text-primary" />
-                <Sparkles className="h-4 w-4 text-primary-glow absolute -top-1 -right-1 animate-pulse" />
+          <div className="space-y-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
+                <Mic2 className="h-6 w-6 text-white" />
+                <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
               </div>
               <h1 className="text-2xl font-bold text-foreground">مدیریار</h1>
             </div>
@@ -83,7 +83,7 @@ const ForgotPassword = () => {
           <Card className="shadow-medium border-0 bg-gradient-card">
             <CardHeader className="space-y-1">
               <div className="flex items-center justify-center mb-4">
-                <CheckCircle className="h-12 w-12 text-green-600" />
+                <CheckCircle className="h-12 w-12 text-success" />
               </div>
               <CardTitle className="text-2xl text-center">ایمیل ارسال شد!</CardTitle>
               <CardDescription className="text-center">
@@ -92,9 +92,9 @@ const ForgotPassword = () => {
             </CardHeader>
             <CardContent>
               <div className="text-center space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 font-medium">ایمیل بازنشانی رمز عبور ارسال شد</p>
-                  <p className="text-sm text-green-600 mt-2">
+                <div className="rounded-lg border border-success/30 bg-success/10 p-4">
+                  <p className="font-medium text-success">ایمیل بازنشانی رمز عبور ارسال شد</p>
+                  <p className="mt-2 text-sm text-success/80">
                     لطفاً صندوق ورودی ایمیل خود را بررسی کنید و روی لینک بازنشانی رمز عبور کلیک کنید.
                   </p>
                 </div>
@@ -103,9 +103,9 @@ const ForgotPassword = () => {
               <div className="text-center mt-6">
                 <Link 
                   to="/login" 
-                  className="inline-flex items-center text-sm text-primary hover:text-primary-glow transition-colors"
+                  className="inline-flex items-center gap-1 text-sm text-primary transition-colors hover:text-primary-glow"
                 >
-                  <ArrowLeft className="h-4 w-4 ml-1" />
+                  <ArrowLeft className="h-4 w-4" />
                   بازگشت به ورود
                 </Link>
               </div>
@@ -120,11 +120,11 @@ const ForgotPassword = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
       <div className="w-full max-w-md space-y-8">
         {/* Logo and Brand */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center space-x-2">
-            <div className="relative">
-              <Mic2 className="h-8 w-8 text-primary" />
-              <Sparkles className="h-4 w-4 text-primary-glow absolute -top-1 -right-1 animate-pulse" />
+        <div className="space-y-4 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
+              <Mic2 className="h-6 w-6 text-white" />
+              <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">مدیریار</h1>
           </div>
@@ -160,7 +160,7 @@ const ForgotPassword = () => {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     در حال ارسال...
                   </>
                 ) : (
@@ -172,9 +172,9 @@ const ForgotPassword = () => {
             <div className="text-center mt-6">
               <Link 
                 to="/login" 
-                className="inline-flex items-center text-sm text-primary hover:text-primary-glow transition-colors"
+                className="inline-flex items-center gap-1 text-sm text-primary transition-colors hover:text-primary-glow"
               >
-                <ArrowLeft className="h-4 w-4 ml-1" />
+                <ArrowLeft className="h-4 w-4" />
                 بازگشت به ورود
               </Link>
             </div>

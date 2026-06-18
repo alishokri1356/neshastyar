@@ -8,8 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Save, Plus, X, Sparkles, Edit, Check, Mail, Settings } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AppShell from '@/components/layout/AppShell';
+import { getStatusBadgeClass } from '@/lib/status';
 
 import { mysqlClient } from '@/lib/mysql-client';
 
@@ -191,7 +199,6 @@ const MeetingDetail = () => {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">جلسه پیدا نشد</h1>
             <Button onClick={() => navigate('/home')} variant="outline">
-              <ArrowLeft className="ml-2 h-4 w-4" />
               بازگشت به خانه
             </Button>
           </div>
@@ -369,15 +376,6 @@ const MeetingDetail = () => {
           });
         }
       }
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Done': return 'bg-success text-success-foreground';
-      case 'Need Review': return 'bg-warning text-warning-foreground';
-      case 'On Process': return 'bg-info text-info-foreground';
-      default: return 'bg-secondary text-secondary-foreground';
     }
   };
 
@@ -744,38 +742,43 @@ const MeetingDetail = () => {
     );
   };
 
+  const headerActions = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="گزینه‌ها">
+          <MoreVertical className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48">
+        <DropdownMenuItem onClick={() => navigate(`/meeting/${meetingId}/meeting_details_options`)}>
+          <Settings className="me-2 h-4 w-4" />
+          گزینه‌های جلسه
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSendSummaryToEmail}>
+          <Mail className="me-2 h-4 w-4" />
+          ارسال به ایمیل
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3">
-          <Button onClick={() => navigate('/home')} variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            بازگشت به خانه
-          </Button>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => navigate(`/meeting/${meetingId}/meeting_details_options`)}
-              variant="outline"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              گزینه‌های جلسه
-            </Button>
-            <Button 
-              onClick={handleAutoGenerateSummary}
-              className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-bold tracking-wide"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              درخواست پردازش
-            </Button>
-          </div>
-        </div>
+    <AppShell title={meeting.title} onBack="/home" actions={headerActions}>
+      <div className="space-y-5">
+        {/* Process request CTA */}
+        <Button
+          onClick={handleAutoGenerateSummary}
+          className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
+        >
+          <Sparkles className="h-4 w-4" />
+          درخواست پردازش
+        </Button>
 
         {/* Meeting Info */}
         <Card className="bg-card border-border">
           <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 {isEditingTitle ? (
                   <div className="space-y-2">
                     <Input
@@ -793,11 +796,11 @@ const MeetingDetail = () => {
                     />
                     <div className="flex gap-2">
                       <Button onClick={handleSaveTitle} size="sm">
-                        <Check className="mr-2 h-4 w-4" />
+                        <Check className="h-4 w-4" />
                         ذخیره
                       </Button>
                       <Button onClick={handleCancelEditTitle} variant="outline" size="sm">
-                        <X className="mr-2 h-4 w-4" />
+                        <X className="h-4 w-4" />
                         لغو
                       </Button>
                     </div>
@@ -823,7 +826,10 @@ const MeetingDetail = () => {
   })}
 </p>
               </div>
-              <Badge className={getStatusColor(statusData?.status || meeting?.status || '')}>
+              <Badge
+                variant="outline"
+                className={`shrink-0 ${getStatusBadgeClass(statusData?.status || meeting?.status || '')}`}
+              >
                 {statusData?.status || meeting?.status || ''}
               </Badge>
             </div>
@@ -833,22 +839,22 @@ const MeetingDetail = () => {
         {/* Summary */}
         <Card className="bg-card border-border">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-lg text-card-foreground">خلاصه جلسه</CardTitle>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col gap-2 xs:flex-row">
                 <Button 
                   onClick={handleSendSummaryToEmail}
                   size="sm"
                   variant="outline"
                   className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 transition-all duration-300 font-medium text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
-                  <Mail className="mr-1 sm:mr-2 h-4 w-4" />
+                  <Mail className="h-4 w-4" />
                   Send to email
                 </Button>
                 {isEditingSummary ? (
                   <>
                     <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
-                      <Save className="mr-1 sm:mr-2 h-4 w-4" />
+                      <Save className="h-4 w-4" />
                       ذخیره
                     </Button>
                     <Button 
@@ -860,7 +866,7 @@ const MeetingDetail = () => {
                       size="sm"
                       className="w-full sm:w-auto"
                     >
-                      <X className="mr-1 sm:mr-2 h-4 w-4" />
+                      <X className="h-4 w-4" />
                       لغو
                     </Button>
                   </>
@@ -876,7 +882,7 @@ const MeetingDetail = () => {
                     size="sm"
                     className="w-full sm:w-auto"
                   >
-                    <Edit className="mr-1 sm:mr-2 h-4 w-4" />
+                    <Edit className="h-4 w-4" />
                     ویرایش
                   </Button>
                 )}
@@ -989,7 +995,7 @@ const MeetingDetail = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-card-foreground">برچسب‌ها</CardTitle>
               <Button onClick={() => setShowAddTag(true)} size="sm" variant="outline">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 افزودن برچسب
               </Button>
             </div>
@@ -1037,7 +1043,7 @@ const MeetingDetail = () => {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-2">
                       برچسب‌های پیشنهادی:
-                      <span className="text-xs font-normal mr-2">(برای افزودن کلیک کنید)</span>
+                      <span className="text-xs font-normal me-2">(برای افزودن کلیک کنید)</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {unassignedSuggestedTags.map((tag: string, index: number) => (
@@ -1123,7 +1129,7 @@ const MeetingDetail = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppShell>
   );
 };
 

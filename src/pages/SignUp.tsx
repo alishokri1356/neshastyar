@@ -55,11 +55,11 @@ const SignUp = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
       <div className="w-full max-w-md space-y-8">
         {/* Logo and Brand */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center space-x-2">
-            <div className="relative">
-              <Mic2 className="h-8 w-8 text-primary" />
-              <Sparkles className="h-4 w-4 text-primary-glow absolute -top-1 -right-1 animate-pulse" />
+        <div className="space-y-4 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
+              <Mic2 className="h-6 w-6 text-white" />
+              <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">مدیریار</h1>
           </div>

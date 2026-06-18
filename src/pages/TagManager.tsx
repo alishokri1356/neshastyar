@@ -25,11 +25,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
 import { formatRateLimitError } from "@/lib/utils";
-import { ChevronLeft, GitMerge, Pencil, RefreshCw, Tag as TagIcon, Tags, Trash2 } from "lucide-react";
+import { GitMerge, Pencil, RefreshCw, Tag as TagIcon, Tags, Trash2, MoreVertical } from "lucide-react";
 import type { CheckedState } from "@radix-ui/react-checkbox";
+import AppShell from "@/components/layout/AppShell";
 
 interface ManagedTag {
   id: string;
@@ -392,41 +399,26 @@ const TagManager: React.FC = () => {
     .sort((a, b) => b.meetingCount - a.meetingCount)
     .map((tag) => tag.name);
 
+  const refreshAction = (
+    <Button variant="ghost" size="icon" onClick={() => loadTags()} disabled={isRefreshing} aria-label="بروزرسانی">
+      <RefreshCw className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`} />
+    </Button>
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+      <AppShell title="مدیریت برچسب‌ها" onBack={() => navigate(-1)} hideNav actions={refreshAction}>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="flex items-center gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            بازگشت
-          </Button>
-
-          <h1 className="flex-1 text-center text-lg font-semibold text-foreground">مدیریت برچسب‌ها</h1>
-
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 whitespace-nowrap"
-            onClick={() => loadTags()}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            بروزرسانی
-          </Button>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6 space-y-6">
+    <AppShell title="مدیریت برچسب‌ها" onBack={() => navigate(-1)} hideNav actions={refreshAction}>
+      <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="border-0 bg-white/80 backdrop-blur shadow-soft">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -507,7 +499,54 @@ const TagManager: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <Table>
+                {/* Mobile: stacked cards */}
+                <div className="space-y-2 md:hidden">
+                  {tags.map((tag) => (
+                    <div
+                      key={tag.id}
+                      className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/60 p-3"
+                    >
+                      <Checkbox
+                        checked={selectedTagIds.includes(tag.id)}
+                        onCheckedChange={(checked) => handleToggleTagSelection(tag.id, checked === true)}
+                        aria-label={`انتخاب ${tag.name}`}
+                        className="shrink-0"
+                      />
+                      <span
+                        className="inline-block h-4 w-4 shrink-0 rounded-full border border-border"
+                        style={{ backgroundColor: tag.color ?? "#9ca3af" }}
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">{tag.name}</p>
+                        <p className="text-xs text-muted-foreground">{tag.meetingCount} جلسه</p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="shrink-0" aria-label={`اقدامات ${tag.name}`}>
+                            <MoreVertical className="h-5 w-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-40">
+                          <DropdownMenuItem onClick={() => handleOpenRenameDialog(tag)}>
+                            <Pencil className="me-2 h-4 w-4" />
+                            تغییر نام
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleOpenDeleteDialog(tag)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="me-2 h-4 w-4" />
+                            حذف برچسب
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: table */}
+                <Table className="hidden md:table">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12 text-center">
@@ -582,7 +621,7 @@ const TagManager: React.FC = () => {
 
                 {isRefreshing && (
                   <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-                    <RefreshCw className="h-4 w-4 animate-spin ml-2" />
+                    <RefreshCw className="h-4 w-4 animate-spin me-2" />
                     در حال بروزرسانی لیست...
                   </div>
                 )}
@@ -590,7 +629,7 @@ const TagManager: React.FC = () => {
             )}
           </CardContent>
         </Card>
-      </main>
+      </div>
 
       <Dialog open={renameDialogOpen} onOpenChange={handleRenameDialogChange}>
         <DialogContent className="sm:max-w-md">
@@ -687,7 +726,7 @@ const TagManager: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AppShell>
   );
 };
 

@@ -9,23 +9,25 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">M</span>
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur safe-top supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex items-center justify-between py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-soft">
+              <span className="text-lg font-bold text-primary-foreground">M</span>
             </div>
-            <span className="font-semibold text-xl text-foreground">مدیریار</span>
+            <span className="text-lg font-semibold text-foreground sm:text-xl">مدیریار</span>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2">
             <Button 
               variant="ghost" 
+              size="sm"
               onClick={() => navigate('/login')}
               className="text-muted-foreground hover:text-foreground"
             >
               ورود
             </Button>
             <Button 
+              size="sm"
               onClick={() => navigate('/signup')}
               className="bg-primary hover:bg-primary/90"
             >
@@ -36,26 +38,26 @@ const Landing = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-4xl mx-auto">
+      <section className="container mx-auto py-12 text-center sm:py-16">
+        <div className="mx-auto max-w-4xl">
           {/* Microphone Icon */}
-          <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-8">
-            <Mic className="w-10 h-10 text-primary-foreground" />
+          <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-glow">
+            <Mic className="h-10 w-10 text-primary-foreground" />
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+          <h1 className="mb-6 text-3xl font-bold leading-tight sm:text-4xl md:text-6xl">
            یک پایگاه دانش قابل جستجو 
             از تمام مکالمات خود ایجاد کنید
           </h1>
 
           {/* Description */}
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="mx-auto mb-8 max-w-2xl text-base text-muted-foreground sm:text-xl">
             جلسات خود را باهوش مصنوعی خلاصه سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید. 
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+          <div className="mb-16 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
             <Button 
               size="lg" 
               onClick={() => navigate('/signup')}
@@ -76,8 +78,8 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <section className="container mx-auto py-12 sm:py-16">
+        <div className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
           {/* AI-Powered Summaries */}
           <Card className="text-center p-6 border border-border/50 hover:shadow-lg transition-shadow">
             <CardContent className="pt-6">
@@ -120,9 +122,9 @@ const Landing = () => {
       </section>
 
       {/* Bottom CTA Section */}
-      <section className="bg-muted/30 py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4 text-foreground">
+      <section className="bg-muted/30 py-12 sm:py-16">
+        <div className="container mx-auto text-center">
+          <h2 className="mb-4 text-2xl font-bold text-foreground sm:text-3xl">
             آماده انقلاب در جلسات خود هستید؟
           </h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">

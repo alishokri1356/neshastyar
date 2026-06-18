@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Play, Pause, X, Trash2, Edit, ChevronDown } from 'lucide-react';
+import { Save, Play, Pause, X, Trash2, Edit, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mysqlClient } from '@/lib/mysql-client';
+import AppShell from '@/components/layout/AppShell';
 
 const DEFAULT_PROCESSING_REQUEST =
   'فایل/ فایل های صوتی پیوست در خصوص یک جلسه است . خلاصه جلسه و نکات مهم و شرکت کنندگان را استخراج کن';
@@ -206,21 +207,8 @@ const MeetingDetailsOptions = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <Button onClick={() => navigate(`/meeting/${meetingId}`)} variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            بازگشت به جزئیات جلسه
-          </Button>
-        </div>
-
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-xl text-card-foreground">گزینه‌های جلسه</CardTitle>
-            <p className="text-sm text-muted-foreground">{meeting.title}</p>
-          </CardHeader>
-        </Card>
+    <AppShell title="گزینه‌های جلسه" subtitle={meeting.title} onBack={`/meeting/${meetingId}`} hideNav>
+      <div className="space-y-5">
 
         {meeting.audioFiles && meeting.audioFiles.length > 0 ? (
           <Card className="bg-card border-border">
@@ -370,7 +358,7 @@ const MeetingDetailsOptions = () => {
                 {isEditingCommentText ? (
                   <div className="flex gap-3">
                     <Button onClick={handleSaveCommentText} size="sm">
-                      <Save className="mr-2 h-4 w-4" />
+                      <Save className="h-4 w-4" />
                       ذخیره
                     </Button>
                     <Button
@@ -381,7 +369,7 @@ const MeetingDetailsOptions = () => {
                       variant="outline"
                       size="sm"
                     >
-                      <X className="mr-2 h-4 w-4" />
+                      <X className="h-4 w-4" />
                       لغو
                     </Button>
                   </div>
@@ -397,7 +385,7 @@ const MeetingDetailsOptions = () => {
                     variant="outline"
                     size="sm"
                   >
-                    <Edit className="mr-2 h-4 w-4" />
+                    <Edit className="h-4 w-4" />
                     ویرایش
                   </Button>
                 )}
@@ -421,11 +409,11 @@ const MeetingDetailsOptions = () => {
           )}
         </Card>
 
-        <Card className="bg-card border-border border-destructive/20">
+        <Card className="border-destructive/20 bg-card">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-card-foreground">حذف جلسه</h3>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="text-base font-medium text-card-foreground">حذف جلسه</h3>
                 <p className="text-sm text-muted-foreground">
                   این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.
                 </p>
@@ -433,18 +421,19 @@ const MeetingDetailsOptions = () => {
               <Button
                 variant="destructive"
                 disabled={isDeleting}
+                className="w-full shrink-0 sm:w-auto"
                 onClick={() =>
                   navigate(`/meeting/${meeting.id}/delete?title=${encodeURIComponent(meeting.title)}`)
                 }
               >
-                <Trash2 className="ml-2 h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 حذف جلسه
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppShell>
   );
 };
 

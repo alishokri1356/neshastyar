@@ -55,27 +55,27 @@ const VerifyEmail: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <Card>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4 py-8 sm:py-12">
+      <div className="w-full max-w-md space-y-8">
+        <Card className="shadow-medium border-0 bg-gradient-card">
           <CardHeader className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full">
               {status === 'loading' && (
-                <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
               )}
               {status === 'success' && (
-                <CheckCircle className="h-12 w-12 text-green-600" />
+                <CheckCircle className="h-12 w-12 text-success" />
               )}
               {status === 'error' && (
-                <XCircle className="h-12 w-12 text-red-600" />
+                <XCircle className="h-12 w-12 text-destructive" />
               )}
             </div>
-            <CardTitle className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <CardTitle className="mt-6 text-center text-2xl font-extrabold text-foreground sm:text-3xl">
               {status === 'loading' && 'در حال تأیید ایمیل...'}
               {status === 'success' && 'ایمیل تأیید شد!'}
               {status === 'error' && 'خطا در تأیید ایمیل'}
             </CardTitle>
-            <CardDescription className="mt-2 text-center text-sm text-gray-600">
+            <CardDescription className="mt-2 text-center text-sm text-muted-foreground">
               {status === 'loading' && 'لطفاً صبر کنید...'}
               {status === 'success' && 'حالا می‌توانید وارد حساب کاربری خود شوید'}
               {status === 'error' && 'مشکلی در تأیید ایمیل شما رخ داده است'}
@@ -83,7 +83,7 @@ const VerifyEmail: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
-              <p className="text-sm text-gray-600 leading-relaxed">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {message}
               </p>
             </div>

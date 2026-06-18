@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowRight, ChevronLeft, Settings, UserCircle } from 'lucide-react';
+import { ChevronLeft, Settings, UserCircle } from 'lucide-react';
+import AppShell from '@/components/layout/AppShell';
+import EmptyState from '@/components/EmptyState';
 
 interface Participant {
   name: string;
@@ -136,121 +138,78 @@ const ParticipantsList = () => {
     navigate('/participant/no-participants');
   };
 
+  const manageAction = (
+    <Button variant="ghost" size="icon" onClick={() => navigate('/participants/manage')} aria-label="مدیریت شرکت‌کنندگان">
+      <Settings className="h-5 w-5" />
+    </Button>
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <AppShell title="شرکت‌کنندگان" subtitle="جلسات بر اساس افراد" actions={manageAction}>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-        {/* Header */}
-        <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/home')}
-              className="flex items-center gap-2"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              بازگشت به خانه
-            </Button>
-
-            <h1 className="flex-1 text-center text-lg font-semibold text-foreground">
-              لیست جلسات بر اساس شرکت‌کنندگان
-            </h1>
-
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 whitespace-nowrap"
-              onClick={() => navigate('/participants/manage')}
-            >
-              <Settings className="h-4 w-4" />
-              مدیریت شرکت‌کنندگان
-            </Button>
-          </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-6">
-        <div className="space-y-3">
-          {/* Without participants option */}
-          {noParticipantsCount > 0 && (
-            <Card
-              className="cursor-pointer hover:shadow-medium transition-all duration-300 bg-gradient-card border-0"
-              onClick={handleNoParticipantsClick}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-4 h-4 rounded-full bg-muted-foreground/30 border border-muted-foreground/50" />
-                    <div>
-                      <h3 className="font-medium text-foreground">بدون شرکت‌کننده</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {noParticipantsCount} جلسه
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {noParticipantsCount}
-                    </Badge>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
+    <AppShell title="شرکت‌کنندگان" subtitle="جلسات بر اساس افراد" actions={manageAction}>
+      <div className="space-y-2.5">
+        {/* Without participants option */}
+        {noParticipantsCount > 0 && (
+          <Card
+            className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+            onClick={handleNoParticipantsClick}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded-full border border-muted-foreground/40 bg-muted-foreground/20" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-medium text-foreground">بدون شرکت‌کننده</h3>
+                  <p className="text-sm text-muted-foreground">{noParticipantsCount} جلسه</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <Badge variant="secondary" className="shrink-0 text-xs">{noParticipantsCount}</Badge>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Participants list */}
-          {participants.map((participant) => (
-            <Card
-              key={participant.name}
-              className="cursor-pointer hover:shadow-medium transition-all duration-300 bg-gradient-card border-0"
-              onClick={() => handleParticipantClick(participant.name)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <UserCircle className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-foreground">{participant.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {participant.meetingCount} جلسه
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {participant.meetingCount}
-                    </Badge>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
+        {/* Participants list */}
+        {participants.map((participant) => (
+          <Card
+            key={participant.name}
+            className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+            onClick={() => handleParticipantClick(participant.name)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <UserCircle className="h-5 w-5 text-primary" />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-medium text-foreground">{participant.name}</h3>
+                  <p className="text-sm text-muted-foreground">{participant.meetingCount} جلسه</p>
+                </div>
+                <Badge variant="secondary" className="shrink-0 text-xs">{participant.meetingCount}</Badge>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
 
-          {participants.length === 0 && noParticipantsCount === 0 && (
-            <div className="text-center py-12">
-              <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                هنوز شرکت‌کننده‌ای ندارید
-              </h3>
-              <p className="text-muted-foreground">
-                جلسه‌ای ضبط کنید تا شرکت‌کنندگان نمایش داده شوند
-              </p>
-            </div>
-          )}
-        </div>
+        {participants.length === 0 && noParticipantsCount === 0 && (
+          <EmptyState
+            icon={UserCircle}
+            title="هنوز شرکت‌کننده‌ای ندارید"
+            description="جلسه‌ای ضبط کنید تا شرکت‌کنندگان نمایش داده شوند"
+          />
+        )}
       </div>
-    </div>
+    </AppShell>
   );
 };
 

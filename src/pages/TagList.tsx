@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowRight, ChevronLeft, Tag, Settings } from 'lucide-react';
+import { ChevronLeft, Tag, Settings } from 'lucide-react';
+import AppShell from '@/components/layout/AppShell';
+import EmptyState from '@/components/EmptyState';
 
 interface DatabaseTag {
   id: string;
@@ -148,119 +150,74 @@ const TagList = () => {
     navigate('/tag/untagged');
   };
 
+  const manageAction = (
+    <Button variant="ghost" size="icon" onClick={() => navigate('/tags/manage')} aria-label="مدیریت برچسب‌ها">
+      <Settings className="h-5 w-5" />
+    </Button>
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <AppShell title="برچسب‌ها" subtitle="جلسات بر اساس برچسب" actions={manageAction}>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Button 
-            variant="ghost"
-            onClick={() => navigate('/home')}
-            className="flex items-center gap-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            بازگشت به خانه
-          </Button>
-          
-          <h1 className="text-lg font-semibold text-foreground">لیست جلسات بر اساس برچسب ها</h1>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/tags/manage')}
-            className="flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            مدیریت برچسب‌ها
-          </Button>
-        </div>
-      </header>
+    <AppShell title="برچسب‌ها" subtitle="جلسات بر اساس برچسب" actions={manageAction}>
+      <div className="space-y-2.5">
+        {/* Without any tag option */}
+        <Card
+          className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+          onClick={handleUntaggedClick}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-4 shrink-0 rounded-full border border-muted-foreground/50 bg-muted-foreground/30" />
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate font-medium text-foreground">بدون برچسب</h3>
+                <p className="text-sm text-muted-foreground">{untaggedCount} جلسه</p>
+              </div>
+              <Badge variant="secondary" className="shrink-0 text-xs">{untaggedCount}</Badge>
+              <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="space-y-3">
-          {/* Without any tag option */}
+        {/* Tags list */}
+        {tags.map((tag) => (
           <Card
-            className="cursor-pointer hover:shadow-medium transition-all duration-300 bg-gradient-card border-0"
-            onClick={handleUntaggedClick}
+            key={tag.id}
+            className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+            onClick={() => handleTagClick(tag.id)}
           >
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 rounded-full bg-muted-foreground/30 border border-muted-foreground/50" />
-                  <div>
-                    <h3 className="font-medium text-foreground">بدون برچسب</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {untaggedCount} جلسه
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-medium text-foreground">{tag.name}</h3>
+                  <p className="text-sm text-muted-foreground">{tag.meetingCount} جلسه</p>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {untaggedCount}
-                  </Badge>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
+                <Badge variant="secondary" className="shrink-0 text-xs">{tag.meetingCount}</Badge>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
+        ))}
 
-          {/* Tags list */}
-          {tags.map((tag) => (
-            <Card
-              key={tag.id}
-              className="cursor-pointer hover:shadow-medium transition-all duration-300 bg-gradient-card border-0"
-              onClick={() => handleTagClick(tag.id)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    <div>
-                      <h3 className="font-medium text-foreground">{tag.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {tag.meetingCount} جلسه
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {tag.meetingCount}
-                    </Badge>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {tags.length === 0 && (
-            <div className="text-center py-12">
-              <Tag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                هنوز برچسبی ندارید
-              </h3>
-              <p className="text-muted-foreground">
-                جلسه‌ای ضبط کنید و برچسب اضافه کنید
-              </p>
-            </div>
-          )}
-        </div>
+        {tags.length === 0 && (
+          <EmptyState
+            icon={Tag}
+            title="هنوز برچسبی ندارید"
+            description="جلسه‌ای ضبط کنید و برچسب اضافه کنید"
+          />
+        )}
       </div>
-    </div>
+    </AppShell>
   );
 };
 

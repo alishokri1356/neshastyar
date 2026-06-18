@@ -1,12 +1,19 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, GitMerge, Pencil, RefreshCw, Trash2, Users } from "lucide-react";
+import { GitMerge, Pencil, RefreshCw, Trash2, Users, MoreVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import AppShell from "@/components/layout/AppShell";
 import {
   Dialog,
   DialogContent,
@@ -387,47 +394,26 @@ const ParticipantsManager: React.FC = () => {
       return countB - countA;
     });
 
+  const refreshAction = (
+    <Button variant="ghost" size="icon" onClick={() => loadParticipants()} disabled={isRefreshing} aria-label="بروزرسانی">
+      <RefreshCw className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`} />
+    </Button>
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+      <AppShell title="مدیریت شرکت‌کنندگان" onBack={() => navigate(-1)} hideNav actions={refreshAction}>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      <header className="bg-white/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            بازگشت
-          </Button>
-
-          <h1 className="flex-1 text-center text-lg font-semibold text-foreground">
-            مدیریت شرکت‌کنندگان
-          </h1>
-
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 whitespace-nowrap"
-            onClick={() => loadParticipants()}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            بروزرسانی
-          </Button>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6 space-y-6">
+    <AppShell title="مدیریت شرکت‌کنندگان" onBack={() => navigate(-1)} hideNav actions={refreshAction}>
+      <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="border-0 bg-white/80 backdrop-blur shadow-soft">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -510,7 +496,51 @@ const ParticipantsManager: React.FC = () => {
               </div>
             ) : (
                 <div className="space-y-4">
-                  <Table>
+                  {/* Mobile: stacked cards */}
+                  <div className="space-y-2 md:hidden">
+                    {participants.map((participant) => (
+                      <div
+                        key={participant.name}
+                        className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/60 p-3"
+                      >
+                        <Checkbox
+                          checked={selectedParticipants.includes(participant.name)}
+                          onCheckedChange={(checked) =>
+                            handleToggleParticipantSelection(participant.name, checked === true)
+                          }
+                          aria-label={`انتخاب ${participant.name}`}
+                          className="shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-foreground">{participant.name}</p>
+                          <p className="text-xs text-muted-foreground">{participant.meetingCount} جلسه</p>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="shrink-0" aria-label={`اقدامات ${participant.name}`}>
+                              <MoreVertical className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-40">
+                            <DropdownMenuItem onClick={() => handleOpenRenameDialog(participant)}>
+                              <Pencil className="me-2 h-4 w-4" />
+                              تغییر نام
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleOpenDeleteDialog(participant)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="me-2 h-4 w-4" />
+                              حذف شرکت‌کننده
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop: table */}
+                  <Table className="hidden md:table">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12 text-center">
@@ -570,7 +600,7 @@ const ParticipantsManager: React.FC = () => {
 
                   {isRefreshing && (
                     <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-                      <RefreshCw className="h-4 w-4 animate-spin ml-2" />
+                      <RefreshCw className="h-4 w-4 animate-spin me-2" />
                       در حال بروزرسانی لیست...
                     </div>
                   )}
@@ -578,7 +608,7 @@ const ParticipantsManager: React.FC = () => {
             )}
           </CardContent>
         </Card>
-      </main>
+      </div>
 
       <Dialog open={renameDialogOpen} onOpenChange={handleRenameDialogChange}>
         <DialogContent className="sm:max-w-md">
@@ -675,7 +705,7 @@ const ParticipantsManager: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AppShell>
   );
 };
 

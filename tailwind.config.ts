@@ -12,12 +12,19 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: '2rem',
+			padding: {
+				DEFAULT: '1rem',
+				sm: '1.5rem',
+				lg: '2rem'
+			},
 			screens: {
 				'2xl': '1400px'
 			}
 		},
 		extend: {
+			screens: {
+				xs: '400px'
+			},
 			fontFamily: {
 				'sans': ['Vazirmatn', 'system-ui', 'sans-serif'],
 				'vazir': ['Vazirmatn', 'system-ui', 'sans-serif'],
@@ -46,6 +53,10 @@ export default {
 					DEFAULT: 'hsl(var(--warning))',
 					foreground: 'hsl(var(--warning-foreground))',
 					glow: 'hsl(var(--warning-glow))'
+				},
+				info: {
+					DEFAULT: 'hsl(var(--info))',
+					foreground: 'hsl(var(--info-foreground))'
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
@@ -82,6 +93,11 @@ export default {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			boxShadow: {
+				soft: 'var(--shadow-soft)',
+				medium: 'var(--shadow-medium)',
+				glow: 'var(--shadow-glow)'
 			},
 			keyframes: {
 				'accordion-down': {

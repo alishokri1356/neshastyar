@@ -12,11 +12,14 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 px-6 safe-top pb-safe">
       <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">۴۰۴</h1>
-        <p className="text-xl text-gray-600 mb-4">اوه! صفحه پیدا نشد</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
+        <h1 className="mb-2 text-6xl font-extrabold text-primary">۴۰۴</h1>
+        <p className="mb-6 text-lg text-muted-foreground">اوه! صفحه پیدا نشد</p>
+        <a
+          href="/"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 font-medium text-primary-foreground shadow-soft transition-colors hover:bg-primary/90"
+        >
           بازگشت به خانه
         </a>
       </div>

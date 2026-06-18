@@ -35,6 +35,10 @@
     --warning-foreground: 0 0% 98%;
     --warning-glow: 38 92% 70%;
 
+    /* Info - In-progress states */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+
     /* Muted tones */
     --muted: 39 30% 85%;
     --muted-foreground: 0 0% 45%;
@@ -108,6 +112,9 @@
     --warning-foreground: 0 0% 98%;
     --warning-glow: 38 92% 70%;
 
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+
     --muted: 215 25% 27%;
     --muted-foreground: 217 10% 65%;
 
@@ -146,12 +153,55 @@
     @apply border-border;
   }
 
+  :root {
+    /* Height of the fixed mobile bottom navigation bar */
+    --bottom-nav-h: 4rem;
+  }
+
   html {
     direction: rtl;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+    overscroll-behavior-y: none;
+  }
+}
+
+@layer utilities {
+  /* Safe-area helpers for notches / home indicators (Capacitor native shell) */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+  }
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
+  /* Reserve room so fixed bottom nav never covers page content */
+  .pb-nav {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1.5rem);
+  }
+  .h-nav {
+    height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+  }
+  .bottom-safe {
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  /* Hide scrollbars on horizontal scroll rows while keeping scroll */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

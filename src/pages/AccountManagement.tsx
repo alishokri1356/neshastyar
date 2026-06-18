@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ChevronLeft, Save, UserCircle } from "lucide-react";
+import { Save } from "lucide-react";
+import AppShell from "@/components/layout/AppShell";
 
 const AccountManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -85,40 +86,23 @@ const AccountManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل" onBack="/home" hideNav>
+        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/home")}
-            className="mb-4"
-          >
-            <ChevronLeft className="h-4 w-4 ml-2" />
-            بازگشت
-          </Button>
-          <div className="flex items-center space-x-3 mb-2">
-            <UserCircle className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground">مدیریت حساب</h1>
-          </div>
-          <p className="text-muted-foreground">تنظیمات پروفایل و اطلاعات حساب کاربری</p>
-        </div>
-
+    <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل و حساب کاربری" onBack="/home" hideNav>
+      <div className="mx-auto max-w-2xl">
         {/* Profile Card */}
         <Card>
           <CardHeader>
             <CardTitle>اطلاعات حساب کاربری</CardTitle>
-            <CardDescription>
+            <CardDescription className="break-all">
               ایمیل شما: {user?.email}
             </CardDescription>
           </CardHeader>
@@ -131,7 +115,6 @@ const AccountManagement: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="نام خود را وارد کنید"
-                className="text-right"
               />
             </div>
 
@@ -143,7 +126,6 @@ const AccountManagement: React.FC = () => {
                 value={baleID}
                 onChange={(e) => setBaleID(e.target.value)}
                 placeholder="شناسه Bale خود را وارد کنید"
-                className="text-right"
               />
               <p className="text-xs text-muted-foreground">
                 شناسه Bale شما برای اتصال حساب کاربری استفاده می‌شود
@@ -151,29 +133,29 @@ const AccountManagement: React.FC = () => {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-end pt-4">
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="min-w-[120px]"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
-                    در حال ذخیره...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 ml-2" />
-                    ذخیره تغییرات
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              variant="primary"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                  در حال ذخیره...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  ذخیره تغییرات
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppShell>
   );
 };
 
