@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
 import { useMeetingStore } from '@/store/useMeetingStore';
-import { ArrowLeft, Plus, Check, Tag, X, Play, Pause, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Tag, X, Play, Pause, GripVertical } from 'lucide-react';
 import type { Tag as TagType } from '@/store/useMeetingStore';
 
 interface AudioFile {
@@ -31,6 +31,7 @@ const TagSelection = () => {
   const { toast } = useToast();
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
@@ -134,6 +135,51 @@ const TagSelection = () => {
     fetchTags();
   }, [setTags, toast, navigate]);
 
+  const closestTags = useMemo(() => {
+    const query = tagSearchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    return tags
+      .filter((tag) => !selectedTags.some((selected) => selected.id === tag.id))
+      .map((tag) => {
+        const name = tag.name.toLowerCase();
+
+        if (name === query) {
+          return { tag, score: 1000 };
+        }
+
+        if (name.startsWith(query)) {
+          return { tag, score: 800 - name.length };
+        }
+
+        if (name.includes(query)) {
+          return { tag, score: 500 - name.indexOf(query) };
+        }
+
+        const queryChars = query.split('');
+        let searchIndex = 0;
+        let matchedChars = 0;
+
+        for (const char of name) {
+          if (char === queryChars[searchIndex]) {
+            matchedChars += 1;
+            searchIndex += 1;
+            if (searchIndex === queryChars.length) break;
+          }
+        }
+
+        if (matchedChars === queryChars.length) {
+          return { tag, score: 200 + matchedChars * 10 };
+        }
+
+        return null;
+      })
+      .filter((item): item is { tag: TagType; score: number } => item !== null)
+      .sort((a, b) => b.score - a.score || a.tag.name.localeCompare(b.tag.name, 'fa'))
+      .slice(0, 3)
+      .map((item) => item.tag);
+  }, [tagSearchQuery, tags, selectedTags]);
+
   const tagColors = [
     '#3B82F6', // Blue
     '#EF4444', // Red
@@ -145,15 +191,18 @@ const TagSelection = () => {
     '#F97316', // Orange
   ];
 
-  const handleTagToggle = (tag: TagType) => {
-    setSelectedTags(prev => {
-      const isSelected = prev.some(t => t.id === tag.id);
-      if (isSelected) {
-        return prev.filter(t => t.id !== tag.id);
-      } else {
-        return [...prev, tag];
+  const handleSelectSuggestedTag = (tag: TagType) => {
+    setSelectedTags((prev) => {
+      if (prev.some((item) => item.id === tag.id)) {
+        return prev;
       }
+      return [...prev, tag];
     });
+    setTagSearchQuery('');
+  };
+
+  const handleRemoveSelectedTag = (tagId: string) => {
+    setSelectedTags((prev) => prev.filter((tag) => tag.id !== tagId));
   };
 
   const handleCreateTag = async () => {
@@ -867,6 +916,73 @@ const TagSelection = () => {
             </Button>
           </div>
 
+          {selectedTags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedTags.map((tag) => (
+                <div
+                  key={tag.id}
+                  className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border"
+                  style={{
+                    backgroundColor: `${tag.color}20`,
+                    borderColor: tag.color,
+                    color: tag.color,
+                  }}
+                >
+                  {tag.name}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSelectedTag(tag.id)}
+                    className="hover:opacity-70"
+                    aria-label={`حذف برچسب ${tag.name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="tag-search">جستجوی برچسب</Label>
+            <Input
+              id="tag-search"
+              value={tagSearchQuery}
+              onChange={(e) => setTagSearchQuery(e.target.value)}
+              placeholder="نام برچسب را تایپ کنید..."
+            />
+          </div>
+
+          {tagSearchQuery.trim() && closestTags.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">نزدیک‌ترین برچسب‌ها:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {closestTags.map((tag) => (
+                  <Card
+                    key={tag.id}
+                    className="cursor-pointer transition-all duration-200 border-2 border-transparent bg-gradient-card hover:border-primary/40 hover:shadow-medium"
+                    onClick={() => handleSelectSuggestedTag(tag)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-4 h-4 rounded-full shrink-0"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <h4 className="font-medium text-foreground">{tag.name}</h4>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tagSearchQuery.trim() && closestTags.length === 0 && tags.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              برچسبی با این نام پیدا نشد. می‌توانید از دکمه «برچسب جدید» استفاده کنید.
+            </p>
+          )}
+
           {isCreatingTag && (
             <Card className="bg-gradient-card border-0">
               <CardContent className="p-4 space-y-4">
@@ -910,40 +1026,6 @@ const TagSelection = () => {
           )}
         </div>
 
-        {/* Existing Tags */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tags.map((tag) => {
-            const isSelected = selectedTags.some(t => t.id === tag.id);
-            return (
-              <Card
-                key={tag.id}
-                className={`cursor-pointer transition-all duration-300 border-2 ${
-                  isSelected 
-                    ? 'border-primary bg-primary/5 shadow-medium' 
-                    : 'border-transparent bg-gradient-card hover:shadow-medium'
-                }`}
-                onClick={() => handleTagToggle(tag)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <h4 className="font-medium text-foreground">{tag.name}</h4>
-                    </div>
-                    {isSelected && (
-                      <Check className="h-5 w-5 text-primary" />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* No tags message */}
         {tags.length === 0 && !isCreatingTag && (
           <div className="text-center py-12">
             <Tag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
