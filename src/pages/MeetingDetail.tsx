@@ -978,217 +978,6 @@ const MeetingDetail = () => {
           </CardHeader>
         </Card>
 
-        {/* Audio Player */}
-        {meeting?.audioFiles && meeting.audioFiles.length > 0 ? (
-          <Card className="bg-card border-border">
-            <CardHeader
-              className="cursor-pointer select-none"
-              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
-            >
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-card-foreground">
-                  ضبط صوتی ({meeting.audioFiles.length} فایل)
-                </CardTitle>
-                <ChevronDown
-                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                    isAudioSectionExpanded ? 'rotate-180' : ''
-                  }`}
-                />
-              </div>
-            </CardHeader>
-            {isAudioSectionExpanded && (
-            <CardContent className="space-y-4">
-              {/* Audio File List */}
-              <div className="space-y-2">
-                {meeting.audioFiles.map((audioFile, index) => (
-                  <div
-                    key={audioFile.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      index === currentAudioIndex
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-muted/50 border-border hover:bg-muted/70'
-                    }`}
-                    onClick={() => setCurrentAudioIndex(index)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">
-                          فایل {index + 1}: {audioFile.fileName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {audioFile.duration ? formatTime(audioFile.duration) : 'نامشخص'} • {audioFile.format || 'صوتی'}
-                        </p>
-                      </div>
-                      {index === currentAudioIndex && (
-                        <Badge variant="secondary" className="text-xs">
-                          در حال پخش
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Audio Controls */}
-              {meeting.audioFiles[currentAudioIndex] && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-center">
-                    <Button
-                      variant="default"
-                      size="lg"
-                      onClick={handlePlayPause}
-                      className="rounded-full w-12 h-12"
-                    >
-                      {isPlaying ? (
-                        <Pause className="h-6 w-6" />
-                      ) : (
-                        <Play className="h-6 w-6" />
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Audio Element */}
-                  <audio
-                    ref={(audio) => {
-                      if (audio) {
-                        audio.addEventListener('timeupdate', () => {
-                          setCurrentTime(audio.currentTime);
-                        });
-                        audio.addEventListener('loadedmetadata', () => {
-                          setDuration(audio.duration);
-                        });
-                        audio.addEventListener('ended', () => {
-                          setIsPlaying(false);
-                          if (currentAudioIndex < meeting.audioFiles.length - 1) {
-                            handleNextAudio();
-                          }
-                        });
-                        audio.addEventListener('play', () => setIsPlaying(true));
-                        audio.addEventListener('pause', () => setIsPlaying(false));
-                      }
-                    }}
-                    controls
-                    src={meeting.audioFiles[currentAudioIndex].audioUrl}
-                    className="w-full"
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                  >
-                    Your browser does not support the audio element.
-                  </audio>
-
-                  {/* Progress Info */}
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration)}</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-            )}
-          </Card>
-        ) : (
-          <Card className="bg-card border-border">
-            <CardHeader
-              className="cursor-pointer select-none"
-              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
-            >
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
-                <ChevronDown
-                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                    isAudioSectionExpanded ? 'rotate-180' : ''
-                  }`}
-                />
-              </div>
-            </CardHeader>
-            {isAudioSectionExpanded && (
-            <CardContent>
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">
-                  هیچ فایل صوتی برای این جلسه یافت نشد.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  ممکن است فایل‌های صوتی هنوز در حال پردازش باشند یا به سیستم جدید منتقل نشده باشند.
-                </p>
-              </div>
-            </CardContent>
-            )}
-          </Card>
-        )}
-
-        {/* CommentText (Processing Request Description) */}
-        <Card className="bg-card border-border">
-          <CardHeader
-            className="cursor-pointer select-none"
-            onClick={() => setIsCommentSectionExpanded((prev) => !prev)}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">توضیح درخواست پردازش</CardTitle>
-              <ChevronDown
-                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                  isCommentSectionExpanded ? 'rotate-180' : ''
-                }`}
-              />
-            </div>
-          </CardHeader>
-          {isCommentSectionExpanded && (
-          <CardContent>
-            <div className="flex justify-end mb-3">
-              {isEditingCommentText ? (
-                <div className="flex gap-3">
-                  <Button onClick={handleSaveCommentText} size="sm">
-                    <Save className="mr-2 h-4 w-4" />
-                    ذخیره
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setIsEditingCommentText(false);
-                      const dbValue = meeting?.commentText || '';
-                      setCommentText(dbValue);
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    لغو
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={() => {
-                    const dbValue = meeting?.commentText || commentText || '';
-                    const editValue = dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
-                    setOriginalCommentText(editValue);
-                    setCommentText(editValue);
-                    setIsEditingCommentText(true);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  ویرایش
-                </Button>
-              )}
-            </div>
-            {isEditingCommentText ? (
-              <Textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="توضیح درخواست پردازش را وارد کنید..."
-                className="min-h-[140px] resize-none"
-              />
-            ) : (
-              <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
-                {(() => {
-                  const dbValue = meeting?.commentText || commentText;
-                  return dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
-                })()}
-              </div>
-            )}
-          </CardContent>
-          )}
-        </Card>
-
         {/* Summary */}
         <Card className="bg-card border-border">
           <CardHeader>
@@ -1480,6 +1269,217 @@ const MeetingDetail = () => {
               )}
             </div>
           </CardContent>
+        </Card>
+
+        {/* Audio Player */}
+        {meeting?.audioFiles && meeting.audioFiles.length > 0 ? (
+          <Card className="bg-card border-border">
+            <CardHeader
+              className="cursor-pointer select-none"
+              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-card-foreground">
+                  ضبط صوتی ({meeting.audioFiles.length} فایل)
+                </CardTitle>
+                <ChevronDown
+                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                    isAudioSectionExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
+            </CardHeader>
+            {isAudioSectionExpanded && (
+            <CardContent className="space-y-4">
+              {/* Audio File List */}
+              <div className="space-y-2">
+                {meeting.audioFiles.map((audioFile, index) => (
+                  <div
+                    key={audioFile.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      index === currentAudioIndex
+                        ? 'bg-primary/10 border-primary'
+                        : 'bg-muted/50 border-border hover:bg-muted/70'
+                    }`}
+                    onClick={() => setCurrentAudioIndex(index)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">
+                          فایل {index + 1}: {audioFile.fileName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {audioFile.duration ? formatTime(audioFile.duration) : 'نامشخص'} • {audioFile.format || 'صوتی'}
+                        </p>
+                      </div>
+                      {index === currentAudioIndex && (
+                        <Badge variant="secondary" className="text-xs">
+                          در حال پخش
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Audio Controls */}
+              {meeting.audioFiles[currentAudioIndex] && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center">
+                    <Button
+                      variant="default"
+                      size="lg"
+                      onClick={handlePlayPause}
+                      className="rounded-full w-12 h-12"
+                    >
+                      {isPlaying ? (
+                        <Pause className="h-6 w-6" />
+                      ) : (
+                        <Play className="h-6 w-6" />
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Audio Element */}
+                  <audio
+                    ref={(audio) => {
+                      if (audio) {
+                        audio.addEventListener('timeupdate', () => {
+                          setCurrentTime(audio.currentTime);
+                        });
+                        audio.addEventListener('loadedmetadata', () => {
+                          setDuration(audio.duration);
+                        });
+                        audio.addEventListener('ended', () => {
+                          setIsPlaying(false);
+                          if (currentAudioIndex < meeting.audioFiles.length - 1) {
+                            handleNextAudio();
+                          }
+                        });
+                        audio.addEventListener('play', () => setIsPlaying(true));
+                        audio.addEventListener('pause', () => setIsPlaying(false));
+                      }
+                    }}
+                    controls
+                    src={meeting.audioFiles[currentAudioIndex].audioUrl}
+                    className="w-full"
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+
+                  {/* Progress Info */}
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            )}
+          </Card>
+        ) : (
+          <Card className="bg-card border-border">
+            <CardHeader
+              className="cursor-pointer select-none"
+              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
+                <ChevronDown
+                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                    isAudioSectionExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
+            </CardHeader>
+            {isAudioSectionExpanded && (
+            <CardContent>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">
+                  هیچ فایل صوتی برای این جلسه یافت نشد.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ممکن است فایل‌های صوتی هنوز در حال پردازش باشند یا به سیستم جدید منتقل نشده باشند.
+                </p>
+              </div>
+            </CardContent>
+            )}
+          </Card>
+        )}
+
+        {/* CommentText (Processing Request Description) */}
+        <Card className="bg-card border-border">
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setIsCommentSectionExpanded((prev) => !prev)}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg text-card-foreground">توضیح درخواست پردازش</CardTitle>
+              <ChevronDown
+                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                  isCommentSectionExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+          {isCommentSectionExpanded && (
+          <CardContent>
+            <div className="flex justify-end mb-3">
+              {isEditingCommentText ? (
+                <div className="flex gap-3">
+                  <Button onClick={handleSaveCommentText} size="sm">
+                    <Save className="mr-2 h-4 w-4" />
+                    ذخیره
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsEditingCommentText(false);
+                      const dbValue = meeting?.commentText || '';
+                      setCommentText(dbValue);
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    لغو
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => {
+                    const dbValue = meeting?.commentText || commentText || '';
+                    const editValue = dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
+                    setOriginalCommentText(editValue);
+                    setCommentText(editValue);
+                    setIsEditingCommentText(true);
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  ویرایش
+                </Button>
+              )}
+            </div>
+            {isEditingCommentText ? (
+              <Textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="توضیح درخواست پردازش را وارد کنید..."
+                className="min-h-[140px] resize-none"
+              />
+            ) : (
+              <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
+                {(() => {
+                  const dbValue = meeting?.commentText || commentText;
+                  return dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
+                })()}
+              </div>
+            )}
+          </CardContent>
+          )}
         </Card>
 
         {/* Delete Meeting */}
