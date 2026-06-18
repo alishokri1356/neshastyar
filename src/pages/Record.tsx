@@ -17,6 +17,65 @@ interface AudioFile {
   type: 'recording' | 'upload';
 }
 
+const SUPPORTED_AUDIO_MIME_TYPES = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/wave',
+  'audio/x-wav',
+  'audio/aac',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/ogg',
+  'audio/webm',
+  'audio/3gpp',
+  'audio/amr',
+  'audio/flac',
+];
+
+const SUPPORTED_AUDIO_EXTENSIONS = [
+  '.mp3',
+  '.wav',
+  '.aac',
+  '.m4a',
+  '.ogg',
+  '.webm',
+  '.3gp',
+  '.amr',
+  '.flac',
+];
+
+const SUPPORTED_FORMATS_LABEL = 'MP3، WAV، AAC، M4A، OGG، FLAC، WebM، 3GP، AMR';
+
+const isSupportedAudioFile = (file: File) => {
+  if (SUPPORTED_AUDIO_MIME_TYPES.includes(file.type)) {
+    return true;
+  }
+
+  const extension = file.name.includes('.')
+    ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    : '';
+
+  return SUPPORTED_AUDIO_EXTENSIONS.includes(extension);
+};
+
+const getUnsupportedFileError = (fileNames: string[]) => {
+  const listedFiles = fileNames.slice(0, 3).map((name) => `«${name}»`).join('، ');
+  const remainingCount = fileNames.length > 3 ? ` و ${fileNames.length - 3} فایل دیگر` : '';
+
+  if (fileNames.length === 1) {
+    return {
+      title: 'این فایل صوتی نیست',
+      description: `فایل ${listedFiles} قابل آپلود نیست. لطفاً فقط فایل صوتی انتخاب کنید. فرمت‌های مجاز: ${SUPPORTED_FORMATS_LABEL}`,
+    };
+  }
+
+  return {
+    title: 'برخی فایل‌ها صوتی نیستند',
+    description: `${fileNames.length} فایل از انتخاب شما صوتی نیستند: ${listedFiles}${remainingCount}. لطفاً فقط فایل صوتی انتخاب کنید. فرمت‌های مجاز: ${SUPPORTED_FORMATS_LABEL}`,
+  };
+};
+
 const Record = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -298,40 +357,22 @@ const Record = () => {
     
     if (!files || files.length === 0) return;
     
-    // Define supported audio MIME types for mobile devices
-    const supportedAudioTypes = [
-      'audio/mpeg', // MP3
-      'audio/mp3',
-      'audio/wav', // WAV
-      'audio/wave',
-      'audio/x-wav',
-      'audio/aac', // AAC
-      'audio/mp4', // M4A
-      'audio/x-m4a',
-      'audio/ogg', // OGG
-      'audio/webm', // WebM
-      'audio/3gpp', // 3GP (common on Android)
-      'audio/amr', // AMR (common on older Android)
-      'audio/flac' // FLAC
-    ];
-    
     const validFiles: File[] = [];
     const invalidFiles: string[] = [];
     
-    // Filter valid audio files
     Array.from(files).forEach((file: File) => {
-      if (supportedAudioTypes.includes(file.type)) {
+      if (isSupportedAudioFile(file)) {
         validFiles.push(file);
       } else {
         invalidFiles.push(file.name);
       }
     });
     
-    // Show error for invalid files
     if (invalidFiles.length > 0) {
+      const error = getUnsupportedFileError(invalidFiles);
       toast({
-        title: "فرمت فایل پشتیبانی نمی‌شود",
-        description: `${invalidFiles.length} فایل فرمت نامعتبر دارد: ${invalidFiles.slice(0, 3).join(', ')}${invalidFiles.length > 3 ? '...' : ''}`,
+        title: error.title,
+        description: error.description,
         variant: "destructive",
       });
     }
