@@ -929,39 +929,6 @@ const MeetingDetail = () => {
           </div>
         )}
 
-        {/* Tags from JSON */}
-        {jsonData.Tags && jsonData.Tags.length > 0 && (
-          <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">
-              برچسب‌های پیشنهادی:
-              <span className="text-sm font-normal text-muted-foreground mr-2">(برای افزودن کلیک کنید)</span>
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {jsonData.Tags.map((tag: string, index: number) => {
-                // Check if this tag is already added to the meeting
-                const isAdded = meetingTags.some(
-                  mt => mt.name.toLowerCase().trim() === tag.toLowerCase().trim()
-                );
-                
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleAddSuggestedTag(tag)}
-                    disabled={isAdded}
-                    className={`px-3 py-1 rounded-full text-sm font-medium border transition-all ${
-                      isAdded
-                        ? 'bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60'
-                        : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:border-primary/40 cursor-pointer transform hover:scale-105'
-                    }`}
-                  >
-                    {tag}
-                    {isAdded && ' ✓'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -1338,12 +1305,7 @@ const MeetingDetail = () => {
                   meeting.tags.map((tag) => (
                     <div
                       key={tag.id}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border"
-                      style={{ 
-                        backgroundColor: `${tag.color}20`, 
-                        borderColor: tag.color,
-                        color: tag.color 
-                      }}
+                      className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border bg-green-100 border-green-500 text-green-800"
                     >
                       {tag.name}
                       <button
@@ -1360,6 +1322,40 @@ const MeetingDetail = () => {
                   </p>
                 )}
               </div>
+
+              {/* Suggested Tags from Summary */}
+              {(() => {
+                const currentSummary = statusData?.summary || summary;
+                const jsonData = parseJsonSummary(currentSummary);
+                const suggestedTags = jsonData?.Tags && Array.isArray(jsonData.Tags) ? jsonData.Tags : [];
+                const unassignedSuggestedTags = suggestedTags.filter(
+                  (tag: string) => !meetingTags.some(
+                    mt => mt.name.toLowerCase().trim() === tag.toLowerCase().trim()
+                  )
+                );
+
+                if (unassignedSuggestedTags.length === 0) return null;
+
+                return (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      برچسب‌های پیشنهادی:
+                      <span className="text-xs font-normal mr-2">(برای افزودن کلیک کنید)</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {unassignedSuggestedTags.map((tag: string, index: number) => (
+                        <button
+                          key={index}
+                          onClick={() => handleAddSuggestedTag(tag)}
+                          className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Add New Tag */}
               {showAddTag && (
