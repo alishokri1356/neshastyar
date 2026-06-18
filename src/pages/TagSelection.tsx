@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -91,6 +91,15 @@ const getTagMatchScore = (query: string, tagName: string): number | null => {
   return null;
 };
 
+const DRAFT_MEETING_STORAGE_KEY = 'tagSelectionDraftMeetingId';
+
+const formatTagFromApi = (tag: any): TagType => ({
+  id: tag.id,
+  name: tag.name,
+  color: tag.color,
+  userId: tag.user_id,
+});
+
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,6 +108,9 @@ const TagSelection = () => {
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [draftMeetingId, setDraftMeetingId] = useState<string | null>(null);
+  const [isDraftMeetingReady, setIsDraftMeetingReady] = useState(false);
+  const draftMeetingIdRef = useRef<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadCancelled, setUploadCancelled] = useState(false);
@@ -121,6 +133,102 @@ const TagSelection = () => {
 
   const audioFiles = location.state?.audioFiles as AudioFile[] | null;
   const commentText = location.state?.commentText as string | undefined;
+
+  const updateDraftMeetingId = (meetingId: string | null) => {
+    draftMeetingIdRef.current = meetingId;
+    setDraftMeetingId(meetingId);
+  };
+
+  const clearDraftMeetingSession = () => {
+    sessionStorage.removeItem(DRAFT_MEETING_STORAGE_KEY);
+    updateDraftMeetingId(null);
+  };
+
+  const loadMeetingTags = async (meetingId: string) => {
+    const { data, error } = await mysqlClient
+      .from('meeting_tags')
+      .select('*')
+      .eq('meeting_id', meetingId);
+
+    if (error) {
+      console.error('TagSelection - Error loading meeting tags:', error);
+      return;
+    }
+
+    if (data && Array.isArray(data)) {
+      setSelectedTags(data.map(formatTagFromApi));
+    }
+  };
+
+  const createDraftMeeting = async (userId: string) => {
+    const firstFile = audioFiles?.[0];
+    const meetingTitle = firstFile?.name?.replace(/\.(wav|mp3|m4a|ogg|aac|opus|webm|3gp|amr|flac|caf|aiff|aif)$/i, '') || 'جلسه جدید';
+
+    const { data: meetingData, error: meetingError } = await mysqlClient
+      .from('meetings')
+      .insert({
+        meeting_date: new Date().toISOString(),
+        user_id: userId,
+        summary: '',
+        title: meetingTitle,
+        status: 'ذخیره موقت',
+        CommentText: commentText || null,
+      });
+
+    if (meetingError || !meetingData?.id) {
+      throw new Error(meetingError?.message || 'ایجاد جلسه پیش‌نویس ناموفق بود');
+    }
+
+    sessionStorage.setItem(DRAFT_MEETING_STORAGE_KEY, meetingData.id);
+    updateDraftMeetingId(meetingData.id);
+    setSelectedTags([]);
+  };
+
+  useEffect(() => {
+    const initializeDraftMeeting = async () => {
+      try {
+        const { data: { session } } = await mysqlClient.auth.getSession();
+
+        if (!session?.user) {
+          toast({
+            title: "وارد نشده‌اید",
+            description: "لطفاً برای ادامه وارد شوید",
+            variant: "destructive",
+          });
+          navigate('/login');
+          return;
+        }
+
+        const hasFreshNavigation = Boolean(audioFiles && audioFiles.length > 0);
+
+        if (hasFreshNavigation) {
+          sessionStorage.removeItem(DRAFT_MEETING_STORAGE_KEY);
+          await createDraftMeeting(session.user.id);
+          return;
+        }
+
+        const storedMeetingId = sessionStorage.getItem(DRAFT_MEETING_STORAGE_KEY);
+        if (storedMeetingId) {
+          updateDraftMeetingId(storedMeetingId);
+          await loadMeetingTags(storedMeetingId);
+          return;
+        }
+
+        navigate('/record');
+      } catch (error) {
+        console.error('TagSelection - Error initializing draft meeting:', error);
+        toast({
+          title: "خطا",
+          description: "آماده‌سازی جلسه ناموفق بود",
+          variant: "destructive",
+        });
+      } finally {
+        setIsDraftMeetingReady(true);
+      }
+    };
+
+    initializeDraftMeeting();
+  }, []);
   
 
   // Fetch user's tags from database on component mount
@@ -224,6 +332,73 @@ const TagSelection = () => {
 
   const canCreateNewTag = tagSearchQuery.trim().length > 0 && !hasExactTagMatch;
 
+  const linkTagToMeeting = async (tag: TagType): Promise<boolean> => {
+    const meetingId = draftMeetingIdRef.current;
+    if (!meetingId) {
+      toast({
+        title: "خطا",
+        description: "جلسه هنوز آماده نیست. لطفاً چند لحظه صبر کنید.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const { error } = await mysqlClient
+      .from('meeting_tags')
+      .insert({
+        meeting_id: meetingId,
+        tag_id: tag.id,
+      });
+
+    if (error) {
+      const errorMessage = error.message || error.error || '';
+      if (
+        errorMessage.includes('already exists') ||
+        error.error === 'Relationship already exists'
+      ) {
+        return true;
+      }
+
+      toast({
+        title: "خطا",
+        description: "افزودن برچسب به جلسه ناموفق بود",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const unlinkTagFromMeeting = async (tagId: string): Promise<boolean> => {
+    const meetingId = draftMeetingIdRef.current;
+    if (!meetingId) return false;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/meeting-tags?meeting_id=${meetingId}&tag_id=${tagId}`,
+        {
+          method: 'DELETE',
+          headers: mysqlClient.getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete meeting-tag relationship');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('TagSelection - Error unlinking tag:', error);
+      toast({
+        title: "خطا",
+        description: "حذف برچسب از جلسه ناموفق بود",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const tagColors = [
     '#3B82F6', // Blue
     '#EF4444', // Red
@@ -235,17 +410,22 @@ const TagSelection = () => {
     '#F97316', // Orange
   ];
 
-  const handleSelectSuggestedTag = (tag: TagType) => {
-    setSelectedTags((prev) => {
-      if (prev.some((item) => item.id === tag.id)) {
-        return prev;
-      }
-      return [...prev, tag];
-    });
+  const handleSelectSuggestedTag = async (tag: TagType) => {
+    if (selectedTags.some((item) => item.id === tag.id)) {
+      return;
+    }
+
+    const linked = await linkTagToMeeting(tag);
+    if (!linked) return;
+
+    setSelectedTags((prev) => [...prev, tag]);
     setTagSearchQuery('');
   };
 
-  const handleRemoveSelectedTag = (tagId: string) => {
+  const handleRemoveSelectedTag = async (tagId: string) => {
+    const removed = await unlinkTagFromMeeting(tagId);
+    if (!removed) return;
+
     setSelectedTags((prev) => prev.filter((tag) => tag.id !== tagId));
   };
 
@@ -292,6 +472,10 @@ const TagSelection = () => {
       };
 
       addTag(fullNewTag);
+
+      const linked = await linkTagToMeeting(fullNewTag);
+      if (!linked) return;
+
       setTagSearchQuery('');
       setSelectedTags((prev) => [...prev, fullNewTag]);
 
@@ -427,17 +611,21 @@ const TagSelection = () => {
         }
       }
 
-      // Create meeting in database
-      const { data: meetingData, error: meetingError } = await mysqlClient
+      // Update draft meeting in database
+      const meetingId = draftMeetingIdRef.current;
+      if (!meetingId) {
+        throw new Error('جلسه یافت نشد');
+      }
+
+      const updateResult = await mysqlClient
         .from('meetings')
-        .insert({
-          meeting_date: new Date().toISOString(),
-          user_id: user.id,
-          summary: '',
+        .update({
           title: meetingTitle,
           status: 'آماده پردازش',
-          CommentText: commentText || null
+          CommentText: commentText || null,
         });
+
+      const { error: meetingError } = await updateResult.eq('id', meetingId);
 
       if (meetingError) {
         throw new Error(meetingError.message);
@@ -448,7 +636,7 @@ const TagSelection = () => {
         const { error: audioFileError } = await mysqlClient
           .from('audio_files')
           .insert({
-            meeting_id: meetingData.id || meetingData[0]?.id,
+            meeting_id: meetingId,
             file_name: uploadedFile.fileName,
             file_path: uploadedFile.filePath,
             file_size: uploadedFile.fileSize,
@@ -462,28 +650,6 @@ const TagSelection = () => {
         }
       }
 
-      // Create meeting-tag relationships
-      if (selectedTags.length > 0) {
-        // Create relationships one by one since backend expects single relationship per request
-        for (const tag of selectedTags) {
-          const { error: tagsError } = await mysqlClient
-            .from('meeting_tags')
-            .insert({
-              meeting_id: meetingData.id || meetingData[0]?.id,
-              tag_id: tag.id
-            });
-
-          if (tagsError) {
-            toast({
-              title: "خطا در پیوند برچسب‌ها",
-              description: tagsError.message,
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-      }
-
       // Auto-trigger summary generation using the exact same method as MeetingDetail (WORKING METHOD)
       try {
         
@@ -492,7 +658,7 @@ const TagSelection = () => {
           .from('meetings')
           .update({ status: 'ارسال درخواست پردازش' });
         
-        const { error: statusError } = await updateResult.eq('id', meetingData.id || meetingData[0]?.id);
+        const { error: statusError } = await updateResult.eq('id', meetingId);
 
         if (statusError) throw statusError;
 
@@ -548,6 +714,7 @@ const TagSelection = () => {
         description: "خلاصه جلسه پس از پردازش به ایمیل شما ارسال خواهد شد.",
       });
 
+      clearDraftMeetingSession();
       navigate('/home');
          } catch (error) {
       toast({
@@ -682,17 +849,21 @@ const TagSelection = () => {
         }
       }
 
-      // Create meeting in database
-      const { data: meetingData, error: meetingError } = await mysqlClient
+      // Update draft meeting in database
+      const meetingId = draftMeetingIdRef.current;
+      if (!meetingId) {
+        throw new Error('جلسه یافت نشد');
+      }
+
+      const updateResult = await mysqlClient
         .from('meetings')
-        .insert({
-          meeting_date: new Date().toISOString(),
-          user_id: user.id,
-          summary: '',
+        .update({
           title: meetingTitle,
           status: 'ذخیره موقت',
-          CommentText: commentText || null
+          CommentText: commentText || null,
         });
+
+      const { error: meetingError } = await updateResult.eq('id', meetingId);
 
       if (meetingError) {
         throw new Error(meetingError.message);
@@ -703,7 +874,7 @@ const TagSelection = () => {
         const { error: audioFileError } = await mysqlClient
           .from('audio_files')
           .insert({
-            meeting_id: meetingData.id || meetingData[0]?.id,
+            meeting_id: meetingId,
             file_name: uploadedFile.fileName,
             file_path: uploadedFile.filePath,
             file_size: uploadedFile.fileSize,
@@ -717,28 +888,6 @@ const TagSelection = () => {
         }
       }
 
-      // Create meeting-tag relationships
-      if (selectedTags.length > 0) {
-        // Create relationships one by one since backend expects single relationship per request
-        for (const tag of selectedTags) {
-          const { error: tagsError } = await mysqlClient
-            .from('meeting_tags')
-            .insert({
-              meeting_id: meetingData.id || meetingData[0]?.id,
-              tag_id: tag.id
-            });
-
-          if (tagsError) {
-            toast({
-              title: "خطا در پیوند برچسب‌ها",
-              description: tagsError.message,
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-      }
-
       // Note: Webhook is NOT called in this function
       
       toast({
@@ -746,6 +895,7 @@ const TagSelection = () => {
         description: "جلسه با موفقیت ذخیره شد.",
       });
 
+      clearDraftMeetingSession();
       navigate('/home');
     } catch (error) {
       toast({
@@ -948,7 +1098,7 @@ const TagSelection = () => {
               variant="destructive"
               size="lg"
               onClick={handleCreateTag}
-              disabled={!canCreateNewTag}
+              disabled={!isDraftMeetingReady || !canCreateNewTag}
               className="h-12 px-6 font-semibold"
             >
               <Plus className="h-5 w-5 ml-2" />
@@ -989,6 +1139,7 @@ const TagSelection = () => {
               value={tagSearchQuery}
               onChange={(e) => setTagSearchQuery(e.target.value)}
               placeholder="نام برچسب را تایپ کنید..."
+              disabled={!isDraftMeetingReady}
             />
           </div>
 
