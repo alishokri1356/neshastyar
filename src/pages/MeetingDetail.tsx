@@ -40,6 +40,7 @@ const MeetingDetail = () => {
   const [originalCommentText, setOriginalCommentText] = useState('');
   const [isEditingCommentText, setIsEditingCommentText] = useState(false);
   const [isAudioSectionExpanded, setIsAudioSectionExpanded] = useState(false);
+  const [isCommentSectionExpanded, setIsCommentSectionExpanded] = useState(false);
   
   // Audio player state
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
@@ -1117,52 +1118,58 @@ const MeetingDetail = () => {
 
         {/* CommentText (Processing Request Description) */}
         <Card className="bg-card border-border">
-          <CardHeader>
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setIsCommentSectionExpanded((prev) => !prev)}
+          >
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-card-foreground">توضیح درخواست پردازش</CardTitle>
-              <div className="flex gap-3">
-                {isEditingCommentText ? (
-                  <>
-                    <Button onClick={handleSaveCommentText} size="sm">
-                      <Save className="mr-2 h-4 w-4" />
-                      ذخیره
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setIsEditingCommentText(false);
-                        // Restore to original database value (which might be empty)
-                        const dbValue = meeting?.commentText || '';
-                        setCommentText(dbValue);
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      لغو
-                    </Button>
-                  </>
-                ) : (
+              <ChevronDown
+                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                  isCommentSectionExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+          {isCommentSectionExpanded && (
+          <CardContent>
+            <div className="flex justify-end mb-3">
+              {isEditingCommentText ? (
+                <div className="flex gap-3">
+                  <Button onClick={handleSaveCommentText} size="sm">
+                    <Save className="mr-2 h-4 w-4" />
+                    ذخیره
+                  </Button>
                   <Button
                     onClick={() => {
-                      // Get database value
-                      const dbValue = meeting?.commentText || commentText || '';
-                      // For editing, show default if database value is empty
-                      const editValue = dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
-                      setOriginalCommentText(editValue);
-                      setCommentText(editValue);
-                      setIsEditingCommentText(true);
+                      setIsEditingCommentText(false);
+                      const dbValue = meeting?.commentText || '';
+                      setCommentText(dbValue);
                     }}
                     variant="outline"
                     size="sm"
                   >
-                    <Edit className="mr-2 h-4 w-4" />
-                    ویرایش
+                    <X className="mr-2 h-4 w-4" />
+                    لغو
                   </Button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => {
+                    const dbValue = meeting?.commentText || commentText || '';
+                    const editValue = dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
+                    setOriginalCommentText(editValue);
+                    setCommentText(editValue);
+                    setIsEditingCommentText(true);
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  ویرایش
+                </Button>
+              )}
             </div>
-          </CardHeader>
-          <CardContent>
             {isEditingCommentText ? (
               <Textarea
                 value={commentText}
@@ -1174,12 +1181,12 @@ const MeetingDetail = () => {
               <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
                 {(() => {
                   const dbValue = meeting?.commentText || commentText;
-                  // Show default if database value is empty/null, otherwise show database value
                   return dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
                 })()}
               </div>
             )}
           </CardContent>
+          )}
         </Card>
 
         {/* Summary */}
