@@ -573,18 +573,16 @@ const Record = () => {
 
           {/* Action Buttons */}
           <div className="text-center space-y-6">
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex justify-center">
               <Button
                 onClick={handleFileSelect}
                 variant="outline"
-                className="h-16 px-8 rounded-full text-lg font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                size="sm"
+                className="h-12 px-6 rounded-full text-base font-semibold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
-                <Upload className="h-6 w-6 ml-3" />
-                انتخاب فایل صوتی
+                <Upload className="h-5 w-5 ml-2" />
+                اضافه کردن فایل صوتی
               </Button>
-              <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
-                فرمت‌های پشتیبانی‌شده (اندروید و آیفون): {SUPPORTED_FORMATS_LABEL}
-              </p>
             </div>
 
             {/* Done Button */}
