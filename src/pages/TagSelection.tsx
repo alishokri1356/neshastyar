@@ -1017,68 +1017,22 @@ const TagSelection = () => {
             </div>
           )}
 
-          {tagSearchQuery.trim() && closestTags.length === 0 && tags.length > 0 && (
+          {tagSearchQuery.trim() && closestTags.length === 0 && tags.length > 0 && !hasExactTagMatch && (
             <p className="text-sm text-muted-foreground">
               برچسبی با این نام پیدا نشد. می‌توانید از دکمه «برچسب جدید» استفاده کنید.
             </p>
           )}
-
-          {isCreatingTag && (
-            <Card className="bg-gradient-card border-0">
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tagName">نام برچسب</Label>
-                  <Input
-                    id="tagName"
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder="نام برچسب را وارد کنید"
-                    onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>رنگ</Label>
-                  <div className="flex space-x-2">
-                    {tagColors.map((color) => (
-                      <button
-                        key={color}
-                        className={`w-8 h-8 rounded-full border-2 ${
-                          newTagColor === color ? 'border-foreground' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setNewTagColor(color)}
-                      />
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button onClick={handleCreateTag} disabled={!newTagName.trim()}>
-                    ایجاد
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsCreatingTag(false)}>
-                    لغو
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
-        {tags.length === 0 && !isCreatingTag && (
+        {tags.length === 0 && (
           <div className="text-center py-12">
             <Tag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">
               هنوز برچسبی نیست
             </h3>
-            <p className="text-muted-foreground mb-6">
-              اولین برچسب خود را برای سازماندهی جلسات ایجاد کنید.
+            <p className="text-muted-foreground">
+              نام برچسب را در کادر بالا تایپ کنید و روی «برچسب جدید» بزنید.
             </p>
-            <Button onClick={() => setIsCreatingTag(true)}>
-              <Plus className="h-4 w-4 ml-2" />
-              ایجاد اولین برچسب
-            </Button>
           </div>
         )}
 
