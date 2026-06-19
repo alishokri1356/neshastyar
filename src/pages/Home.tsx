@@ -259,7 +259,7 @@ const Home = () => {
           Object.entries(meetingsByDate).map(([dateKey, groupMeetings]) => (
             <div key={dateKey} className="space-y-2.5">
               <Card
-                className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+                className="cursor-pointer border border-primary/15 bg-card shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
                 onClick={() =>
                   setExpandedDates((prev) => ({ ...prev, [dateKey]: !prev[dateKey] }))
                 }
@@ -287,7 +287,7 @@ const Home = () => {
               </Card>
 
               {expandedDates[dateKey] && (
-                <div className="space-y-2.5 ps-2">
+                <div className="space-y-2 rounded-xl border border-border/40 bg-muted/35 p-2">
                   {groupMeetings.map((meeting) => {
                     const meetingDate = new Date(meeting.meeting_date || meeting.created_at);
                     const durationText = getMeetingDuration(meeting);
@@ -295,13 +295,13 @@ const Home = () => {
                     return (
                       <Card
                         key={meeting.id}
-                        className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+                        className="cursor-pointer border border-border/30 bg-background/90 shadow-none transition-all duration-300 hover:border-primary/20 hover:bg-background active:scale-[0.99]"
                         onClick={() => navigate(`/meeting/${meeting.id}`)}
                       >
-                        <CardContent className="p-4">
+                        <CardContent className="p-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                              <Mic2 className="h-5 w-5 text-primary" />
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                              <Mic2 className="h-4 w-4 text-primary" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <h3 className="truncate font-medium text-foreground">
