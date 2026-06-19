@@ -366,6 +366,7 @@ const TagDetail = () => {
       title={tag.name}
       subtitle={`${meetings.length} جلسه`}
       onBack="/tags"
+      clickableBack
       actions={headerActions}
     >
       {meetings.length === 0 ? (
