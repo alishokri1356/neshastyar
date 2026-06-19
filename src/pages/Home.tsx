@@ -295,29 +295,32 @@ const Home = () => {
                     return (
                       <Card
                         key={meeting.id}
-                        className="cursor-pointer border border-border/30 bg-background/90 shadow-none transition-all duration-300 hover:border-primary/20 hover:bg-background active:scale-[0.99]"
+                        className="cursor-pointer border border-[#2d6a4f] bg-[#14532d] shadow-none transition-all duration-300 hover:border-[#40916c] hover:bg-[#1b4332] active:scale-[0.99]"
                         onClick={() => navigate(`/meeting/${meeting.id}`)}
                       >
                         <CardContent className="p-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                              <Mic2 className="h-4 w-4 text-primary" />
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2d6a4f]/60">
+                              <Mic2 className="h-4 w-4 text-[#fef9c3]" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="truncate font-medium text-foreground">
+                              <h3 className="truncate font-medium text-[#fef9c3]">
                                 {getMeetingTitle(meeting)}
                               </h3>
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-sm text-[#fef9c3]/80">
                                 {formatPersianDateTime(meetingDate)}
                                 {durationText ? ` · ${durationText}` : ''}
                               </p>
                             </div>
                             {meeting.status && (
-                              <Badge variant="secondary" className="shrink-0 text-xs">
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 border-[#40916c]/50 bg-[#2d6a4f]/70 text-xs text-[#fef9c3]"
+                              >
                                 {meeting.status}
                               </Badge>
                             )}
-                            <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <ChevronLeft className="h-4 w-4 shrink-0 text-[#fef9c3]/70" />
                           </div>
                         </CardContent>
                       </Card>
