@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
-import { ChevronLeft, Settings, UserCircle } from 'lucide-react';
+import { ChevronLeft, Search, Settings, UserCircle } from 'lucide-react';
 import AppShell from '@/components/layout/AppShell';
 import EmptyState from '@/components/EmptyState';
 
@@ -22,6 +22,35 @@ const ParticipantsList = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [noParticipantsCount, setNoParticipantsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+  const filteredParticipants = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return participants;
+    }
+
+    return participants.filter((participant) =>
+      participant.name.toLowerCase().includes(normalizedSearchQuery),
+    );
+  }, [participants, normalizedSearchQuery]);
+
+  const showNoParticipantsCard =
+    noParticipantsCount > 0 &&
+    (!normalizedSearchQuery || 'بدون شرکت‌کننده'.includes(normalizedSearchQuery));
+
+  const shellSearchProps = {
+    searchActive: searchOpen,
+    searchValue: searchQuery,
+    onSearchChange: setSearchQuery,
+    onSearchClose: () => {
+      setSearchOpen(false);
+      setSearchQuery('');
+    },
+    searchPlaceholder: 'جستجوی شرکت‌کننده...',
+  };
 
   // Helper function to parse JSON summary
   const parseJsonSummary = (summaryText: string) => {
@@ -138,15 +167,37 @@ const ParticipantsList = () => {
     navigate('/participant/no-participants');
   };
 
-  const manageAction = (
-    <Button variant="ghost" size="icon" onClick={() => navigate('/participants/manage')} aria-label="مدیریت شرکت‌کنندگان">
-      <Settings className="h-5 w-5" />
-    </Button>
+  const headerActions = (
+    <>
+      {!searchOpen && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setSearchOpen(true)}
+          aria-label="جستجوی شرکت‌کنندگان"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate('/participants/manage')}
+        aria-label="مدیریت شرکت‌کنندگان"
+      >
+        <Settings className="h-5 w-5" />
+      </Button>
+    </>
   );
 
   if (loading) {
     return (
-      <AppShell title="شرکت‌کنندگان" subtitle="جلسات بر اساس افراد" actions={manageAction}>
+      <AppShell
+        title="شرکت‌کنندگان"
+        subtitle="جلسات بر اساس افراد"
+        actions={headerActions}
+        {...shellSearchProps}
+      >
         <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
@@ -156,10 +207,15 @@ const ParticipantsList = () => {
   }
 
   return (
-    <AppShell title="شرکت‌کنندگان" subtitle="جلسات بر اساس افراد" actions={manageAction}>
+    <AppShell
+      title="شرکت‌کنندگان"
+      subtitle="جلسات بر اساس افراد"
+      actions={headerActions}
+      {...shellSearchProps}
+    >
       <div className="space-y-2.5">
         {/* Without participants option */}
-        {noParticipantsCount > 0 && (
+        {showNoParticipantsCard && (
           <Card
             className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
             onClick={handleNoParticipantsClick}
@@ -179,7 +235,7 @@ const ParticipantsList = () => {
         )}
 
         {/* Participants list */}
-        {participants.map((participant) => (
+        {filteredParticipants.map((participant) => (
           <Card
             key={participant.name}
             className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
@@ -201,11 +257,15 @@ const ParticipantsList = () => {
           </Card>
         ))}
 
-        {participants.length === 0 && noParticipantsCount === 0 && (
+        {filteredParticipants.length === 0 && !showNoParticipantsCard && (
           <EmptyState
             icon={UserCircle}
-            title="هنوز شرکت‌کننده‌ای ندارید"
-            description="جلسه‌ای ضبط کنید تا شرکت‌کنندگان نمایش داده شوند"
+            title={normalizedSearchQuery ? 'نتیجه‌ای یافت نشد' : 'هنوز شرکت‌کننده‌ای ندارید'}
+            description={
+              normalizedSearchQuery
+                ? 'عبارت جستجو را تغییر دهید'
+                : 'جلسه‌ای ضبط کنید تا شرکت‌کنندگان نمایش داده شوند'
+            }
           />
         )}
       </div>

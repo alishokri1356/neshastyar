@@ -9,6 +9,11 @@ interface AppShellProps {
   onBack?: true | string | (() => void);
   /** When true, the header title area becomes one clickable back control. */
   clickableBack?: boolean;
+  searchActive?: boolean;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  onSearchClose?: () => void;
+  searchPlaceholder?: string;
   actions?: React.ReactNode;
   leading?: React.ReactNode;
   /** Hide the bottom navigation (e.g. full-screen flows like recording). */
@@ -27,6 +32,11 @@ const AppShell = ({
   subtitle,
   onBack,
   clickableBack,
+  searchActive,
+  searchValue,
+  onSearchChange,
+  onSearchClose,
+  searchPlaceholder,
   actions,
   leading,
   hideNav = false,
@@ -49,6 +59,11 @@ const AppShell = ({
           subtitle={subtitle}
           onBack={onBack}
           clickableBack={clickableBack}
+          searchActive={searchActive}
+          searchValue={searchValue}
+          onSearchChange={onSearchChange}
+          onSearchClose={onSearchClose}
+          searchPlaceholder={searchPlaceholder}
           actions={actions}
           leading={leading}
         />
