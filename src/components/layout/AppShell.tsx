@@ -7,6 +7,8 @@ interface AppShellProps {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   onBack?: true | string | (() => void);
+  /** When true, the header title area becomes one clickable back control. */
+  clickableBack?: boolean;
   actions?: React.ReactNode;
   leading?: React.ReactNode;
   /** Hide the bottom navigation (e.g. full-screen flows like recording). */
@@ -24,6 +26,7 @@ const AppShell = ({
   title,
   subtitle,
   onBack,
+  clickableBack,
   actions,
   leading,
   hideNav = false,
@@ -45,6 +48,7 @@ const AppShell = ({
           title={title}
           subtitle={subtitle}
           onBack={onBack}
+          clickableBack={clickableBack}
           actions={actions}
           leading={leading}
         />

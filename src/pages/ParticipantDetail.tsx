@@ -354,7 +354,7 @@ const ParticipantDetail = () => {
 
   if (isLoading) {
     return (
-      <AppShell title="شرکت‌کننده" onBack="/participants">
+      <AppShell title="شرکت‌کننده" onBack="/participants" clickableBack>
         <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری جزئیات شرکت‌کننده...</p>
@@ -365,7 +365,7 @@ const ParticipantDetail = () => {
 
   if (!participant) {
     return (
-      <AppShell title="شرکت‌کننده" onBack="/participants">
+      <AppShell title="شرکت‌کننده" onBack="/participants" clickableBack>
         <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
           <h2 className="text-2xl font-bold text-foreground">شرکت‌کننده پیدا نشد</h2>
           <Button onClick={() => navigate("/home")}>بازگشت به خانه</Button>
@@ -395,6 +395,7 @@ const ParticipantDetail = () => {
       title={participant.name}
       subtitle={`${meetings.length} جلسه`}
       onBack="/participants"
+      clickableBack
       actions={headerActions}
     >
       <div className="space-y-4">
