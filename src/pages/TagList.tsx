@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mysqlClient } from '@/lib/mysql-client';
 import { useToast } from '@/components/ui/use-toast';
-import { ChevronLeft, Tag, Settings } from 'lucide-react';
+import { ChevronLeft, Search, Settings, Tag } from 'lucide-react';
 import AppShell from '@/components/layout/AppShell';
 import EmptyState from '@/components/EmptyState';
 
@@ -24,6 +24,34 @@ const TagList = () => {
   const [tags, setTags] = useState<DatabaseTag[]>([]);
   const [untaggedCount, setUntaggedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+  const filteredTags = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return tags;
+    }
+
+    return tags.filter((tag) =>
+      tag.name.toLowerCase().includes(normalizedSearchQuery),
+    );
+  }, [tags, normalizedSearchQuery]);
+
+  const showUntaggedCard =
+    !normalizedSearchQuery || 'بدون برچسب'.includes(normalizedSearchQuery);
+
+  const shellSearchProps = {
+    searchActive: searchOpen,
+    searchValue: searchQuery,
+    onSearchChange: setSearchQuery,
+    onSearchClose: () => {
+      setSearchOpen(false);
+      setSearchQuery('');
+    },
+    searchPlaceholder: 'جستجوی برچسب...',
+  };
 
   useEffect(() => {
     const fetchTagsAndUntagged = async () => {
@@ -150,15 +178,37 @@ const TagList = () => {
     navigate('/tag/untagged');
   };
 
-  const manageAction = (
-    <Button variant="ghost" size="icon" onClick={() => navigate('/tags/manage')} aria-label="مدیریت برچسب‌ها">
-      <Settings className="h-5 w-5" />
-    </Button>
+  const headerActions = (
+    <>
+      {!searchOpen && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setSearchOpen(true)}
+          aria-label="جستجوی برچسب‌ها"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate('/tags/manage')}
+        aria-label="مدیریت برچسب‌ها"
+      >
+        <Settings className="h-5 w-5" />
+      </Button>
+    </>
   );
 
   if (loading) {
     return (
-      <AppShell title="برچسب‌ها" subtitle="جلسات بر اساس برچسب" actions={manageAction}>
+      <AppShell
+        title="برچسب‌ها"
+        subtitle="جلسات بر اساس برچسب"
+        actions={headerActions}
+        {...shellSearchProps}
+      >
         <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
@@ -168,28 +218,35 @@ const TagList = () => {
   }
 
   return (
-    <AppShell title="برچسب‌ها" subtitle="جلسات بر اساس برچسب" actions={manageAction}>
+    <AppShell
+      title="برچسب‌ها"
+      subtitle="جلسات بر اساس برچسب"
+      actions={headerActions}
+      {...shellSearchProps}
+    >
       <div className="space-y-2.5">
         {/* Without any tag option */}
-        <Card
-          className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
-          onClick={handleUntaggedClick}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-4 w-4 shrink-0 rounded-full border border-muted-foreground/50 bg-muted-foreground/30" />
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate font-medium text-foreground">بدون برچسب</h3>
-                <p className="text-sm text-muted-foreground">{untaggedCount} جلسه</p>
+        {showUntaggedCard && (
+          <Card
+            className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
+            onClick={handleUntaggedClick}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-4 w-4 shrink-0 rounded-full border border-muted-foreground/50 bg-muted-foreground/30" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-medium text-foreground">بدون برچسب</h3>
+                  <p className="text-sm text-muted-foreground">{untaggedCount} جلسه</p>
+                </div>
+                <Badge variant="secondary" className="shrink-0 text-xs">{untaggedCount}</Badge>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
               </div>
-              <Badge variant="secondary" className="shrink-0 text-xs">{untaggedCount}</Badge>
-              <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tags list */}
-        {tags.map((tag) => (
+        {filteredTags.map((tag) => (
           <Card
             key={tag.id}
             className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
@@ -209,11 +266,15 @@ const TagList = () => {
           </Card>
         ))}
 
-        {tags.length === 0 && (
+        {filteredTags.length === 0 && !showUntaggedCard && (
           <EmptyState
             icon={Tag}
-            title="هنوز برچسبی ندارید"
-            description="جلسه‌ای ضبط کنید و برچسب اضافه کنید"
+            title={normalizedSearchQuery ? 'نتیجه‌ای یافت نشد' : 'هنوز برچسبی ندارید'}
+            description={
+              normalizedSearchQuery
+                ? 'عبارت جستجو را تغییر دهید'
+                : 'جلسه‌ای ضبط کنید و برچسب اضافه کنید'
+            }
           />
         )}
       </div>
