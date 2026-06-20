@@ -104,7 +104,7 @@ const AccountManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل" onBack="/home" hideNav>
+      <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل" onBack={true} clickableBack hideNav>
         <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">در حال بارگذاری...</p>
@@ -114,7 +114,7 @@ const AccountManagement: React.FC = () => {
   }
 
   return (
-    <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل و حساب کاربری" onBack="/home" hideNav>
+    <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل و حساب کاربری" onBack={true} clickableBack hideNav>
       <div className="mx-auto max-w-2xl">
         {/* Profile Card */}
         <Card>
