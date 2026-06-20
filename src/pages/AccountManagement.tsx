@@ -7,16 +7,17 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { Save } from "lucide-react";
+import { Save, LogOut } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 
 const AccountManagement: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [baleID, setBaleID] = useState("");
   const [name, setName] = useState("");
 
@@ -81,6 +82,23 @@ const AccountManagement: React.FC = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error: any) {
+      console.error("Error logging out:", error);
+      toast({
+        title: "خطا",
+        description: error.message || "خروج از حساب کاربری ناموفق بود.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -149,6 +167,36 @@ const AccountManagement: React.FC = () => {
                 <>
                   <Save className="h-4 w-4" />
                   ذخیره تغییرات
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 border-destructive/20">
+          <CardHeader>
+            <CardTitle>خروج از حساب</CardTitle>
+            <CardDescription>
+              با خروج از حساب، برای استفاده مجدد باید دوباره وارد شوید.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              variant="destructive"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
+              {loggingOut ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                  در حال خروج...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  خروج از حساب
                 </>
               )}
             </Button>
