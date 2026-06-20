@@ -12,6 +12,8 @@ export const getStatusBadgeClass = (status?: string): string => {
       return 'bg-info/15 text-info border-info/30';
     case 'ارسال درخواست پردازش':
       return 'bg-primary/15 text-primary border-primary/30';
+    case 'پردازش شده':
+      return 'bg-success/15 text-success border-success/30';
     default:
       return 'bg-muted text-muted-foreground border-border';
   }

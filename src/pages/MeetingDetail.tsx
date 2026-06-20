@@ -742,6 +742,9 @@ const MeetingDetail = () => {
     );
   };
 
+  const currentStatus = statusData?.status || meeting?.status || '';
+  const isProcessed = currentStatus === 'پردازش شده';
+
   const headerActions = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -766,13 +769,25 @@ const MeetingDetail = () => {
     <AppShell title={meeting.title} onBack="/home" actions={headerActions}>
       <div className="space-y-5">
         {/* Process request CTA */}
-        <Button
-          onClick={handleAutoGenerateSummary}
-          className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
-        >
-          <Sparkles className="h-4 w-4" />
-          درخواست پردازش
-        </Button>
+        <div className="space-y-2">
+          {isProcessed && (
+            <Button
+              onClick={handleSendSummaryToEmail}
+              className="w-full border-blue-500 bg-white font-bold tracking-wide text-blue-600 shadow-lg transition-all duration-300 hover:border-blue-600 hover:bg-blue-50 hover:shadow-xl"
+              variant="outline"
+            >
+              <Mail className="h-4 w-4" />
+              ارسال به ایمیل
+            </Button>
+          )}
+          <Button
+            onClick={handleAutoGenerateSummary}
+            className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
+          >
+            <Sparkles className="h-4 w-4" />
+            درخواست پردازش
+          </Button>
+        </div>
 
         {/* Meeting Info */}
         <Card className="bg-card border-border">
@@ -828,9 +843,9 @@ const MeetingDetail = () => {
               </div>
               <Badge
                 variant="outline"
-                className={`shrink-0 ${getStatusBadgeClass(statusData?.status || meeting?.status || '')}`}
+                className={`shrink-0 ${getStatusBadgeClass(currentStatus)}`}
               >
-                {statusData?.status || meeting?.status || ''}
+                {currentStatus}
               </Badge>
             </div>
           </CardHeader>
@@ -842,15 +857,17 @@ const MeetingDetail = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-lg text-card-foreground">خلاصه جلسه</CardTitle>
               <div className="flex flex-col gap-2 xs:flex-row">
-                <Button 
-                  onClick={handleSendSummaryToEmail}
-                  size="sm"
-                  variant="outline"
-                  className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 transition-all duration-300 font-medium text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
-                >
-                  <Mail className="h-4 w-4" />
-                  Send to email
-                </Button>
+                {!isProcessed && (
+                  <Button 
+                    onClick={handleSendSummaryToEmail}
+                    size="sm"
+                    variant="outline"
+                    className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 transition-all duration-300 font-medium text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    ارسال به ایمیل
+                  </Button>
+                )}
                 {isEditingSummary ? (
                   <>
                     <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
