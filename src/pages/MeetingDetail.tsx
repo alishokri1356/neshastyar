@@ -766,7 +766,7 @@ const MeetingDetail = () => {
   );
 
   return (
-    <AppShell title={meeting.title} onBack="/home" actions={headerActions}>
+    <AppShell title={meeting.title} onBack={true} clickableBack actions={headerActions}>
       <div className="space-y-5">
         {/* Process request CTA */}
         <div className="space-y-2">
