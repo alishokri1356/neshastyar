@@ -31,12 +31,26 @@ export interface Meeting {
   userId: string;
 }
 
+export interface RecordDraftAudioFile {
+  id: string;
+  name: string;
+  duration: number;
+  blob: Blob | File;
+  type: 'recording' | 'upload';
+}
+
+export interface RecordDraft {
+  audioFiles: RecordDraftAudioFile[];
+  commentText: string;
+}
+
 interface MeetingState {
   meetings: Meeting[];
   tags: Tag[];
   isRecording: boolean;
   isPaused: boolean;
   recordingDuration: number;
+  recordDraft: RecordDraft | null;
   
   // Actions
   addMeeting: (meeting: Omit<Meeting, 'id'>) => void;
@@ -51,6 +65,8 @@ interface MeetingState {
   resumeRecording: () => void;
   stopRecording: () => void;
   setRecordingDuration: (duration: number) => void;
+  setRecordDraft: (draft: RecordDraft | null) => void;
+  clearRecordDraft: () => void;
   getMeetingsByTag: (tagId: string) => Meeting[];
   getMeetingsByStatus: (status: Meeting['status']) => Meeting[];
 }
@@ -61,6 +77,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
   isRecording: false,
   isPaused: false,
   recordingDuration: 0,
+  recordDraft: null,
 
   addMeeting: (meeting) => {
     const newMeeting = {
@@ -136,6 +153,14 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
 
   setRecordingDuration: (duration) => {
     set({ recordingDuration: duration });
+  },
+
+  setRecordDraft: (draft) => {
+    set({ recordDraft: draft });
+  },
+
+  clearRecordDraft: () => {
+    set({ recordDraft: null });
   },
 
   getMeetingsByTag: (tagId) => {

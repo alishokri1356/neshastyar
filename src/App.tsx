@@ -121,7 +121,7 @@ const App = () => {
                 <ParticipantsList />
               </ProtectedRoute>
             } />
-            <Route path="/participant/:participantName" element={
+            <Route path="/participant/:participantId" element={
               <ProtectedRoute>
                 <ParticipantDetail />
               </ProtectedRoute>

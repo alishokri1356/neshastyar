@@ -95,7 +95,7 @@ const getTagMatchScore = (query: string, tagName: string): number | null => {
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tags, addTag, addMeeting, setTags } = useMeetingStore();
+  const { tags, addTag, addMeeting, setTags, clearRecordDraft } = useMeetingStore();
   const { toast } = useToast();
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
@@ -549,6 +549,7 @@ const TagSelection = () => {
         description: "خلاصه جلسه پس از پردازش به ایمیل شما ارسال خواهد شد.",
       });
 
+      clearRecordDraft();
       navigate('/home');
          } catch (error) {
       toast({
@@ -638,11 +639,21 @@ const TagSelection = () => {
     };
   }, [audioElements]);
 
+  const handleBackToRecord = () => {
+    navigate('/record', {
+      state: {
+        audioFiles,
+        commentText,
+      },
+    });
+  };
+
   return (
     <AppShell
       title="انتخاب برچسب"
       subtitle="برچسب‌هایی برای جلسه انتخاب یا ایجاد کنید"
-      onBack="/record"
+      onBack={handleBackToRecord}
+      clickableBack
       hideNav
       actions={<Badge variant="secondary" className="shrink-0">{selectedTags.length} انتخاب شده</Badge>}
     >

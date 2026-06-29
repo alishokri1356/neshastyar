@@ -1,0 +1,1333 @@
+{
+  "name": "Modiryar",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add5d58a-54b1-4459-96f2-ec17590e3cfd",
+        "options": {}
+      },
+      "id": "e83b857b-a1d6-4273-afd8-101ad51eee34",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -864,
+        -16
+      ],
+      "webhookId": "add5d58a-54b1-4459-96f2-ec17590e3cfd",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "03f0784f-24e0-4c32-960e-3c72a558c06f",
+              "name": "fileREST",
+              "type": "string",
+              "value": "=https://modiryar.online/api/audio/{{ $('Loop Over Items1').item.json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "17ed2a4e-4de7-44e1-846d-11cdf7e19caf",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        672,
+        32
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/upload/v1beta/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Protocol",
+              "value": "resumable"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "start"
+            },
+            {
+              "name": "X-Goog-Upload-Header-Content-Length",
+              "value": "={{ $json.fileSize }}"
+            },
+            {
+              "name": "X-Goog-Upload-Header-Content-Type",
+              "value": "={{ $json.mimeType }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"file\":{\n    \"display_name\":\" {{ $json.fileName }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "efa9096c-ee19-4750-b2ec-4c4b77e09830",
+      "name": "initiateUpload",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1248,
+        32
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('initiateUpload').item.json.headers['x-goog-upload-url'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Length",
+              "value": "={{ $('FileData').item.json.fileSize }}"
+            },
+            {
+              "name": "X-Goog-Upload-Offset",
+              "value": "0"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "upload, finalize"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "1ebd985d-a4c1-40d4-a4c3-e9a1fe43eba8",
+      "name": "Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1824,
+        32
+      ],
+      "typeVersion": 4.2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return{\n  json: {},\n  binary: $('DownloadFile').item.binary\n}"
+      },
+      "id": "db4b4ef4-4639-455a-ada5-88baa86ce977",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1536,
+        32
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {{ $json.Files }},\n        {\n          \"text\": \"{{ $json.CommentText.replace(/\\\\/g, '\\\\\\\\').replace(/\\\"/g, '\\\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\"\n  }\n}\n",
+        "options": {}
+      },
+      "id": "135b0f39-d270-4cd6-9b1b-851f49fa477d",
+      "name": "Analyze",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1264,
+        -224
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        },
+        "googleOAuth2Api": {
+          "id": "7Mq4n70FAl5yySUh",
+          "name": "Google OAuth2 API Alex"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "013d0951-eb8a-4764-b7bc-5a38319585c9",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        1808,
+        512
+      ],
+      "webhookId": "72dab0ab-27d5-4da3-b499-2ba4879aef99",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.fileREST }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "baf5398b-dd45-4528-88d9-686357349404",
+      "name": "DownloadFile",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        864,
+        32
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d618726c-c2d3-466c-b464-efc5219dfe21",
+              "name": "mimeType",
+              "type": "string",
+              "value": "={{ $('DownloadFile').item.binary.data.mimeType }}"
+            },
+            {
+              "id": "4642c11a-93a2-4293-8ece-e7bcb5e01f02",
+              "name": "fileSize",
+              "type": "number",
+              "value": "={{ $('DownloadFile').item.json.headers['content-length'] }}"
+            },
+            {
+              "id": "3280a6cb-a199-4409-8997-c173bc3a4a02",
+              "name": "fileName",
+              "type": "string",
+              "value": "={{ $('DownloadFile').item.binary.data.fileName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10be21f6-470b-41de-a080-6047a5e07d4f",
+      "name": "FileData",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1056,
+        32
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').first().json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "summary",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "column": "title",
+              "value": "={{ $json.Subject }}"
+            },
+            {
+              "column": "status",
+              "value": "پردازش شده"
+            },
+            {
+              "column": "people",
+              "value": "={{ $json.People ? $json.People.toJsonString() : null }}"
+            },
+            {
+              "column": "bullets",
+              "value": "={{ $json['Bullet Points'] ? $json['Bullet Points'].toJsonString() : null }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "08c64bc2-e4ec-48f1-8c76-0bc942ed8b61",
+      "name": "Update rows in a table1",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        2384,
+        -304
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://modiryar.online/sync-meeting-data/{{ $('meeting').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Secret",
+              "value": "REPLACE_WITH_INTERNAL_WEBHOOK_SECRET"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f8e2a1b0-9c3d-4e5f-a6b7-c8d9e0f1a2b3",
+      "name": "Sync Meeting Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2528,
+        -304
+      ],
+      "typeVersion": 4.2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "5814ecd3-5bf5-492b-bee1-708787dab6a2",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -848,
+        208
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').first().json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "html",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72d5b1c3-6558-44f4-8061-bc4d80911b4e",
+      "name": "Update rows in a table",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        3008,
+        -304
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').item.json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "summary",
+              "value": "={{ $json.error.message }}"
+            },
+            {
+              "column": "status",
+              "value": "=Error :  {{ $json.error.name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4923f51-c306-49af-b456-8719b2851097",
+      "name": "Update meeting on error",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        2176,
+        -80
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "439f5c31-4693-44e9-b59f-04430fe8d681",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            {
+              "id": "ff741de8-7a63-4f97-96d6-e24c8de3bb88",
+              "name": "Summary",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Summary }}"
+            },
+            {
+              "id": "d7c71586-b322-4c39-aec0-cad27a753503",
+              "name": "People",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text)['People in meetings'] }}"
+            },
+            {
+              "id": "39e33648-524e-4f45-9d8b-1eec93898a21",
+              "name": "Bullet Points",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text)['Bolet Points'] }}"
+            },
+            {
+              "id": "20646b02-ad17-4f55-8309-8f53b282a39b",
+              "name": "Subject",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Subject }}"
+            },
+            {
+              "id": "7f4489d4-b22b-4caf-9de6-d822104d57c7",
+              "name": "tags",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Tags }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e16b1301-557f-4371-a330-87a787987b54",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1872,
+        -304
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CONCAT('(', GROUP_CONCAT(name SEPARATOR ','), ')') As tag_list\nFROM tags \nWHERE user_id = \"{{ $('UserInfo').item.json.id }}\";\n",
+        "options": {}
+      },
+      "id": "17a1b505-6215-4dae-abd3-e70c189acbbf",
+      "name": "ListOfTags",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -288,
+        96
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "users",
+          "cachedResultName": "users"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d28156af-0c65-46e8-8afd-c7ec7c67205b",
+      "name": "UserInfo",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -464,
+        96
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "audio_files",
+          "cachedResultName": "audio_files"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "meeting_id",
+              "value": "={{ $('meeting').item.json.id }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "upload_order"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fb1d9959-5fcf-4505-8096-26889103aad5",
+      "name": "AudioFiles",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -96,
+        96
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ba1b38c4-09ba-432c-8f7b-8865c69f6f27",
+      "name": "Loop Over Items1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        144,
+        96
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "const labels = [\n  \"فایل صوتی اول:\",\n  \"فایل صوتی دوم:\",\n  \"فایل صوتی سوم:\",\n  \"فایل صوتی چهارم:\",\n  \"فایل صوتی پنجم:\"\n];\n\nlet output = \"\";\n\nitems.forEach((item, index) => {\n  const file = item.json.file;\n  const label = labels[index] || `فایل صوتی شماره ${index + 1}:`;\n\n  output += `{ \"text\": \"${label}\" },\\n`;\n  output += `{ \"fileData\": { \"mimeType\": \"${file.mimeType}\", \"fileUri\": \"${file.uri}\" } },\\n`;\n});\n\nreturn [\n  {\n    json: {\n      result: output.trim().replace(/,$/, \"\")\n    }\n  }\n];\n"
+      },
+      "id": "a7308561-d71d-457e-8fad-5f3dc969cbe9",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        432,
+        -224
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "status",
+              "value": "ارسال درخواست پردازش"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a96c1191-9da4-4136-9ceb-738f9fa97e62",
+      "name": "meeting",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -640,
+        96
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://modiryar.online/sendmail/{{ $('meeting').first().json.id }}",
+        "options": {}
+      },
+      "id": "c752002d-3008-41e7-b722-cd061078b44a",
+      "name": "send mail",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        3280,
+        -304
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7d33f0c1-21a8-4871-ab75-b8dfa30228e4",
+              "name": "Files",
+              "type": "string",
+              "value": "={{ $('Code in JavaScript').item.json.result }}"
+            },
+            {
+              "id": "4a5baa35-de87-4815-bc7c-62557eacaadb",
+              "name": "CommentText",
+              "type": "string",
+              "value": "={{\n  $('meeting').first().json.CommentText\n    ? $('UserPrompt').first().json.CommentText\n    : $('MeetingSummaryPrompt').first().json.CommentText\n}}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8ae5e9a8-fe47-4f5b-b808-44abe1e9c716",
+      "name": "Edit Fields2",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1024,
+        -224
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a5baa35-de87-4815-bc7c-62557eacaadb",
+              "name": "CommentText",
+              "type": "string",
+              "value": "=برای فایل صوتی ارائه‌شده، یک آبجکت JSON به زبان فارسی تولید کن که شامل کلیدهای زیر باشد:\\n\\n- `Subject`: یک عنوان کوتاه و توصیفی برای موضوع اصلی جلسه (حداکثر ۱۰ کلمه).\\n- `People in meetings`: لیستی از اسامی تمام افراد حاضر در جلسه (فقط نام افراد).\\n- `Summary`: خلاصه‌ای دقیق و کامل از محتوای جلسه (در حدود 3 صفحه).\\n- `Bolet Points`: لیستی از تصمیمات، وظایف و نکات کلیدی مطرح‌شده در جلسه به‌صورت بولت‌پوینت.\\n- `Tags`: آرایه‌ای شامل حداکثر 6 کلمه یا عبارت کلیدی مرتبط با موضوع جلسه (مانند نام شرکت‌ها، مکان‌ها یا مفاهیم کلیدی).\\n\\nقوانین مهم:\\n- نام افراد فقط در `People in meetings` باشد.\\n- هرگز نام افراد را در `Tags` قرار نده.\\n- `Tags` فقط برای موضوعات و مفاهیم جلسه است، نه اسامی اشخاص.\\n\\nدر تولید `Tags`، علاوه بر تحلیل محتوای جلسه، لیست این کلمات کلیدی موضوعی را هم در نظر بگیر: {{ $('ListOfTags').first().json.tag_list }} . اگر یک یا چند تا از آن کلمات در بین موضوعات جلسه وجود دارند، آن‌ها را با اولویت بالا در `Tags` قرار بده.\\nاگر هیچ‌کدام از کلمات ورودی مرتبط نبودند، از مهم‌ترین مفاهیم موجود در جلسه برای ساخت تگ‌ها استفاده کن.\\n\\nدر نهایت، خروجی باید فقط و فقط یک آبجکت JSON معتبر و بدون هیچ توضیح یا متن اضافه‌ای باشد."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d23058d8-63f4-41fa-b828-75778b3e4bf4",
+      "name": "MeetingSummaryPrompt",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        624,
+        -224
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a5baa35-de87-4815-bc7c-62557eacaadb",
+              "name": "CommentText",
+              "type": "string",
+              "value": "=برای فایل صوتی ارائه‌ شده، یک آبجکت JSON به زبان فارسی تولید کن که شامل کلیدهای زیر باشد:\\n- `Subject`: یک عنوان کوتاه و توصیفی برای موضوع اصلی (حداکثر ۱۰ کلمه).\\n- `Summary`:{{ $('meeting').first().json.CommentText }}\n.\\n\\nدر نهایت، خروجی باید فقط و فقط یک آبجکت JSON معتبر و بدون هیچ توضیح یا متن اضافه‌ای باشد."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc788002-cdaa-49ff-8ace-384151395b57",
+      "name": "UserPrompt",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        816,
+        -224
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').item.json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "summary",
+              "value": "={{ $json.error.message }}"
+            },
+            {
+              "column": "status",
+              "value": "=Error :  {{ $json.error.name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cb60486c-a2d9-475c-ad70-dfc72907524f",
+      "name": "Update meeting on error1",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        1968,
+        304
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"contents\": [\n        {\n            \"role\": \"user\",\n            \"parts\": [\n                {\n                    \"text\": \"این متن را به صورت یک رشته HTML با ساختار مشخص شده در زیر تبدیل کن. متن باید راست به چپ (RTL) باشد و داخل تگ <body> قرار گیرد.\\n\\nمتن ورودی:\\n\\n{{ $('Analyze').item.json.candidates[0].content.parts[0].text.toJsonString().replace(/^\\\"|\\\"$/g, \\\"\\\") }}\\n\\nساختار HTML خروجی:\\n<html lang=\\\"fa\\\" dir=\\\"rtl\\\">\\n  <body style=\\\"direction: rtl; font-family: sans-serif; text-align: right;\\\">\\n    <!-- متن ورودی باید اینجا قرار گیرد -->\\n  </body>\\n</html>\\n\\nلطفاً فقط کد HTML نهایی را به صورت یک رشته (string) برگردان و هیچ توضیح اضافه یا کاراکترهای markdown مانند ``` را در خروجی قرار نده.\"\n                }\n            ]\n        }\n    ],\n    \"generationConfig\": {\n        \"responseMimeType\": \"text/plain\"\n    }\n}\n",
+        "options": {}
+      },
+      "id": "f6397fee-c7c6-4010-b738-3183702fb355",
+      "name": "Analyze1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2672,
+        -304
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        },
+        "googleOAuth2Api": {
+          "id": "7Mq4n70FAl5yySUh",
+          "name": "Google OAuth2 API Alex"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ad9f94a7-ff7e-48e2-8247-21348a7b39eb",
+              "leftValue": "={{ $itemIndex }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        32,
+        -208
+      ],
+      "id": "a58cbef6-beba-49a6-a3db-335250f6befa",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').item.json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "status",
+              "value": "=در حال ارسال فایل شماره {{ $itemIndex + 1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d2b572d9-0310-40a1-9352-93efc9fa4e40",
+      "name": "Update meeting Status 1",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        416,
+        48
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').item.json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "status",
+              "value": "در حال پردازش فایل های صوتی"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1c9645d6-48f0-4a71-a28a-18bfd77627a5",
+      "name": "Update meeting Status ",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        256,
+        -448
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        576,
+        -464
+      ],
+      "id": "d1ef5953-f490-455a-a587-bad8c6a6a716",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {{ $json.Files }},\n        {\n          \"text\": \"{{ $json.CommentText.replace(/\\\\/g, '\\\\\\\\').replace(/\\\"/g, '\\\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\"\n  }\n}\n",
+        "options": {}
+      },
+      "id": "4d6aca80-ecbe-4773-b4d0-ae2eebfc5d9d",
+      "name": "Analyze2",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1584,
+        -144
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        },
+        "googleOAuth2Api": {
+          "id": "7Mq4n70FAl5yySUh",
+          "name": "Google OAuth2 API Alex"
+        }
+      },
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "meeting": {
+      "main": [
+        [
+          {
+            "node": "UserInfo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FileData": {
+      "main": [
+        [
+          {
+            "node": "initiateUpload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UserInfo": {
+      "main": [
+        [
+          {
+            "node": "ListOfTags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AudioFiles": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ListOfTags": {
+      "main": [
+        [
+          {
+            "node": "AudioFiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UserPrompt": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Update rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DownloadFile": {
+      "main": [
+        [
+          {
+            "node": "FileData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "DownloadFile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Analyze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "initiateUpload": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting Status 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "MeetingSummaryPrompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MeetingSummaryPrompt": {
+      "main": [
+        [
+          {
+            "node": "UserPrompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows in a table": {
+      "main": [
+        [
+          {
+            "node": "send mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows in a table1": {
+      "main": [
+        [
+          {
+            "node": "Sync Meeting Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Meeting Data": {
+      "main": [
+        [
+          {
+            "node": "Analyze1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze1": {
+      "main": [
+        [
+          {
+            "node": "Update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update meeting Status ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Update meeting Status 1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update meeting Status ": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": true,
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "availableInMCP": false,
+    "timezone": "Asia/Tehran",
+    "saveExecutionProgress": true,
+    "executionTimeout": -1
+  },
+  "versionId": "participants-v2",
+  "meta": {
+    "instanceId": "1db7a1966606f7813155c2396301a3ff0cc890c300baf0faacba094aa76ff82e"
+  },
+  "id": "9pwKEjFoJ6xgUy47",
+  "tags": []
+}

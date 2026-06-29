@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,22 +101,14 @@ const getUnsupportedFileError = (fileNames: string[]) => {
 
 const Record = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
-  
-  // State for multiple audio files
-  const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
-  const [showFilesList, setShowFilesList] = useState(false);
-  
-  // State for comment text
-  const [commentText, setCommentText] = useState<string>('');
-  
-  // State for audio playback
-  const [playingFileId, setPlayingFileId] = useState<string | null>(null);
-  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
-  
-  // State for drag and drop
-  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
-  
+
+  const locationDraft = location.state as {
+    audioFiles?: AudioFile[];
+    commentText?: string;
+  } | null;
+
   const {
     isRecording,
     isPaused,
@@ -125,13 +117,55 @@ const Record = () => {
     pauseRecording,
     resumeRecording,
     stopRecording,
-    setRecordingDuration
+    setRecordingDuration,
+    recordDraft,
+    setRecordDraft,
+    clearRecordDraft,
   } = useMeetingStore();
 
+  const restoredAudioFiles = locationDraft?.audioFiles ?? recordDraft?.audioFiles ?? [];
+  const restoredCommentText = locationDraft?.commentText ?? recordDraft?.commentText ?? '';
+
+  // State for multiple audio files
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>(restoredAudioFiles);
+  const [showFilesList, setShowFilesList] = useState(restoredAudioFiles.length > 0);
+
+  // State for comment text
+  const [commentText, setCommentText] = useState<string>(restoredCommentText);
+  
+  // State for audio playback
+  const [playingFileId, setPlayingFileId] = useState<string | null>(null);
+  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  
+  // State for drag and drop
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  
   const intervalRef = useRef<NodeJS.Timeout>();
   const mediaRecorderRef = useRef<MediaRecorder>();
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const draft = location.state as {
+      audioFiles?: AudioFile[];
+      commentText?: string;
+    } | null;
+
+    if (!draft) return;
+
+    setAudioFiles(draft.audioFiles ?? []);
+    setCommentText(draft.commentText ?? '');
+    setShowFilesList((draft.audioFiles?.length ?? 0) > 0);
+  }, [location.state]);
+
+  useEffect(() => {
+    if (audioFiles.length > 0 || commentText.trim()) {
+      setRecordDraft({ audioFiles, commentText });
+      return;
+    }
+
+    clearRecordDraft();
+  }, [audioFiles, commentText, setRecordDraft, clearRecordDraft]);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
@@ -367,12 +401,18 @@ const Record = () => {
     }
 
     // Navigate to tag selection with all audio files and comment text
-    navigate('/tag-selection', { 
-      state: { 
-        audioFiles: audioFiles,
-        commentText: commentText
-      }
+    setRecordDraft({ audioFiles, commentText });
+    navigate('/tag-selection', {
+      state: {
+        audioFiles,
+        commentText,
+      },
     });
+  };
+
+  const handleBackToHome = () => {
+    clearRecordDraft();
+    navigate('/home');
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -473,7 +513,7 @@ const Record = () => {
       <AppShell
         title="ضبط جلسه"
         subtitle="می‌توانید چند فایل صوتی اضافه کنید"
-        onBack="/home"
+        onBack={handleBackToHome}
         hideNav
       >
         <div className={`mx-auto max-w-2xl ${audioFiles.length > 0 ? 'pb-24' : ''}`}>
@@ -583,7 +623,7 @@ const Record = () => {
             </Label>
             <Textarea
               id="comment-text"
-              placeholder="توضیحات خود را وارد کنید..."
+              placeholder="برای نتیجه بهتر از هوش مصنوعی، می‌توانید عنوان جلسه، نام شرکت‌کنندگان و تاریخ جلسه را وارد کنید..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               className="min-h-[100px] w-full resize-none"

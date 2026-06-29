@@ -341,7 +341,92 @@ class MySQLClient {
           return { data: null, error };
         }
       },
-      merge: async ({ sourceNames, targetName }: { sourceNames: string[]; targetName: string }) => {
+      create: async (name: string) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants`, {
+            method: 'POST',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      getById: async (id: string) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants/${id}`, {
+            method: 'GET',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      getMeetings: async (id: string) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants/${id}/meetings`, {
+            method: 'GET',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      getMeetingsWithoutParticipants: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/participants/no-meetings`, {
+            method: 'GET',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      merge: async ({ sourceIds, sourceNames, targetName }: { sourceIds?: string[]; sourceNames?: string[]; targetName: string }) => {
         try {
           const response = await fetch(`${API_BASE_URL}/participants/merge`, {
             method: 'POST',
@@ -349,7 +434,7 @@ class MySQLClient {
               ...this.getAuthHeaders(),
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ sourceNames, targetName }),
+            body: JSON.stringify({ sourceIds, sourceNames, targetName }),
           });
 
           const data = await response.json();
@@ -363,15 +448,20 @@ class MySQLClient {
           return { data: null, error };
         }
       },
-      rename: async ({ oldName, newName }: { oldName: string; newName: string }) => {
+      rename: async ({ id, newName, oldName }: { id?: string; newName: string; oldName?: string }) => {
         try {
-          const response = await fetch(`${API_BASE_URL}/participants/rename`, {
+          const url = id
+            ? `${API_BASE_URL}/participants/${id}`
+            : `${API_BASE_URL}/participants/rename`;
+          const body = id ? { name: newName } : { oldName, newName };
+
+          const response = await fetch(url, {
             method: 'PUT',
             headers: {
               ...this.getAuthHeaders(),
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ oldName, newName }),
+            body: JSON.stringify(body),
           });
 
           const data = await response.json();
@@ -385,14 +475,97 @@ class MySQLClient {
           return { data: null, error };
         }
       },
-      remove: async (name: string) => {
+      remove: async (id: string) => {
         try {
-          const response = await fetch(`${API_BASE_URL}/participants/${encodeURIComponent(name)}`, {
+          const response = await fetch(`${API_BASE_URL}/participants/${id}`, {
             method: 'DELETE',
             headers: {
               ...this.getAuthHeaders(),
               'Content-Type': 'application/json',
             },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+    };
+
+    meetingParticipants = {
+      getForMeeting: async (meetingId: string) => {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/meeting-participants/meetings/${meetingId}/participants`,
+            {
+              method: 'GET',
+              headers: {
+                ...this.getAuthHeaders(),
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      add: async ({
+        meetingId,
+        participantId,
+        name,
+      }: {
+        meetingId: string;
+        participantId?: string;
+        name?: string;
+      }) => {
+        try {
+          const body: Record<string, string> = { meeting_id: meetingId };
+          if (participantId) body.participant_id = participantId;
+          if (name) body.name = name;
+
+          const response = await fetch(`${API_BASE_URL}/meeting-participants`, {
+            method: 'POST',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            return { data: null, error: data };
+          }
+
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error };
+        }
+      },
+      remove: async ({ meetingId, participantId }: { meetingId: string; participantId: string }) => {
+        try {
+          const params = new URLSearchParams({
+            meeting_id: meetingId,
+            participant_id: participantId,
+          });
+          const response = await fetch(`${API_BASE_URL}/meeting-participants?${params.toString()}`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders(),
           });
 
           const data = await response.json();

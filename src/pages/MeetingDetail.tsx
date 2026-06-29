@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeetingStore } from '@/store/useMeetingStore';
@@ -21,6 +21,12 @@ import { getStatusBadgeClass } from '@/lib/status';
 
 import { mysqlClient } from '@/lib/mysql-client';
 
+const nameMatchesSearch = (name: string, query: string) => {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return false;
+  return name.toLowerCase().includes(normalizedQuery);
+};
+
 const MeetingDetail = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
@@ -38,6 +44,10 @@ const MeetingDetail = () => {
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
   const [showAddTag, setShowAddTag] = useState(false);
   const [meetingTags, setMeetingTags] = useState<any[]>([]);
+  const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [newParticipantName, setNewParticipantName] = useState('');
+  const [linkedParticipants, setLinkedParticipants] = useState<any[]>([]);
+  const [localAllUserParticipants, setLocalAllUserParticipants] = useState<any[]>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [isEditingSummary, setIsEditingSummary] = useState(false);
@@ -151,10 +161,41 @@ const MeetingDetail = () => {
       }
       return allTags || [];
     },
-    refetchInterval: 30000, // Reduce to 30 seconds
-    refetchIntervalInBackground: false, // Disable background refetching
-    refetchOnWindowFocus: false, // Disable refetch on window focus
-    staleTime: 5 * 60 * 1000, // 5 minutes stale time
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: meetingParticipants = [] } = useQuery({
+    queryKey: ['meeting-participants', meetingId],
+    queryFn: async () => {
+      if (!meetingId) return [];
+
+      const { data, error } = await mysqlClient.meetingParticipants.getForMeeting(meetingId);
+      if (error) {
+        console.error('Error fetching meeting participants:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!meetingId,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: allUserParticipants = [] } = useQuery({
+    queryKey: ['user-participants'],
+    queryFn: async () => {
+      const { data, error } = await mysqlClient.participants.list();
+      if (error) {
+        console.error('Error fetching user participants:', error);
+        return [];
+      }
+      return data?.participants ?? [];
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Update local states when data changes
@@ -170,6 +211,42 @@ const MeetingDetail = () => {
   useEffect(() => {
     setLocalAllUserTags(allUserTags);
   }, [allUserTags]);
+
+  useEffect(() => {
+    setLinkedParticipants(meetingParticipants);
+  }, [meetingParticipants]);
+
+  useEffect(() => {
+    setLocalAllUserParticipants(allUserParticipants);
+  }, [allUserParticipants]);
+
+  const participantSearchQuery = newParticipantName.trim();
+
+  const matchingParticipants = useMemo(() => {
+    if (!participantSearchQuery) {
+      return [];
+    }
+
+    return localAllUserParticipants.filter(
+      (participant) =>
+        !linkedParticipants.some((linked) => linked.id === participant.id) &&
+        nameMatchesSearch(participant.name, participantSearchQuery),
+    );
+  }, [localAllUserParticipants, linkedParticipants, participantSearchQuery]);
+
+  const tagSearchQuery = newTagName.trim();
+
+  const matchingTags = useMemo(() => {
+    if (!tagSearchQuery) {
+      return [];
+    }
+
+    return localAllUserTags.filter(
+      (tag) =>
+        !meetingTags.some((linked) => linked.id === tag.id) &&
+        nameMatchesSearch(tag.name, tagSearchQuery),
+    );
+  }, [localAllUserTags, meetingTags, tagSearchQuery]);
 
   // Update summary when status data changes (for auto-refresh)
   // Don't update if user is currently editing
@@ -307,7 +384,6 @@ const MeetingDetail = () => {
 
   const handleRemoveTag = async (tagId: string) => {
     try {
-      // Delete meeting-tag relationship using direct API call
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meeting-tags?meeting_id=${meeting.id}&tag_id=${tagId}`, {
         method: 'DELETE',
         headers: {
@@ -322,7 +398,7 @@ const MeetingDetail = () => {
       const updatedTags = meetingTags.filter(tag => tag.id !== tagId);
       setMeetingTags(updatedTags);
       setMeeting(prev => ({ ...prev, tags: updatedTags }));
-      
+
       toast({
         title: "برچسب حذف شد",
         description: "برچسب از جلسه حذف شد.",
@@ -334,6 +410,180 @@ const MeetingDetail = () => {
         description: "حذف برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
+    }
+  };
+
+  const refreshMeetingParticipants = async (participants?: any[]) => {
+    if (participants) {
+      setLinkedParticipants(participants);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['meeting-participants', meetingId] });
+    }
+    queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
+    queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
+    queryClient.invalidateQueries({ queryKey: ['user-participants'] });
+  };
+
+  const handleAddParticipant = async () => {
+    const trimmedName = newParticipantName.trim();
+    if (!trimmedName) return;
+
+    try {
+      const { data, error } = await mysqlClient.meetingParticipants.add({
+        meetingId: meeting.id,
+        name: trimmedName,
+      });
+
+      if (error) throw error;
+
+      const participants = data?.participants ?? [];
+      await refreshMeetingParticipants(participants);
+
+      const added = participants.find(
+        (p: { name: string }) => p.name.toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (added && !localAllUserParticipants.some((p) => p.id === added.id)) {
+        setLocalAllUserParticipants((prev) => [...prev, added]);
+      }
+
+      setNewParticipantName('');
+      setShowAddParticipant(false);
+
+      toast({
+        title: "شرکت‌کننده اضافه شد",
+        description: "شرکت‌کننده جدید به جلسه اضافه شد.",
+      });
+    } catch (error: any) {
+      console.error('Error adding participant:', error);
+      if (error?.message?.includes('already exists') || error?.error === 'Relationship already exists') {
+        toast({
+          title: "قبلاً اضافه شده",
+          description: "این شرکت‌کننده قبلاً به جلسه اضافه شده است.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "خطا",
+          description: "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleRemoveParticipant = async (participantId: string) => {
+    try {
+      const { data, error } = await mysqlClient.meetingParticipants.remove({
+        meetingId: meeting.id,
+        participantId,
+      });
+
+      if (error) throw error;
+
+      const participants = data?.participants ?? linkedParticipants.filter((p) => p.id !== participantId);
+      await refreshMeetingParticipants(participants);
+
+      toast({
+        title: "شرکت‌کننده حذف شد",
+        description: "شرکت‌کننده از جلسه حذف شد.",
+      });
+    } catch (error) {
+      console.error('Error removing participant:', error);
+      toast({
+        title: "خطا",
+        description: "حذف شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddExistingParticipant = async (participant: { id: string; name: string }) => {
+    const alreadyLinked = linkedParticipants.some((p) => p.id === participant.id);
+    if (alreadyLinked) return;
+
+    try {
+      const { data, error } = await mysqlClient.meetingParticipants.add({
+        meetingId: meeting.id,
+        participantId: participant.id,
+      });
+
+      if (error) throw error;
+
+      await refreshMeetingParticipants(data?.participants);
+
+      toast({
+        title: "شرکت‌کننده اضافه شد",
+        description: "شرکت‌کننده به جلسه اضافه شد.",
+      });
+    } catch (error: any) {
+      console.error('Error adding participant:', error);
+      if (error?.message?.includes('already exists') || error?.error === 'Relationship already exists') {
+        toast({
+          title: "قبلاً اضافه شده",
+          description: "این شرکت‌کننده قبلاً به جلسه اضافه شده است.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "خطا",
+          description: "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleAddSuggestedParticipant = async (personName: string) => {
+    const trimmedName = personName.trim();
+    if (!trimmedName) return;
+
+    const existing = localAllUserParticipants.find(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (existing) {
+      await handleAddExistingParticipant(existing);
+      return;
+    }
+
+    try {
+      const { data, error } = await mysqlClient.meetingParticipants.add({
+        meetingId: meeting.id,
+        name: trimmedName,
+      });
+
+      if (error) throw error;
+
+      await refreshMeetingParticipants(data?.participants);
+
+      const added = (data?.participants ?? []).find(
+        (p: { name: string }) => p.name.toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (added) {
+        setLocalAllUserParticipants((prev) =>
+          prev.some((p) => p.id === added.id) ? prev : [...prev, added]
+        );
+      }
+
+      toast({
+        title: "شرکت‌کننده اضافه شد",
+        description: "شرکت‌کننده با موفقیت به جلسه اضافه شد.",
+      });
+    } catch (error: any) {
+      console.error('Error adding suggested participant:', error);
+      if (error?.message?.includes('already exists') || error?.error === 'Relationship already exists') {
+        toast({
+          title: "قبلاً اضافه شده",
+          description: "این شرکت‌کننده قبلاً به جلسه اضافه شده است.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "خطا",
+          description: "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -948,70 +1198,160 @@ const MeetingDetail = () => {
           </CardContent>
         </Card>
 
-        {/* People in Meeting */}
-        {(() => {
-          const currentSummary = statusData?.summary || summary;
-          const jsonData = parseJsonSummary(currentSummary);
-          const people = jsonData?.["People in meetings"];
-          if (!people || !Array.isArray(people) || people.length === 0) return null;
+        {/* Participants */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg text-card-foreground">افراد حاضر در جلسه</CardTitle>
+              <Button
+                onClick={() => {
+                  setShowAddParticipant(true);
+                  setNewParticipantName('');
+                }}
+                size="sm"
+                variant="outline"
+              >
+                <Plus className="h-4 w-4" />
+                افزودن شرکت‌کننده
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {linkedParticipants.length > 0 ? (
+                  linkedParticipants.map((participant) => (
+                    <div
+                      key={participant.id}
+                      className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border bg-blue-50 border-blue-400 text-blue-900"
+                    >
+                      {participant.name}
+                      <button
+                        onClick={() => handleRemoveParticipant(participant.id)}
+                        className="hover:opacity-70"
+                        aria-label={`حذف ${participant.name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    هیچ شرکت‌کننده‌ای برای این جلسه ثبت نشده است.
+                  </p>
+                )}
+              </div>
 
-          const addedPeople = people.filter((person: string) =>
-            meetingTags.some(mt => mt.name.toLowerCase().trim() === person.toLowerCase().trim())
-          );
-          const unassignedPeople = people.filter((person: string) =>
-            !meetingTags.some(mt => mt.name.toLowerCase().trim() === person.toLowerCase().trim())
-          );
+              {(() => {
+                const currentSummary = statusData?.summary || summary;
+                const jsonData = parseJsonSummary(currentSummary);
+                const suggestedPeople =
+                  jsonData?.['People in meetings'] && Array.isArray(jsonData['People in meetings'])
+                    ? jsonData['People in meetings']
+                    : [];
+                const unassignedSuggestedPeople = suggestedPeople.filter(
+                  (person: string) =>
+                    !linkedParticipants.some(
+                      (p) => p.name.toLowerCase().trim() === person.toLowerCase().trim()
+                    )
+                );
 
-          return (
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-lg text-card-foreground">افراد حاضر در جلسه</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {addedPeople.length > 0 && (
+                if (unassignedSuggestedPeople.length === 0) return null;
+
+                return (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      شرکت‌کنندگان پیشنهادی:
+                      <span className="text-xs font-normal me-2">(برای افزودن کلیک کنید)</span>
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      {addedPeople.map((person: string, index: number) => (
-                        <div
+                      {unassignedSuggestedPeople.map((person: string, index: number) => (
+                        <button
                           key={index}
-                          className="px-3 py-1 rounded-full text-sm font-medium border bg-green-100 border-green-500 text-green-800"
+                          onClick={() => handleAddSuggestedParticipant(person)}
+                          className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
                         >
                           {person}
-                        </div>
+                        </button>
                       ))}
                     </div>
-                  )}
+                  </div>
+                );
+              })()}
 
-                  {unassignedPeople.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-2">
-                        {addedPeople.length > 0 ? 'برای افزودن به برچسب‌ها کلیک کنید:' : 'برای افزودن به برچسب‌ها روی نام کلیک کنید:'}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {unassignedPeople.map((person: string, index: number) => (
+              {showAddParticipant && (
+                <div className="border border-border rounded-lg p-4 space-y-3">
+                  <Input
+                    placeholder="نام شرکت‌کننده"
+                    value={newParticipantName}
+                    onChange={(e) => setNewParticipantName(e.target.value)}
+                    className="flex-1"
+                  />
+
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">
+                      شرکت‌کنندگان موجود:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {participantSearchQuery.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          برای جستجو، نام شرکت‌کننده را در کادر بالا تایپ کنید.
+                        </p>
+                      ) : matchingParticipants.length > 0 ? (
+                        matchingParticipants.map((participant) => (
                           <button
-                            key={index}
-                            onClick={() => handleAddSuggestedTag(person)}
-                            className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
+                            key={participant.id}
+                            onClick={() => {
+                              handleAddExistingParticipant(participant);
+                              setNewParticipantName('');
+                            }}
+                            className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors bg-muted/40"
                           >
-                            {person}
+                            {participant.name}
                           </button>
-                        ))}
-                      </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          شرکت‌کننده‌ای با این نام پیدا نشد. با دکمه «افزودن شرکت‌کننده» می‌توانید فرد جدید بسازید.
+                        </p>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddParticipant} size="sm">
+                      افزودن شرکت‌کننده
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowAddParticipant(false);
+                        setNewParticipantName('');
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      لغو
+                    </Button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })()}
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tags */}
         <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-card-foreground">برچسب‌ها</CardTitle>
-              <Button onClick={() => setShowAddTag(true)} size="sm" variant="outline">
+              <Button
+                onClick={() => {
+                  setShowAddTag(true);
+                  setNewTagName('');
+                }}
+                size="sm"
+                variant="outline"
+              >
                 <Plus className="h-4 w-4" />
                 افزودن برچسب
               </Button>
@@ -1101,28 +1441,31 @@ const MeetingDetail = () => {
                       برچسب‌های موجود:
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {localAllUserTags
-                        .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
-                        .length > 0 ? (
-                        localAllUserTags
-                          .filter(tag => !meetingTags || !meetingTags.some(mt => mt.id === tag.id))
-                          .map((tag) => (
-                            <button
-                              key={tag.id}
-                              onClick={() => handleAddExistingTag(tag)}
-                              className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors"
-                              style={{ 
-                                backgroundColor: `${tag.color}10`, 
-                                borderColor: `${tag.color}40`,
-                                color: tag.color 
-                              }}
-                            >
-                              {tag.name}
-                            </button>
-                          ))
+                      {tagSearchQuery.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          برای جستجو، نام برچسب را در کادر بالا تایپ کنید.
+                        </p>
+                      ) : matchingTags.length > 0 ? (
+                        matchingTags.map((tag) => (
+                          <button
+                            key={tag.id}
+                            onClick={() => {
+                              handleAddExistingTag(tag);
+                              setNewTagName('');
+                            }}
+                            className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors"
+                            style={{
+                              backgroundColor: `${tag.color}10`,
+                              borderColor: `${tag.color}40`,
+                              color: tag.color,
+                            }}
+                          >
+                            {tag.name}
+                          </button>
+                        ))
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          همه برچسب‌های شما به این جلسه اضافه شده‌اند.
+                          برچسبی با این نام پیدا نشد. با دکمه «افزودن برچسب» می‌توانید برچسب جدید بسازید.
                         </p>
                       )}
                     </div>
@@ -1132,9 +1475,12 @@ const MeetingDetail = () => {
                     <Button onClick={handleAddTag} size="sm">
                       افزودن برچسب
                     </Button>
-                    <Button 
-                      onClick={() => setShowAddTag(false)} 
-                      variant="outline" 
+                    <Button
+                      onClick={() => {
+                        setShowAddTag(false);
+                        setNewTagName('');
+                      }}
+                      variant="outline"
                       size="sm"
                     >
                       لغو

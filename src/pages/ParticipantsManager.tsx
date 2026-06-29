@@ -40,6 +40,7 @@ import { formatRateLimitError } from "@/lib/utils";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 
 interface Participant {
+  id: string;
   name: string;
   meetingCount: number;
 }
@@ -97,7 +98,7 @@ const ParticipantsManager: React.FC = () => {
         const participantList = payload.participants ?? [];
         setParticipants(participantList);
         setSelectedParticipants((previous) =>
-          previous.filter((name) => participantList.some((participant) => participant.name === name))
+          previous.filter((id) => participantList.some((participant) => participant.id === id))
         );
         setNoParticipantsCount(payload.noParticipantsCount ?? 0);
       } catch (error: any) {
@@ -170,7 +171,7 @@ const ParticipantsManager: React.FC = () => {
     try {
       setIsRenaming(true);
       const { data, error } = await mysqlClient.participants.rename({
-        oldName: selectedParticipant.name,
+        id: selectedParticipant.id,
         newName: trimmedName,
       });
 
@@ -228,7 +229,7 @@ const ParticipantsManager: React.FC = () => {
 
     try {
       setIsRemoving(true);
-      const { data, error } = await mysqlClient.participants.remove(participantToDelete.name);
+      const { data, error } = await mysqlClient.participants.remove(participantToDelete.id);
 
       if (error) {
         const message =
@@ -246,8 +247,8 @@ const ParticipantsManager: React.FC = () => {
             : `${participantToDelete.name} از جلسات حذف شد.`,
       });
 
-        const removedName = participantToDelete.name;
-        setSelectedParticipants((previous) => previous.filter((name) => name !== removedName));
+        const removedId = participantToDelete.id;
+        setSelectedParticipants((previous) => previous.filter((id) => id !== removedId));
       handleDeleteDialogChange(false);
       await loadParticipants();
     } catch (error: any) {
@@ -265,21 +266,21 @@ const ParticipantsManager: React.FC = () => {
     const isChecked = checked === true;
 
     if (isChecked) {
-      setSelectedParticipants(participants.map((participant) => participant.name));
+      setSelectedParticipants(participants.map((participant) => participant.id));
     } else {
       setSelectedParticipants([]);
     }
   };
 
-  const handleToggleParticipantSelection = (name: string, checked: boolean) => {
+  const handleToggleParticipantSelection = (id: string, checked: boolean) => {
     setSelectedParticipants((previous) => {
       if (checked) {
-        if (previous.includes(name)) {
+        if (previous.includes(id)) {
           return previous;
         }
-        return [...previous, name];
+        return [...previous, id];
       }
-      return previous.filter((item) => item !== name);
+      return previous.filter((item) => item !== id);
     });
   };
 
@@ -297,10 +298,12 @@ const ParticipantsManager: React.FC = () => {
       selectedParticipants
         .slice()
         .sort((a, b) => {
-          const countA = participants.find((participant) => participant.name === a)?.meetingCount ?? 0;
-          const countB = participants.find((participant) => participant.name === b)?.meetingCount ?? 0;
+          const countA = participants.find((participant) => participant.id === a)?.meetingCount ?? 0;
+          const countB = participants.find((participant) => participant.id === b)?.meetingCount ?? 0;
           return countB - countA;
-        })[0] ?? "";
+        })
+        .map((id) => participants.find((p) => p.id === id)?.name ?? "")
+        .find((name) => name.length > 0) ?? "";
 
     setMergeTargetName(defaultTarget);
     setMergeDialogOpen(true);
@@ -344,7 +347,7 @@ const ParticipantsManager: React.FC = () => {
     try {
       setIsMerging(true);
       const { data, error } = await mysqlClient.participants.merge({
-        sourceNames: selectedParticipants,
+        sourceIds: selectedParticipants,
         targetName: trimmedTarget,
       });
 
@@ -389,10 +392,12 @@ const ParticipantsManager: React.FC = () => {
   const selectedParticipantsByCount = selectedParticipants
     .slice()
     .sort((a, b) => {
-      const countA = participants.find((participant) => participant.name === a)?.meetingCount ?? 0;
-      const countB = participants.find((participant) => participant.name === b)?.meetingCount ?? 0;
+      const countA = participants.find((participant) => participant.id === a)?.meetingCount ?? 0;
+      const countB = participants.find((participant) => participant.id === b)?.meetingCount ?? 0;
       return countB - countA;
-    });
+    })
+    .map((id) => participants.find((p) => p.id === id))
+    .filter((p): p is Participant => !!p);
 
   const refreshAction = (
     <Button variant="ghost" size="icon" onClick={() => loadParticipants()} disabled={isRefreshing} aria-label="بروزرسانی">
@@ -500,13 +505,13 @@ const ParticipantsManager: React.FC = () => {
                   <div className="space-y-2 md:hidden">
                     {participants.map((participant) => (
                       <div
-                        key={participant.name}
+                        key={participant.id}
                         className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/60 p-3"
                       >
                         <Checkbox
-                          checked={selectedParticipants.includes(participant.name)}
+                          checked={selectedParticipants.includes(participant.id)}
                           onCheckedChange={(checked) =>
-                            handleToggleParticipantSelection(participant.name, checked === true)
+                            handleToggleParticipantSelection(participant.id, checked === true)
                           }
                           aria-label={`انتخاب ${participant.name}`}
                           className="shrink-0"
@@ -557,12 +562,12 @@ const ParticipantsManager: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       {participants.map((participant) => (
-                        <TableRow key={participant.name}>
+                        <TableRow key={participant.id}>
                           <TableCell className="text-center">
                             <Checkbox
-                              checked={selectedParticipants.includes(participant.name)}
+                              checked={selectedParticipants.includes(participant.id)}
                               onCheckedChange={(checked) =>
-                                handleToggleParticipantSelection(participant.name, checked === true)
+                                handleToggleParticipantSelection(participant.id, checked === true)
                               }
                               aria-label={`انتخاب ${participant.name}`}
                             />
@@ -652,9 +657,9 @@ const ParticipantsManager: React.FC = () => {
                 <Label>شرکت‌کنندگان انتخاب‌شده</Label>
                 {selectedParticipantsByCount.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {selectedParticipantsByCount.map((name) => (
-                      <Badge key={name} variant="secondary" className="text-xs">
-                        {name}
+                    {selectedParticipantsByCount.map((participant) => (
+                      <Badge key={participant.id} variant="secondary" className="text-xs">
+                        {participant.name}
                       </Badge>
                     ))}
                   </div>

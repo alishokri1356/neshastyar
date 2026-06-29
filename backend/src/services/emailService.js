@@ -169,27 +169,9 @@ class EmailService {
           </div>
           
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; direction: rtl;">
-            <h2 style="color: #333; margin-top: 0; text-align: right;">سلام ${name} عزیز!</h2>
-            
-            <p style="color: #666; line-height: 1.6; font-size: 16px; text-align: right;">
-              خلاصه جلسه "<strong>${meetingTitle}</strong>" برای شما ارسال شده است.
-            </p>
-            
-            <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 0;">
               ${formattedSummary}
             </div>
-            
-            <div style="background: #e3f2fd; border: 1px solid #2196f3; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="color: #1976d2; margin: 0; font-size: 14px; text-align: right;">
-                <strong>نکته:</strong> این خلاصه از سیستم Modiryar برای شما ارسال شده است. برای مشاهده جزئیات بیشتر و مدیریت جلسات خود، به پنل کاربری خود مراجعه کنید.
-              </p>
-            </div>
-            
-            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
-            
-            <p style="color: #999; font-size: 12px; text-align: center;">
-              این ایمیل به صورت خودکار ارسال شده است. لطفاً به آن پاسخ ندهید.
-            </p>
           </div>
         </div>
       `

@@ -14,6 +14,7 @@ const meetingRoutes = require('./routes/meetings');
 const participantRoutes = require('./routes/participants');
 const tagRoutes = require('./routes/tags');
 const meetingTagRoutes = require('./routes/meetingTags');
+const meetingParticipantRoutes = require('./routes/meetingParticipants');
 const fileRoutes = require('./routes/files');
 
 const app = express();
@@ -127,6 +128,7 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/meeting-tags', meetingTagRoutes);
+app.use('/api/meeting-participants', meetingParticipantRoutes);
 app.use('/api', fileRoutes);
 
 // 404 handler
