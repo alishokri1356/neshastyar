@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
@@ -14,12 +15,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical } from 'lucide-react';
+import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AppShell from '@/components/layout/AppShell';
 import { getStatusBadgeClass } from '@/lib/status';
 
 import { mysqlClient } from '@/lib/mysql-client';
+import {
+  type EditableMeetingSummary,
+  parseMeetingSummaryJson,
+  jsonToEditableSummary,
+  editableSummaryToJson,
+  linesToList,
+  emptyEditableSummary,
+  normalizeBulletPoints,
+  formatSummaryForClipboard,
+  formatEditableSummaryForClipboard,
+} from '@/lib/meetingSummary';
 
 const nameMatchesSearch = (name: string, query: string) => {
   const normalizedQuery = query.trim().toLowerCase();
@@ -51,6 +63,10 @@ const MeetingDetail = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [summaryEditMode, setSummaryEditMode] = useState<'plain' | 'structured'>('plain');
+  const [editedSummaryFields, setEditedSummaryFields] = useState<EditableMeetingSummary>(
+    emptyEditableSummary()
+  );
 
   // Fetch meeting and all user tags from database with auto-refresh
   const { data: meetingData, isLoading: meetingLoading } = useQuery({
@@ -286,15 +302,25 @@ const MeetingDetail = () => {
 
   const handleSaveSummary = async () => {
     try {
+      const summaryToSave =
+        summaryEditMode === 'structured'
+          ? editableSummaryToJson(
+              editedSummaryFields,
+              parseMeetingSummaryJson(originalSummary),
+            )
+          : summary;
+
       const { error } = await mysqlClient
         .from('meetings')
-        .update({ summary })
+        .update({ summary: summaryToSave })
         .eq('id', meeting.id);
 
       if (error) throw error;
 
-      setMeeting(prev => ({ ...prev, summary }));
+      setSummary(summaryToSave);
+      setMeeting((prev) => ({ ...prev, summary: summaryToSave }));
       setIsEditingSummary(false);
+      setSummaryEditMode('plain');
       
       // Invalidate queries to refetch latest data
       queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
@@ -350,6 +376,8 @@ const MeetingDetail = () => {
         
         setNewTagName('');
         setShowAddTag(false);
+
+        refreshMeetingSummary();
         
         toast({
           title: "برچسب اضافه شد",
@@ -422,6 +450,11 @@ const MeetingDetail = () => {
     queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
     queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
     queryClient.invalidateQueries({ queryKey: ['user-participants'] });
+  };
+
+  const refreshMeetingSummary = () => {
+    queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
+    queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
   };
 
   const handleAddParticipant = async () => {
@@ -603,6 +636,8 @@ const MeetingDetail = () => {
         const updatedTags = [...meetingTags, tag];
         setMeetingTags(updatedTags);
         setMeeting(prev => ({ ...prev, tags: updatedTags }));
+
+        refreshMeetingSummary();
         
         toast({
           title: "برچسب اضافه شد",
@@ -641,53 +676,24 @@ const MeetingDetail = () => {
 
   const handleAutoGenerateSummary = async () => {
     try {
-      // Update meeting status to "ارسال درخواست پردازش"
-      const { error: statusError } = await mysqlClient
-        .from('meetings')
-        .update({ status: 'ارسال درخواست پردازش' })
-        .eq('id', meeting.id);
-
-      if (statusError) throw statusError;
-
-      // Update local state
-      setMeeting(prev => ({ ...prev, status: 'ارسال درخواست پردازش' }));
-
-      // Get current user email
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      const userEmail = user?.email || '';
-      
-      
-      const requestData = {};
-      const webhookTestUrl = 'https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd';
-      const webhookMainUrl = 'https://n8nnew.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd';
-
-      let webhookSucceeded = false;
-      try {
-        const testResponse = await fetch(webhookTestUrl, {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meetings/${meeting.id}/analyze`,
+        {
           method: 'POST',
           headers: {
+            ...mysqlClient.getAuthHeaders(),
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestData),
-        });
-        webhookSucceeded = testResponse.ok;
-      } catch (e) {
-        webhookSucceeded = false;
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to trigger analysis');
       }
 
-      if (!webhookSucceeded) {
-        try {
-          await fetch(webhookMainUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestData),
-          });
-        } catch (e) {
-        }
-      }
+      setMeeting((prev) => ({ ...prev, status: 'ارسال درخواست پردازش' }));
+
       toast({
         title: "درخواست تولید اتوماتیک خلاصه ارسال شد",
         description: "خلاصه جلسه پی از تکمیل به ایمیل شما ارسال خواهد شد.",
@@ -865,15 +871,71 @@ const MeetingDetail = () => {
     setEditedTitle(meeting.title);
   };
 
-  // Helper function to check if summary is JSON
-  const parseJsonSummary = (summaryText: string) => {
+  const handleCancelEditSummary = () => {
+    setIsEditingSummary(false);
+    setSummaryEditMode('plain');
+    setSummary(originalSummary);
+    setEditedSummaryFields(emptyEditableSummary());
+  };
+
+  const handleStartEditSummary = () => {
+    const currentSummary = statusData?.summary || summary;
+    const jsonData = parseMeetingSummaryJson(currentSummary);
+
+    setOriginalSummary(currentSummary);
+
+    if (jsonData) {
+      setEditedSummaryFields(jsonToEditableSummary(jsonData));
+      setSummaryEditMode('structured');
+    } else {
+      setSummary(currentSummary);
+      setSummaryEditMode('plain');
+    }
+
+    setIsEditingSummary(true);
+  };
+
+  const handleCopySummary = async () => {
+    let text: string | null;
+
+    if (isEditingSummary) {
+      if (summaryEditMode === 'structured') {
+        text = formatEditableSummaryForClipboard(editedSummaryFields);
+      } else {
+        text = summary.trim() ? `خلاصه:\n${summary.trim()}` : null;
+      }
+    } else {
+      const currentSummary = statusData?.summary || summary;
+      text = formatSummaryForClipboard(currentSummary);
+    }
+
+    if (!text) {
+      toast({
+        title: 'خطا',
+        description: 'خلاصه‌ای برای کپی وجود ندارد.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
-      const parsed = JSON.parse(summaryText);
-      return parsed;
-    } catch {
-      return null;
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: 'کپی شد',
+        description: 'موضوع، خلاصه و نکات کلیدی در کلیپ‌بورد کپی شد.',
+      });
+    } catch (error) {
+      console.error('Error copying summary:', error);
+      toast({
+        title: 'خطا',
+        description: 'کپی به کلیپ‌بورد با خطا مواجه شد.',
+        variant: 'destructive',
+      });
     }
   };
+
+  // Helper function to check if summary is JSON
+  const parseJsonSummary = (summaryText: string) => parseMeetingSummaryJson(summaryText);
 
   const handleAddSuggestedTag = async (tagName: string) => {
     try {
@@ -933,6 +995,8 @@ const MeetingDetail = () => {
       const updatedTags = [...meetingTags, tagToAdd];
       setMeetingTags(updatedTags);
       setMeeting(prev => ({ ...prev, tags: updatedTags }));
+
+      refreshMeetingSummary();
       
       toast({
         title: "برچسب اضافه شد",
@@ -958,6 +1022,10 @@ const MeetingDetail = () => {
   };
 
   const renderJsonSummary = (jsonData: any) => {
+    const bulletPoints = normalizeBulletPoints(
+      jsonData['Bolet Points'] ?? jsonData['Bullet Points'],
+    );
+
     return (
       <div className="space-y-6 text-right" dir="rtl">
         {/* Subject */}
@@ -977,12 +1045,14 @@ const MeetingDetail = () => {
         )}
 
         {/* Bullet Points */}
-        {jsonData["Bolet Points"] && jsonData["Bolet Points"].length > 0 && (
+        {bulletPoints.length > 0 && (
           <div>
             <h3 className="text-lg font-bold text-card-foreground mb-2">نکات کلیدی:</h3>
             <ul className="list-disc list-inside space-y-2">
-              {jsonData["Bolet Points"].map((point: string, index: number) => (
-                <li key={index} className="text-foreground leading-relaxed">{point}</li>
+              {bulletPoints.map((point, index) => (
+                <li key={index} className="text-foreground leading-relaxed">
+                  {point}
+                </li>
               ))}
             </ul>
           </div>
@@ -1124,12 +1194,9 @@ const MeetingDetail = () => {
                       <Save className="h-4 w-4" />
                       ذخیره
                     </Button>
-                    <Button 
-                      onClick={() => {
-                        setIsEditingSummary(false);
-                        setSummary(originalSummary);
-                      }} 
-                      variant="outline" 
+                    <Button
+                      onClick={handleCancelEditSummary}
+                      variant="outline"
                       size="sm"
                       className="w-full sm:w-auto"
                     >
@@ -1138,20 +1205,26 @@ const MeetingDetail = () => {
                     </Button>
                   </>
                 ) : (
-                  <Button 
-                    onClick={() => {
-                      const currentSummary = statusData?.summary || summary;
-                      setOriginalSummary(currentSummary);
-                      setSummary(currentSummary);
-                      setIsEditingSummary(true);
-                    }} 
-                    variant="outline" 
-                    size="sm"
-                    className="w-full sm:w-auto"
-                  >
-                    <Edit className="h-4 w-4" />
-                    ویرایش
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleCopySummary}
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      <Copy className="h-4 w-4" />
+                      کپی
+                    </Button>
+                    <Button
+                      onClick={handleStartEditSummary}
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      <Edit className="h-4 w-4" />
+                      ویرایش
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -1162,12 +1235,97 @@ const MeetingDetail = () => {
               const jsonData = parseJsonSummary(currentSummary);
               
               if (isEditingSummary) {
+                if (summaryEditMode === 'structured') {
+                  return (
+                    <div className="space-y-4 text-right" dir="rtl">
+                      <div className="space-y-2">
+                        <Label htmlFor="summary-subject">موضوع</Label>
+                        <Input
+                          id="summary-subject"
+                          value={editedSummaryFields.subject}
+                          onChange={(e) =>
+                            setEditedSummaryFields((prev) => ({
+                              ...prev,
+                              subject: e.target.value,
+                            }))
+                          }
+                          placeholder="موضوع جلسه"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="summary-text">خلاصه</Label>
+                        <Textarea
+                          id="summary-text"
+                          value={editedSummaryFields.summaryText}
+                          onChange={(e) =>
+                            setEditedSummaryFields((prev) => ({
+                              ...prev,
+                              summaryText: e.target.value,
+                            }))
+                          }
+                          placeholder="خلاصه جلسه را وارد کنید..."
+                          className="min-h-[200px] resize-y"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="summary-people">افراد پیشنهادی (هر نام در یک خط)</Label>
+                        <Textarea
+                          id="summary-people"
+                          value={editedSummaryFields.people.join('\n')}
+                          onChange={(e) =>
+                            setEditedSummaryFields((prev) => ({
+                              ...prev,
+                              people: linesToList(e.target.value),
+                            }))
+                          }
+                          placeholder="هر نام را در یک خط جداگانه بنویسید"
+                          className="min-h-[100px] resize-y"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="summary-bullets">نکات کلیدی (هر مورد در یک خط)</Label>
+                        <Textarea
+                          id="summary-bullets"
+                          value={editedSummaryFields.bulletPoints.join('\n')}
+                          onChange={(e) =>
+                            setEditedSummaryFields((prev) => ({
+                              ...prev,
+                              bulletPoints: linesToList(e.target.value),
+                            }))
+                          }
+                          placeholder="هر نکته را در یک خط جداگانه بنویسید"
+                          className="min-h-[120px] resize-y"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="summary-tags">برچسب‌های پیشنهادی (هر مورد در یک خط)</Label>
+                        <Textarea
+                          id="summary-tags"
+                          value={editedSummaryFields.tags.join('\n')}
+                          onChange={(e) =>
+                            setEditedSummaryFields((prev) => ({
+                              ...prev,
+                              tags: linesToList(e.target.value),
+                            }))
+                          }
+                          placeholder="هر برچسب را در یک خط جداگانه بنویسید"
+                          className="min-h-[80px] resize-y"
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <Textarea
                     value={summary}
                     onChange={(e) => setSummary(e.target.value)}
                     placeholder="خلاصه جلسه را وارد کنید..."
-                    className="min-h-[200px] resize-none"
+                    className="min-h-[200px] resize-y"
                   />
                 );
               }

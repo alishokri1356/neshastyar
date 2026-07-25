@@ -24,7 +24,10 @@ const PORT = process.env.PORT || 3001;
 app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet());
+// Allow cross-origin API reads from www/apex frontends (Helmet defaults CORP to same-origin)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 // CORS middleware
 app.use(cors(corsOptions));

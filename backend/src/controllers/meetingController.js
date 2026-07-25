@@ -158,6 +158,32 @@ class MeetingController {
     }
   }
 
+  // POST /api/meetings/:id/analyze
+  async triggerAnalyze(req, res) {
+    try {
+      const userId = req.user.sub;
+      const { id } = req.params;
+
+      const result = await meetingService.triggerAnalyze(id, userId);
+
+      res.json(result);
+    } catch (error) {
+      console.error('Trigger analyze error:', error);
+
+      if (error.message.includes('not found') || error.message.includes('access denied')) {
+        return res.status(404).json({
+          error: 'Meeting not found',
+          message: error.message,
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to trigger analysis',
+        message: error.message || 'An error occurred while requesting meeting analysis',
+      });
+    }
+  }
+
 }
 
 module.exports = new MeetingController();

@@ -3,9 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, Play, Pause, X, Trash2, Edit, ChevronDown } from 'lucide-react';
+import { Save, X, Trash2, Edit, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mysqlClient } from '@/lib/mysql-client';
 import AppShell from '@/components/layout/AppShell';
@@ -41,7 +40,6 @@ const MeetingDetailsOptions = () => {
   const [isDeleting] = useState(false);
 
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -49,10 +47,6 @@ const MeetingDetailsOptions = () => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
   };
 
   const handleNextAudio = () => {
@@ -250,11 +244,6 @@ const MeetingDetailsOptions = () => {
                             {audioFile.format || 'صوتی'}
                           </p>
                         </div>
-                        {index === currentAudioIndex && (
-                          <Badge variant="secondary" className="text-xs">
-                            در حال پخش
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -262,17 +251,6 @@ const MeetingDetailsOptions = () => {
 
                 {meeting.audioFiles[currentAudioIndex] && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-center">
-                      <Button
-                        variant="default"
-                        size="lg"
-                        onClick={handlePlayPause}
-                        className="rounded-full w-12 h-12"
-                      >
-                        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                      </Button>
-                    </div>
-
                     <audio
                       ref={(audio) => {
                         if (audio) {
@@ -283,20 +261,15 @@ const MeetingDetailsOptions = () => {
                             setDuration(audio.duration);
                           });
                           audio.addEventListener('ended', () => {
-                            setIsPlaying(false);
                             if (currentAudioIndex < meeting.audioFiles.length - 1) {
                               handleNextAudio();
                             }
                           });
-                          audio.addEventListener('play', () => setIsPlaying(true));
-                          audio.addEventListener('pause', () => setIsPlaying(false));
                         }
                       }}
                       controls
                       src={meeting.audioFiles[currentAudioIndex].audioUrl}
                       className="w-full"
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
                     >
                       Your browser does not support the audio element.
                     </audio>

@@ -5,16 +5,15 @@ const PARTICIPANT_SUMMARY_KEYS = [
   'Participants',
 ];
 
+const TAG_SUMMARY_KEYS = ['Tags', 'tags'];
+const { parseMeetingSummaryJson } = require('./summaryUtils');
+
 const safeJsonParse = (value) => {
   if (!value || typeof value !== 'string') {
     return null;
   }
 
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
+  return parseMeetingSummaryJson(value);
 };
 
 const normalizeAndFilterNames = (list) =>
@@ -72,6 +71,21 @@ const replaceNameInList = (list, oldName, newName) => {
   return { changed, updatedList };
 };
 
+const removeNameFromListCaseInsensitive = (list, nameToRemove) => {
+  const normalizedRemove = nameToRemove.trim().toLowerCase();
+  let changed = false;
+
+  const updatedList = (Array.isArray(list) ? list : []).filter((name) => {
+    if (typeof name === 'string' && name.trim().toLowerCase() === normalizedRemove) {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+
+  return { changed, updatedList };
+};
+
 const removeNameFromList = (list, nameToRemove) => {
   let changed = false;
 
@@ -84,6 +98,112 @@ const removeNameFromList = (list, nameToRemove) => {
   });
 
   return { changed, updatedList };
+};
+
+const removeNamesFromListCaseInsensitive = (list, namesToRemove) => {
+  let changed = false;
+  let updatedList = Array.isArray(list) ? [...list] : [];
+
+  for (const name of namesToRemove) {
+    const result = removeNameFromListCaseInsensitive(updatedList, name);
+    if (result.changed) {
+      changed = true;
+      updatedList = result.updatedList;
+    }
+  }
+
+  return { changed, updatedList };
+};
+
+const removeNamesFromMeetingSuggestions = (
+  meeting,
+  namesToRemove,
+  { updateParticipantKeys = true, updateTagKeys = true } = {}
+) => {
+  const names = normalizeAndFilterNames(namesToRemove);
+  if (names.length === 0) {
+    return {
+      updatedSummary: meeting.summary ?? null,
+      updatedPeople: meeting.people ?? null,
+      changed: false,
+    };
+  }
+
+  let changed = false;
+  let updatedSummary = meeting.summary ?? null;
+  let updatedPeople = meeting.people ?? null;
+
+  if (meeting.summary) {
+    const summaryData = safeJsonParse(meeting.summary);
+    if (summaryData && typeof summaryData === 'object') {
+      let summaryChanged = false;
+
+      if (updateParticipantKeys) {
+        PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
+          if (Array.isArray(summaryData[key])) {
+            const result = removeNamesFromListCaseInsensitive(summaryData[key], names);
+            if (result.changed) {
+              summaryData[key] = result.updatedList;
+              summaryChanged = true;
+            }
+          }
+        });
+      }
+
+      if (updateTagKeys) {
+        TAG_SUMMARY_KEYS.forEach((key) => {
+          if (Array.isArray(summaryData[key])) {
+            const result = removeNamesFromListCaseInsensitive(summaryData[key], names);
+            if (result.changed) {
+              summaryData[key] = result.updatedList;
+              summaryChanged = true;
+            }
+          }
+        });
+      }
+
+      if (summaryChanged) {
+        updatedSummary = JSON.stringify(summaryData);
+        changed = true;
+      }
+    }
+  }
+
+  if (updateParticipantKeys && meeting.people) {
+    const parsedPeople = safeJsonParse(meeting.people);
+
+    if (Array.isArray(parsedPeople)) {
+      const result = removeNamesFromListCaseInsensitive(parsedPeople, names);
+      if (result.changed) {
+        updatedPeople = result.updatedList.length > 0 ? JSON.stringify(result.updatedList) : null;
+        changed = true;
+      }
+    } else if (
+      parsedPeople &&
+      typeof parsedPeople === 'object' &&
+      Array.isArray(parsedPeople.people)
+    ) {
+      const result = removeNamesFromListCaseInsensitive(parsedPeople.people, names);
+      if (result.changed) {
+        parsedPeople.people = result.updatedList;
+        updatedPeople =
+          parsedPeople.people.length > 0 ? JSON.stringify(parsedPeople) : null;
+        changed = true;
+      }
+    } else if (!parsedPeople) {
+      const rawPeople = meeting.people
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+      const result = removeNamesFromListCaseInsensitive(rawPeople, names);
+      if (result.changed) {
+        updatedPeople = result.updatedList.length > 0 ? result.updatedList.join(', ') : null;
+        changed = true;
+      }
+    }
+  }
+
+  return { updatedSummary, updatedPeople, changed };
 };
 
 const mergeNamesIntoTarget = (list, sourceNamesSet, targetName) => {
@@ -131,10 +251,14 @@ const mergeNamesIntoTarget = (list, sourceNamesSet, targetName) => {
 
 module.exports = {
   PARTICIPANT_SUMMARY_KEYS,
+  TAG_SUMMARY_KEYS,
   safeJsonParse,
   normalizeAndFilterNames,
   extractParticipantsFromMeeting,
   replaceNameInList,
   removeNameFromList,
+  removeNameFromListCaseInsensitive,
+  removeNamesFromListCaseInsensitive,
+  removeNamesFromMeetingSuggestions,
   mergeNamesIntoTarget,
 };

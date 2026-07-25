@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const authService = require('./authService');
+const { removeNamesFromMeetingSuggestions } = require('../utils/participantUtils');
 
 class MeetingTagService {
   // Get meeting-tag relationships
@@ -29,8 +30,8 @@ class MeetingTagService {
   // Create meeting-tag relationship
   async createMeetingTag(userId, meetingId, tagId) {
     // Verify that both meeting and tag belong to the user
-    const meetingSql = 'SELECT id FROM meetings WHERE id = ? AND user_id = ?';
-    const tagSql = 'SELECT id FROM tags WHERE id = ? AND user_id = ?';
+    const meetingSql = 'SELECT id, summary, people FROM meetings WHERE id = ? AND user_id = ?';
+    const tagSql = 'SELECT id, name FROM tags WHERE id = ? AND user_id = ?';
     
     const meetings = await db.query(meetingSql, [meetingId, userId]);
     const tags = await db.query(tagSql, [tagId, userId]);
@@ -55,6 +56,19 @@ class MeetingTagService {
     const sql = 'INSERT INTO meeting_tags (id, meeting_id, tag_id) VALUES (?, ?, ?)';
     
     await db.query(sql, [id, meetingId, tagId]);
+
+    const { updatedSummary, updatedPeople, changed } = removeNamesFromMeetingSuggestions(
+      meetings[0],
+      [tags[0].name],
+      { updateParticipantKeys: false, updateTagKeys: true }
+    );
+
+    if (changed) {
+      await db.query(
+        'UPDATE meetings SET people = ?, summary = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+        [updatedPeople, updatedSummary, meetingId, userId]
+      );
+    }
     
     return {
       id,

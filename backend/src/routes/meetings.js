@@ -24,6 +24,9 @@ router.post('/', meetingController.createMeeting);
 // PUT /api/meetings/:id
 router.put('/:id', meetingController.updateMeeting);
 
+// POST /api/meetings/:id/analyze
+router.post('/:id/analyze', meetingController.triggerAnalyze);
+
 // DELETE /api/meetings/:id
 router.delete('/:id', meetingController.deleteMeeting);
 

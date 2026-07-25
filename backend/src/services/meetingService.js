@@ -1,7 +1,7 @@
 const db = require('../config/database');
 const authService = require('./authService');
 const participantService = require('./participantService');
-const meetingParticipantService = require('./meetingParticipantService');
+const analyzeService = require('./analyzeService');
 const {
   PARTICIPANT_SUMMARY_KEYS,
   extractParticipantsFromMeeting,
@@ -136,7 +136,6 @@ const updateMeetingParticipantFields = async (userId, oldName, newName, mode, so
         [updatedPeople, updatedSummary, meeting.id, userId]
       );
       updatedCount += 1;
-      await meetingParticipantService.syncParticipantsFromSummary(meeting.id, userId);
     }
   }
 
@@ -203,10 +202,6 @@ class MeetingService {
 
     await db.query(sql, values);
 
-    if (meetingData.summary) {
-      await meetingParticipantService.syncParticipantsFromSummary(id, userId);
-    }
-
     return await this.getMeetingById(id, userId);
   }
 
@@ -233,10 +228,6 @@ class MeetingService {
 
     const sql = `UPDATE meetings SET ${updateFields.join(', ')} WHERE id = ? AND user_id = ?`;
     await db.query(sql, values);
-
-    if (updates.summary !== undefined) {
-      await meetingParticipantService.syncParticipantsFromSummary(id, userId);
-    }
 
     return await this.getMeetingById(id, userId);
   }
@@ -443,6 +434,25 @@ class MeetingService {
     );
 
     return { updatedMeetings };
+  }
+
+  async triggerAnalyze(id, userId) {
+    const meeting = await this.getMeetingById(id, userId);
+    if (!meeting) {
+      throw new Error('Meeting not found or access denied');
+    }
+
+    await db.query(
+      'UPDATE meetings SET status = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      ['ارسال درخواست پردازش', id, userId]
+    );
+
+    const result = await analyzeService.requestMeetingAnalysis(id);
+
+    return {
+      ...result,
+      status: 'ارسال درخواست پردازش',
+    };
   }
 }
 

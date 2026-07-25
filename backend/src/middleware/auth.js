@@ -81,7 +81,9 @@ const corsOptions = {
   origin: [
     // Production
     'https://modiryar.online',
+    'https://www.modiryar.online',
     'http://modiryar.online',
+    'http://www.modiryar.online',
     // Development
     'http://localhost:5173',
     'http://localhost:8080',

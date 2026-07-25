@@ -23,6 +23,7 @@ import {
 import { useMeetingStore } from '@/store/useMeetingStore';
 import { FileText, Trash2, Pencil, MoreVertical } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
+import { normalizeBulletPoints, parseMeetingSummaryJson } from '@/lib/meetingSummary';
 import { useToast } from '@/components/ui/use-toast';
 import moment from 'moment-jalaali';
 import AppShell from '@/components/layout/AppShell';
@@ -194,12 +195,11 @@ const TagDetail = () => {
 
   const getSummaryBullets = (summary: string): string[] => {
     if (!summary) return [];
-    try {
-      const parsed = JSON.parse(summary);
-      if (Array.isArray(parsed?.['Bolet Points'])) return parsed['Bolet Points'] as string[];
-      if (typeof parsed?.Summary === 'string') return [parsed.Summary];
-    } catch {
-      // not JSON
+    const parsed = parseMeetingSummaryJson(summary);
+    if (parsed) {
+      const bullets = normalizeBulletPoints(parsed['Bolet Points'] ?? parsed['Bullet Points']);
+      if (bullets.length > 0) return bullets;
+      if (typeof parsed.Summary === 'string') return [parsed.Summary];
     }
     return summary.split('\n').filter(Boolean);
   };

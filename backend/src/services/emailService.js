@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { getBulletPointsFromSummaryJson, parseMeetingSummaryJson } = require('../utils/summaryUtils');
 require('dotenv').config();
 
 class EmailService {
@@ -190,8 +191,11 @@ class EmailService {
   // Format summary for email display
   formatSummaryForEmail(summary) {
     try {
-      // Try to parse as JSON first
-      const jsonData = JSON.parse(summary);
+      // Try to parse as JSON first (tolerant of trailing junk / control chars)
+      const jsonData = parseMeetingSummaryJson(summary);
+      if (!jsonData) {
+        throw new Error('Summary is not structured JSON');
+      }
       
       let html = '<h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>';
       
@@ -230,12 +234,13 @@ class EmailService {
       }
       
       // Bullet Points
-      if (jsonData["Bolet Points"] && jsonData["Bolet Points"].length > 0) {
+      const bulletPoints = getBulletPointsFromSummaryJson(jsonData);
+      if (bulletPoints.length > 0) {
         html += `
           <div style="margin-bottom: 20px;">
             <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">نکات کلیدی:</h4>
             <ul style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; margin: 0; padding-right: 20px;">
-              ${jsonData["Bolet Points"].map(point => 
+              ${bulletPoints.map(point => 
                 `<li style="margin-bottom: 8px;">${point}</li>`
               ).join('')}
             </ul>

@@ -1,17 +1,10 @@
 const db = require('../config/database');
 const authService = require('./authService');
 const participantService = require('./participantService');
-const {
-  PARTICIPANT_SUMMARY_KEYS,
-  safeJsonParse,
-  extractParticipantsFromMeeting,
-} = require('../utils/participantUtils');
+const { removeNamesFromMeetingSuggestions } = require('../utils/participantUtils');
 
 class MeetingParticipantService {
-  async syncSummaryFromMeetingParticipants(meetingId, userId) {
-    const participantRows = await this.getParticipantsForMeeting(meetingId, userId);
-    const names = participantRows.map((p) => p.name);
-
+  async removeParticipantsFromSuggestions(meetingId, userId, names) {
     const meetings = await db.query(
       'SELECT summary, people FROM meetings WHERE id = ? AND user_id = ?',
       [meetingId, userId]
@@ -22,28 +15,14 @@ class MeetingParticipantService {
     }
 
     const meeting = meetings[0];
-    let updatedSummary = meeting.summary ?? null;
-    const updatedPeople = names.length > 0 ? JSON.stringify(names) : null;
+    const { updatedSummary, updatedPeople, changed } = removeNamesFromMeetingSuggestions(
+      meeting,
+      names,
+      { updateParticipantKeys: true, updateTagKeys: false }
+    );
 
-    if (meeting.summary) {
-      const summaryData = safeJsonParse(meeting.summary);
-      if (summaryData && typeof summaryData === 'object') {
-        let hasParticipantKey = false;
-        PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
-          if (Array.isArray(summaryData[key])) {
-            summaryData[key] = names;
-            hasParticipantKey = true;
-          }
-        });
-
-        if (!hasParticipantKey && names.length > 0) {
-          summaryData['People in meetings'] = names;
-        }
-
-        updatedSummary = JSON.stringify(summaryData);
-      }
-    } else if (names.length > 0) {
-      updatedSummary = JSON.stringify({ 'People in meetings': names });
+    if (!changed) {
+      return;
     }
 
     await db.query(
@@ -67,7 +46,7 @@ class MeetingParticipantService {
 
   async addParticipantToMeeting(userId, meetingId, participantId) {
     const meetingSql = 'SELECT id FROM meetings WHERE id = ? AND user_id = ?';
-    const participantSql = 'SELECT id FROM participants WHERE id = ? AND user_id = ?';
+    const participantSql = 'SELECT id, name FROM participants WHERE id = ? AND user_id = ?';
 
     const meetings = await db.query(meetingSql, [meetingId, userId]);
     const participants = await db.query(participantSql, [participantId, userId]);
@@ -95,7 +74,7 @@ class MeetingParticipantService {
       [id, meetingId, participantId]
     );
 
-    await this.syncSummaryFromMeetingParticipants(meetingId, userId);
+    await this.removeParticipantsFromSuggestions(meetingId, userId, [participants[0].name]);
 
     return { id, meeting_id: meetingId, participant_id: participantId };
   }
@@ -126,23 +105,10 @@ class MeetingParticipantService {
     `;
 
     await db.query(sql, [meetingId, participantId, userId]);
-    await this.syncSummaryFromMeetingParticipants(meetingId, userId);
     return true;
   }
 
   async removeParticipantFromMeetingById(userId, id) {
-    const rows = await db.query(
-      `
-        SELECT mp.meeting_id
-        FROM meeting_participants mp
-        INNER JOIN meetings m ON mp.meeting_id = m.id
-        WHERE mp.id = ? AND m.user_id = ?
-      `,
-      [id, userId]
-    );
-
-    const meetingId = rows[0]?.meeting_id;
-
     const sql = `
       DELETE mp FROM meeting_participants mp
       INNER JOIN meetings m ON mp.meeting_id = m.id
@@ -150,69 +116,7 @@ class MeetingParticipantService {
     `;
 
     await db.query(sql, [id, userId]);
-
-    if (meetingId) {
-      await this.syncSummaryFromMeetingParticipants(meetingId, userId);
-    }
-
     return true;
-  }
-
-  async syncParticipantsFromSummary(meetingId, userId) {
-    const meetings = await db.query(
-      'SELECT id, summary, people FROM meetings WHERE id = ? AND user_id = ?',
-      [meetingId, userId]
-    );
-
-    if (meetings.length === 0) {
-      throw new Error('Meeting not found or access denied');
-    }
-
-    const meeting = meetings[0];
-    const extractedNames = extractParticipantsFromMeeting(meeting);
-    const desiredParticipantIds = new Set();
-
-    for (const name of extractedNames) {
-      const participant = await participantService.upsertParticipantByName(userId, name);
-      if (participant) {
-        desiredParticipantIds.add(participant.id);
-      }
-    }
-
-    const currentRows = await db.query(
-      `
-        SELECT mp.id, mp.participant_id
-        FROM meeting_participants mp
-        INNER JOIN meetings m ON mp.meeting_id = m.id
-        WHERE mp.meeting_id = ? AND m.user_id = ?
-      `,
-      [meetingId, userId]
-    );
-
-    const currentParticipantIds = new Set(
-      (currentRows || []).map((row) => row.participant_id)
-    );
-
-    for (const participantId of desiredParticipantIds) {
-      if (!currentParticipantIds.has(participantId)) {
-        const id = authService.generateId();
-        await db.query(
-          'INSERT INTO meeting_participants (id, meeting_id, participant_id) VALUES (?, ?, ?)',
-          [id, meetingId, participantId]
-        );
-      }
-    }
-
-    for (const row of currentRows || []) {
-      if (!desiredParticipantIds.has(row.participant_id)) {
-        await db.query('DELETE FROM meeting_participants WHERE id = ?', [row.id]);
-      }
-    }
-
-    return {
-      meetingId,
-      participantCount: desiredParticipantIds.size,
-    };
   }
 }
 

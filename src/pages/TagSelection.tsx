@@ -485,48 +485,26 @@ const TagSelection = () => {
         }
       }
 
-      // Auto-trigger summary generation using the exact same method as MeetingDetail (WORKING METHOD)
+      // Auto-trigger summary generation via backend (sends meetingId in webhook header)
       try {
-        
-        // Update meeting status to "ارسال درخواست پردازش"
-        const updateResult = await mysqlClient
-          .from('meetings')
-          .update({ status: 'ارسال درخواست پردازش' });
-        
-        const { error: statusError } = await updateResult.eq('id', meetingData.id || meetingData[0]?.id);
+        const createdMeetingId = meetingData.id || meetingData[0]?.id;
 
-        if (statusError) throw statusError;
-
-        // Get current user email
-        const userEmail = user?.email || '';
-        
-        
-        // Try multiple approaches to ensure the request gets through (same as MeetingDetail)
-        const requestData = {};
-
-        // Approach 1: Try with no-cors first
-        try {
-          await fetch('https://n8nnew.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd', {
+        const analyzeResponse = await fetch(
+          `${API_BASE_URL}/meetings/${createdMeetingId}/analyze`,
+          {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
+              ...mysqlClient.getAuthHeaders(),
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(requestData)
-          });
-        } catch (e) {
+          }
+        );
+
+        if (!analyzeResponse.ok) {
+          const errorData = await analyzeResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to trigger analysis');
         }
 
-/*
-        // Approach 2: Try with dynamic image for GET request with query params
-        try {
-          const img = new Image();
-          const url = new URL('https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd');
-          img.src = url.toString();
-        } catch (e) {
-        }
-
-        */
         toast({
           title: "تولید خلاصه آغاز شد",
           description: "تولید خلاصه خودکار شروع شد. زمانی که آماده شد به شما ایمیل شماارسال خواهد شد.",

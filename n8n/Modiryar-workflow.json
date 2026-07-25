@@ -613,6 +613,10 @@
         "where": {
           "values": [
             {
+              "column": "id",
+              "value": "={{ $('Webhook').first().json.headers['x-meeting-id'] }}"
+            },
+            {
               "column": "status",
               "value": "ارسال درخواست پردازش"
             }
