@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">نشست یار</string>
+    <string name="recording_channel_name">ضبط جلسه</string>
+    <string name="recording_channel_desc">اعلان ضبط میکروفون در پس‌زمینه</string>
+    <string name="recording_notification_title">در حال ضبط جلسه</string>
+    <string name="recording_notification_paused">ضبط متوقف موقت</string>
+    <string name="recording_action_pause">توقف موقت</string>
+    <string name="recording_action_resume">ادامه</string>
+    <string name="recording_action_stop">پایان</string>
+</resources>
