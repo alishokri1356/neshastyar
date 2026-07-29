@@ -19,7 +19,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         
-        // Modiryar custom variants
+        // Neshastyar custom variants
         primary: "bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:shadow-glow transform hover:scale-105 font-semibold",
         success: "bg-gradient-to-r from-success to-success-glow text-success-foreground hover:shadow-glow transform hover:scale-105 font-semibold",
         warning: "bg-gradient-to-r from-warning to-warning-glow text-warning-foreground hover:shadow-glow transform hover:scale-105 font-semibold",

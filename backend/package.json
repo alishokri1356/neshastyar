@@ -1,7 +1,7 @@
 {
-  "name": "modiryar-backend",
+  "name": "neshastyar-backend",
   "version": "1.0.0",
-  "description": "Backend API for Modiryar meeting management system",
+  "description": "Backend API for Neshastyar meeting management system",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -31,6 +31,6 @@
     "api",
     "mysql"
   ],
-  "author": "Modiryar Team",
+  "author": "Neshastyar Team",
   "license": "MIT"
 }

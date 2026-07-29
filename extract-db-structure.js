@@ -22,7 +22,7 @@ async function extractDatabaseStructure() {
     console.log('Fetching table list...');
     const [tables] = await connection.execute('SHOW TABLES');
     
-    let markdown = `# Database Structure - Modiryar
+    let markdown = `# Database Structure - Neshastyar
 
 ## Database Information
 - **Host**: ${dbConfig.host}

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Modiryar Audio Storage Deployment Script
-# A script to automate the deployment of Modiryar on the VPS
+# Neshastyar Audio Storage Deployment Script
+# A script to automate the deployment of Neshastyar on the VPS
 
 # Exit immediately if any command fails, preventing a partial/broken deployment.
 set -e
 
-echo "🚀 Starting Modiryar Deployment..."
+echo "🚀 Starting Neshastyar Deployment..."
 echo ""
 
 # Colors for output
@@ -25,7 +25,11 @@ echo -e "${GREEN}✅ Running as root${NC}"
 echo ""
 
 # 1. Navigate to project directory
-cd /root/modiryar || exit 1
+PROJECT_DIR="/root/neshastyar"
+if [ ! -d "$PROJECT_DIR" ] && [ -d "/root/modiryar" ]; then
+  PROJECT_DIR="/root/modiryar"
+fi
+cd "$PROJECT_DIR" || exit 1
 echo -e "${GREEN}✅ In directory: $(pwd)${NC}"
 echo ""
 
@@ -64,11 +68,12 @@ echo -e "${GREEN}✅ Uploads directory created with correct permissions${NC}"
 # Ensure PM2 ecosystem config is up to date
 echo "--- Updating PM2 configuration ---"
 # Delete existing PM2 process to ensure clean restart with new env vars
+pm2 delete neshastyar-backend 2>/dev/null || true
 pm2 delete modiryar-backend 2>/dev/null || true
 
 # Start the backend application with PM2
 echo "--- Starting backend with PM2 ---"
-pm2 start src/server.js --name modiryar-backend
+pm2 start src/server.js --name neshastyar-backend
 
 # Save PM2 configuration
 pm2 save
@@ -76,7 +81,7 @@ pm2 save
 # Verify the backend is running
 echo "--- Verifying backend startup ---"
 sleep 3
-pm2 status modiryar-backend
+pm2 status neshastyar-backend
 
 # Test backend health
 echo "--- Testing backend health ---"
@@ -92,7 +97,7 @@ echo ""
 # --- Deploying Frontend ---
 echo "--- Deploying Frontend ---"
 # Navigate to the frontend directory (root of project)
-cd /root/modiryar || exit 1
+cd "$PROJECT_DIR" || exit 1
 
 # Install frontend dependencies
 echo "--- Installing frontend dependencies ---"
@@ -102,7 +107,7 @@ echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 # Create production environment file for frontend
 echo "--- Creating production environment ---"
 # Use the same domain with /api path (Nginx will proxy to backend)
-echo "VITE_API_URL=https://modiryar.online/api" > .env.production
+echo "VITE_API_URL=https://neshastyar.com/api" > .env.production
 
 # Build the final, optimized production-ready static files
 echo "--- Building frontend ---"
@@ -111,8 +116,9 @@ echo -e "${GREEN}✅ Frontend built successfully${NC}"
 
 # Copy the contents of the 'dist' folder to the Nginx web directory
 echo "--- Copying build files to web root ---"
-sudo cp -R dist/* /var/www/modiryar.online/
-echo -e "${GREEN}✅ Frontend files copied to /var/www/modiryar.online/${NC}"
+mkdir -p /var/www/neshastyar.com
+sudo cp -R dist/* /var/www/neshastyar.com/
+echo -e "${GREEN}✅ Frontend files copied to /var/www/neshastyar.com/${NC}"
 
 echo "--- Frontend deployment complete ---"
 echo ""
@@ -122,19 +128,19 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}🎉 FULL DEPLOYMENT SUCCESSFUL${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "📍 Project Directory: /root/modiryar"
-echo "📁 Backend: /root/modiryar/backend"
-echo "📁 Uploads: /root/modiryar/backend/uploads/audio"
-echo "📁 Frontend: /var/www/modiryar.online"
+echo "📍 Project Directory: $PROJECT_DIR"
+echo "📁 Backend: $PROJECT_DIR/backend"
+echo "📁 Uploads: $PROJECT_DIR/backend/uploads/audio"
+echo "📁 Frontend: /var/www/neshastyar.com"
 echo "🔌 Backend Port: 3001"
-echo "🌐 Domain: modiryar.online"
+echo "🌐 Domain: neshastyar.com"
 echo ""
 echo "Useful Commands:"
-echo "  pm2 logs modiryar-backend      # View backend logs"
-echo "  pm2 restart modiryar-backend   # Restart backend"
-echo "  pm2 stop modiryar-backend      # Stop backend"
+echo "  pm2 logs neshastyar-backend      # View backend logs"
+echo "  pm2 restart neshastyar-backend   # Restart backend"
+echo "  pm2 stop neshastyar-backend      # Stop backend"
 echo "  pm2 status                     # Check all PM2 processes"
-echo "  ls -la /root/modiryar/backend/uploads/audio  # Check uploads"
+echo "  ls -la $PROJECT_DIR/backend/uploads/audio  # Check uploads"
 echo ""
 echo -e "${YELLOW}⚠️  IMPORTANT NEXT STEPS:${NC}"
 echo "1. Update .env file with production values if needed"

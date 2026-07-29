@@ -9,8 +9,8 @@ All code has been implemented and tested. The audio storage system is ready to h
 ## 📍 VPS Information
 
 - **Server IP**: 127.0.0.1
-- **App Directory**: `/var/www/modiryar.online`
-- **Domain**: modiryar.online
+- **App Directory**: `/var/www/neshastyar.com`
+- **Domain**: neshastyar.com
 - **Backend Port**: 3001
 - **Storage Type**: Local Filesystem
 
@@ -74,7 +74,7 @@ git push origin main
 ssh root@127.0.0.1
 
 # Update code
-cd /var/www/modiryar.online
+cd /var/www/neshastyar.com
 git pull origin main
 
 # Install dependencies
@@ -87,7 +87,7 @@ chmod 755 uploads
 chmod 755 uploads/audio
 
 # Restart backend
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 ```
 
 ### 3. Verify Deployment
@@ -97,7 +97,7 @@ pm2 restart modiryar-backend
 pm2 status
 
 # Check logs
-pm2 logs modiryar-backend
+pm2 logs neshastyar-backend
 
 # Test upload endpoint
 curl http://localhost:3001/health
@@ -149,7 +149,7 @@ curl http://localhost:3001/health
 
 ### Storage Structure:
 ```
-/var/www/modiryar.online/backend/uploads/audio/
+/var/www/neshastyar.com/backend/uploads/audio/
 └── {user_id}/
     ├── 1696123456789-audio_2025-09-30_23-39-32.ogg
     ├── 1696123567890-meeting_recording.wav
@@ -190,8 +190,8 @@ meetings table:
 
 ### Backend not starting?
 ```bash
-pm2 logs modiryar-backend
-pm2 restart modiryar-backend
+pm2 logs neshastyar-backend
+pm2 restart neshastyar-backend
 ```
 
 ### Upload fails?
@@ -206,8 +206,8 @@ pm2 restart modiryar-backend
 
 ### Files not accessible?
 ```bash
-ls -la /var/www/modiryar.online/backend/uploads
-chown -R www-data:www-data /var/www/modiryar.online/backend/uploads
+ls -la /var/www/neshastyar.com/backend/uploads
+chown -R www-data:www-data /var/www/neshastyar.com/backend/uploads
 ```
 
 ---

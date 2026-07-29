@@ -1,6 +1,6 @@
-# Modiryar n8n Workflow (Participants v2)
+# Neshastyar n8n Workflow (Participants v2)
 
-Import `Modiryar-workflow.json` into n8n.
+Import `Neshastyar-workflow.json` into n8n.
 
 ## What changed vs the old workflow
 
@@ -21,7 +21,7 @@ The **Sync Meeting Data** webhook is kept for compatibility but does not link pa
 
 ## Backend setup (required)
 
-Add to `/root/modiryar/backend/.env`:
+Add to `/root/neshastyar/backend/.env`:
 
 ```env
 INTERNAL_WEBHOOK_SECRET=your-long-random-secret-here
@@ -30,7 +30,7 @@ INTERNAL_WEBHOOK_SECRET=your-long-random-secret-here
 Restart backend:
 
 ```bash
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 ```
 
 ## One-time data cleanup (existing meetings)
@@ -38,7 +38,7 @@ pm2 restart modiryar-backend
 If meetings were processed with the old auto-approve flow, run once on the server:
 
 ```bash
-cd /root/modiryar/backend
+cd /root/neshastyar/backend
 node migrations/dedupe_suggestions_from_approved.js
 ```
 
@@ -46,7 +46,7 @@ This removes already-approved participant and tag names from suggestion fields w
 
 ## n8n setup
 
-1. Import `Modiryar-workflow.json`.
+1. Import `Neshastyar-workflow.json`.
 2. Open node **Sync Meeting Data**.
 3. Replace `REPLACE_WITH_INTERNAL_WEBHOOK_SECRET` with the same secret from `.env`.
 4. Re-attach your existing credentials (MySQL, Google Gemini) if n8n asks after import.
@@ -54,7 +54,7 @@ This removes already-approved participant and tag names from suggestion fields w
 ## Sync endpoint
 
 ```http
-POST https://modiryar.online/sync-meeting-data/{meetingId}
+POST https://neshastyar.com/sync-meeting-data/{meetingId}
 Header: X-Internal-Secret: <your-secret>
 ```
 
@@ -80,7 +80,7 @@ Header: X-Meeting-Id: <meeting-uuid>
 Triggered via authenticated API:
 
 ```http
-POST https://modiryar.online/api/meetings/{meetingId}/analyze
+POST https://neshastyar.com/api/meetings/{meetingId}/analyze
 Authorization: Bearer <token>
 ```
 

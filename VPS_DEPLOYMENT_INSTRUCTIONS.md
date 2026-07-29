@@ -4,7 +4,7 @@
 - **IP**: 127.0.0.1
 - **Username**: root
 - **Password**: MY-PASSWORD
-- **Directory**: /var/www/modiryar.online
+- **Directory**: /var/www/neshastyar.com
 
 ---
 
@@ -55,7 +55,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 3. **Run the deployment script:**
    ```bash
-   cd /var/www/modiryar.online
+   cd /var/www/neshastyar.com
    git pull origin main
    chmod +x deploy.sh
    ./deploy.sh
@@ -81,7 +81,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 
 2. **Navigate to project directory:**
    ```bash
-   cd /var/www/modiryar.online
+   cd /var/www/neshastyar.com
    ```
 
 3. **Pull latest code:**
@@ -119,10 +119,10 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 9. **Restart backend:**
    ```bash
    # If backend is already running:
-   pm2 restart modiryar-backend
+   pm2 restart neshastyar-backend
 
    # If backend is NOT running (first time):
-   pm2 start src/server.js --name modiryar-backend
+   pm2 start src/server.js --name neshastyar-backend
    pm2 save
    pm2 startup
    ```
@@ -130,7 +130,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 10. **Check status:**
     ```bash
     pm2 status
-    pm2 logs modiryar-backend
+    pm2 logs neshastyar-backend
     ```
 
 11. **Test backend:**
@@ -149,9 +149,9 @@ After deployment, verify:
 - [ ] Dependencies installed (`node_modules` exists)
 - [ ] Uploads directory created (`backend/uploads/audio/` exists)
 - [ ] Permissions set correctly (755 on uploads)
-- [ ] PM2 process running (`pm2 status` shows modiryar-backend online)
+- [ ] PM2 process running (`pm2 status` shows neshastyar-backend online)
 - [ ] Backend responds to health check
-- [ ] No errors in logs (`pm2 logs modiryar-backend`)
+- [ ] No errors in logs (`pm2 logs neshastyar-backend`)
 
 ---
 
@@ -162,19 +162,19 @@ After deployment, verify:
 pm2 status
 
 # View backend logs
-pm2 logs modiryar-backend
+pm2 logs neshastyar-backend
 
 # Restart backend
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 
 # Stop backend
-pm2 stop modiryar-backend
+pm2 stop neshastyar-backend
 
 # Start backend
-pm2 start modiryar-backend
+pm2 start neshastyar-backend
 
 # Check uploads directory
-ls -la /var/www/modiryar.online/backend/uploads
+ls -la /var/www/neshastyar.com/backend/uploads
 
 # Check disk space
 df -h
@@ -197,7 +197,7 @@ npm --version
 ## 📱 Test the Upload Feature
 
 1. **Go to your frontend:**
-   - URL: http://modiryar.online (or http://127.0.0.1)
+   - URL: http://neshastyar.com (or http://127.0.0.1)
 
 2. **Login to your account**
 
@@ -209,10 +209,10 @@ npm --version
 
 6. **Verify on VPS:**
    ```bash
-   ls -la /var/www/modiryar.online/backend/uploads/audio/
+   ls -la /var/www/neshastyar.com/backend/uploads/audio/
    # You should see a directory with your user ID
    
-   ls -la /var/www/modiryar.online/backend/uploads/audio/{your-user-id}/
+   ls -la /var/www/neshastyar.com/backend/uploads/audio/{your-user-id}/
    # You should see the uploaded audio file
    ```
 
@@ -226,16 +226,16 @@ npm --version
 ### Issue: "Permission denied" on uploads
 **Solution**:
 ```bash
-chmod -R 777 /var/www/modiryar.online/backend/uploads
+chmod -R 777 /var/www/neshastyar.com/backend/uploads
 ```
 
 ### Issue: Backend not starting
 **Solution**:
 ```bash
-cd /var/www/modiryar.online/backend
-pm2 delete modiryar-backend
-pm2 start src/server.js --name modiryar-backend
-pm2 logs modiryar-backend
+cd /var/www/neshastyar.com/backend
+pm2 delete neshastyar-backend
+pm2 start src/server.js --name neshastyar-backend
+pm2 logs neshastyar-backend
 ```
 
 ### Issue: Port 3001 already in use
@@ -246,13 +246,13 @@ netstat -tulpn | grep 3001
 # Kill the process
 kill -9 <PID>
 # Or use PM2
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 ```
 
 ### Issue: Git pull fails
 **Solution**:
 ```bash
-cd /var/www/modiryar.online
+cd /var/www/neshastyar.com
 git stash
 git pull origin main
 ```
@@ -261,7 +261,7 @@ git pull origin main
 
 ## 📞 Need More Help?
 
-1. Check `pm2 logs modiryar-backend` for errors
+1. Check `pm2 logs neshastyar-backend` for errors
 2. Check disk space with `df -h`
 3. Verify permissions with `ls -la backend/uploads`
 4. Test backend manually with `curl http://localhost:3001/health`

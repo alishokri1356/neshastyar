@@ -1,9 +1,9 @@
-# Database Structure - Modiryar
+# Database Structure - Neshastyar
 
 ## Database Information
 - **Host**: 195.248.240.30
-- **Database**: modiryar
-- **User**: modiryar_app
+- **Database**: neshastyar
+- **User**: neshastyar_app
 - **Port**: 3306
 
 ## Tables Overview

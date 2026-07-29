@@ -13,9 +13,9 @@ const Landing = () => {
         <div className="container mx-auto flex items-center justify-between py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-soft">
-              <span className="text-lg font-bold text-primary-foreground">M</span>
+              <span className="text-lg font-bold text-primary-foreground">ن</span>
             </div>
-            <span className="text-lg font-semibold text-foreground sm:text-xl">مدیریار</span>
+            <span className="text-lg font-semibold text-foreground sm:text-xl">نشست یار</span>
           </div>
           <div className="flex items-center gap-2">
             <Button 
@@ -128,7 +128,7 @@ const Landing = () => {
             آماده انقلاب در جلسات خود هستید؟
           </h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            به هزاران متخصصی بپیوندید که از مدیریار برای پربارتر و عملی‌تر کردن 
+            به هزاران متخصصی بپیوندید که از نشست یار برای پربارتر و عملی‌تر کردن 
             جلسات خود استفاده می‌کنند.
           </p>
           <Button 

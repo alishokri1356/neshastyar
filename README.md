@@ -1,8 +1,8 @@
-# Modiryar - Meeting Management System
+# Neshastyar - Meeting Management System
 
 ## Project Overview
 
-Modiryar is a comprehensive meeting management system that allows users to record, transcribe, and organize meetings with AI-powered summaries and tagging capabilities. The system features a modern React frontend with a Node.js/Express backend, providing secure user authentication, email verification, and robust audio file management.
+Neshastyar is a comprehensive meeting management system that allows users to record, transcribe, and organize meetings with AI-powered summaries and tagging capabilities. The system features a modern React frontend with a Node.js/Express backend, providing secure user authentication, email verification, and robust audio file management.
 
 ## Architecture
 
@@ -31,8 +31,8 @@ This project uses a **full-stack architecture** with:
 ### Database
 - **Type**: MySQL
 - **Host**: 127.0.0.1
-- **Database**: modiryar
-- **User**: modiryar_app
+- **Database**: neshastyar
+- **User**: neshastyar_app
 
 ## Key Features
 
@@ -68,7 +68,7 @@ This project uses a **full-stack architecture** with:
 1. **Clone the repository**
 ```bash
 git clone <YOUR_GIT_URL>
-cd modiryar
+cd neshastyar
 ```
 
 2. **Install frontend dependencies**
@@ -217,8 +217,8 @@ http://localhost:3001/api/download/audio/5a325f95-5915-4d91-8050-5aea3fec3a74
 The application connects to a MySQL database with the following configuration:
 
 - **Host**: 127.0.0.1
-- **Database**: modiryar
-- **User**: modiryar_app
+- **Database**: neshastyar
+- **User**: neshastyar_app
 - **Password**: MY-PASSWORD
 - **Port**: 3306
 
@@ -242,7 +242,7 @@ The application uses Gmail SMTP for email confirmation functionality with the fo
 - **SMTP Port**: 587
 - **SMTP User**: shokriali@gmail.com
 - **SMTP Password**: orslxvkgfzqfpgjx (Gmail App Password)
-- **Frontend URL**: https://modiryar.online
+- **Frontend URL**: https://neshastyar.com
 
 ### Email Setup Notes
 
@@ -283,7 +283,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=shokriali@gmail.com
 SMTP_PASS=orslxvkgfzqfpgjx
-FRONTEND_URL=https://modiryar.online
+FRONTEND_URL=https://neshastyar.com
 ```
 
 ## Development
@@ -309,7 +309,7 @@ npm run dev
 ### Project Structure
 
 ```
-modiryar/
+neshastyar/
 ├── backend/                 # Node.js/Express backend
 │   ├── src/
 │   │   ├── config/         # Database configuration
@@ -351,7 +351,7 @@ modiryar/
 
 ### Production Deployment
 The application is currently deployed on a VPS with the following configuration:
-- **Domain**: https://modiryar.online
+- **Domain**: https://neshastyar.com
 - **Backend**: Node.js with PM2 process manager
 - **Frontend**: Static files served via Nginx
 - **Database**: MySQL on remote server

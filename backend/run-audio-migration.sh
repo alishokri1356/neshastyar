@@ -6,7 +6,7 @@
 echo "🚀 Starting audio storage migration..."
 
 # Navigate to the backend directory
-cd /root/modiryar/backend
+cd /root/neshastyar/backend
 
 # Run the migration script
 node migrations/run_audio_storage_migration.js

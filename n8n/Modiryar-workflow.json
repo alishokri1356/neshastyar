@@ -25,7 +25,7 @@
               "id": "03f0784f-24e0-4c32-960e-3c72a558c06f",
               "name": "fileREST",
               "type": "string",
-              "value": "=https://modiryar.online/api/audio/{{ $('Loop Over Items1').item.json.id }}"
+              "value": "=https://neshastyar.com/api/audio/{{ $('Loop Over Items1').item.json.id }}"
             }
           ]
         },
@@ -312,7 +312,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://modiryar.online/sync-meeting-data/{{ $('meeting').first().json.id }}",
+        "url": "=https://neshastyar.com/sync-meeting-data/{{ $('meeting').first().json.id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -641,7 +641,7 @@
     },
     {
       "parameters": {
-        "url": "=https://modiryar.online/sendmail/{{ $('meeting').first().json.id }}",
+        "url": "=https://neshastyar.com/sendmail/{{ $('meeting').first().json.id }}",
         "options": {}
       },
       "id": "c752002d-3008-41e7-b722-cd061078b44a",

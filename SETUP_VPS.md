@@ -4,7 +4,7 @@
 - **IP**: 127.0.0.1
 - **Username**: root
 - **Password**: MY-PASSWORD
-- **GitHub Repo**: https://github.com/alishokri1356/modiryar.git
+- **GitHub Repo**: https://github.com/alishokri1356/neshastyar.git
 
 ---
 
@@ -20,13 +20,13 @@ ssh root@127.0.0.1
 ### Step 2: Create directory and clone project
 
 ```bash
-# Create modiryar directory in /root
+# Create neshastyar directory in /root
 cd /root
-mkdir -p modiryar
+mkdir -p neshastyar
 
 # Clone the project from GitHub
-cd modiryar
-git clone https://github.com/alishokri1356/modiryar.git .
+cd neshastyar
+git clone https://github.com/alishokri1356/neshastyar.git .
 
 # Verify the clone
 ls -la
@@ -82,7 +82,7 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 ### Option 1: Run the deployment script (RECOMMENDED)
 
 ```bash
-cd /root/modiryar
+cd /root/neshastyar
 ./deploy.sh
 ```
 
@@ -94,7 +94,7 @@ The script will automatically:
 - Deploy backend with PM2
 - Install frontend dependencies
 - Build frontend
-- Copy frontend files to /var/www/modiryar.online
+- Copy frontend files to /var/www/neshastyar.com
 
 ### Option 2: Manual deployment
 
@@ -102,7 +102,7 @@ If the script fails, you can deploy manually:
 
 ```bash
 # 1. Navigate to project
-cd /root/modiryar
+cd /root/neshastyar
 
 # 2. Pull latest code
 git pull origin main
@@ -112,15 +112,15 @@ cd backend
 npm install --production
 mkdir -p uploads/audio
 chmod -R 755 uploads
-pm2 delete modiryar-backend 2>/dev/null || true
-pm2 start src/server.js --name modiryar-backend
+pm2 delete neshastyar-backend 2>/dev/null || true
+pm2 start src/server.js --name neshastyar-backend
 pm2 save
 
 # 4. Deploy frontend
-cd /root/modiryar
+cd /root/neshastyar
 npm install
 npm run build
-sudo cp -R dist/* /var/www/modiryar.online/
+sudo cp -R dist/* /var/www/neshastyar.com/
 ```
 
 ---
@@ -128,7 +128,7 @@ sudo cp -R dist/* /var/www/modiryar.online/
 ## 📁 Directory Structure on VPS
 
 ```
-/root/modiryar/                          # Git repository (source code)
+/root/neshastyar/                          # Git repository (source code)
 ├── backend/
 │   ├── src/
 │   ├── uploads/audio/                   # Audio files storage
@@ -139,7 +139,7 @@ sudo cp -R dist/* /var/www/modiryar.online/
 ├── deploy-to-vps.sh                     # Deployment script
 └── package.json
 
-/var/www/modiryar.online/            # Nginx web root (served files)
+/var/www/neshastyar.com/            # Nginx web root (served files)
 ├── index.html
 ├── assets/
 └── ... (built frontend files)
@@ -156,16 +156,16 @@ After deployment, verify everything is working:
 pm2 status
 
 # View backend logs
-pm2 logs modiryar-backend --lines 50
+pm2 logs neshastyar-backend --lines 50
 
 # Test backend health
 curl http://localhost:3001/health
 
 # Check uploads directory
-ls -la /root/modiryar/backend/uploads/audio/
+ls -la /root/neshastyar/backend/uploads/audio/
 
 # Check frontend files
-ls -la /var/www/modiryar.online/
+ls -la /var/www/neshastyar.com/
 
 # Check disk space
 df -h
@@ -182,12 +182,12 @@ When you push changes to GitHub:
 ssh root@127.0.0.1
 
 # 2. Run deployment script
-cd /root/modiryar
+cd /root/neshastyar
 ./deploy.sh
 
 # 3. Verify deployment
 pm2 status
-pm2 logs modiryar-backend --lines 20
+pm2 logs neshastyar-backend --lines 20
 ```
 
 ---
@@ -206,23 +206,23 @@ chmod +x deploy.sh
 ### Problem: Backend not starting
 **Solution**:
 ```bash
-pm2 logs modiryar-backend
-pm2 restart modiryar-backend
+pm2 logs neshastyar-backend
+pm2 restart neshastyar-backend
 ```
 
 ### Problem: Frontend not updating
 **Solution**:
 ```bash
-cd /root/modiryar
+cd /root/neshastyar
 npm run build
-sudo cp -R dist/* /var/www/modiryar.online/
+sudo cp -R dist/* /var/www/neshastyar.com/
 ```
 
 ### Problem: Port 3001 already in use
 **Solution**:
 ```bash
-pm2 delete modiryar-backend
-pm2 start /root/modiryar/backend/src/server.js --name modiryar-backend
+pm2 delete neshastyar-backend
+pm2 start /root/neshastyar/backend/src/server.js --name neshastyar-backend
 ```
 
 ### Problem: Out of disk space
@@ -232,7 +232,7 @@ pm2 start /root/modiryar/backend/src/server.js --name modiryar-backend
 df -h
 
 # Clean up old uploads if needed
-find /root/modiryar/backend/uploads/audio -type f -mtime +30 -delete
+find /root/neshastyar/backend/uploads/audio -type f -mtime +30 -delete
 
 # Clean PM2 logs
 pm2 flush
@@ -245,10 +245,10 @@ pm2 flush
 ```bash
 # PM2 Commands
 pm2 status                           # Show all processes
-pm2 logs modiryar-backend            # View logs
-pm2 restart modiryar-backend         # Restart backend
-pm2 stop modiryar-backend            # Stop backend
-pm2 delete modiryar-backend          # Delete process
+pm2 logs neshastyar-backend            # View logs
+pm2 restart neshastyar-backend         # Restart backend
+pm2 stop neshastyar-backend            # Stop backend
+pm2 delete neshastyar-backend          # Delete process
 pm2 save                             # Save current process list
 pm2 flush                            # Clear logs
 
@@ -258,9 +258,9 @@ git pull origin main                 # Pull latest changes
 git log --oneline -10                # View recent commits
 
 # File Management
-ls -la /root/modiryar                # List project files
-ls -la /var/www/modiryar.online  # List web files
-du -sh /root/modiryar/backend/uploads # Check uploads size
+ls -la /root/neshastyar                # List project files
+ls -la /var/www/neshastyar.com  # List web files
+du -sh /root/neshastyar/backend/uploads # Check uploads size
 
 # System Commands
 df -h                                # Check disk space
@@ -275,11 +275,11 @@ netstat -tulpn | grep 3001           # Check port 3001
 
 | Task | Command |
 |------|---------|
-| Deploy | `cd /root/modiryar && ./deploy.sh` |
+| Deploy | `cd /root/neshastyar && ./deploy.sh` |
 | Check status | `pm2 status` |
-| View logs | `pm2 logs modiryar-backend` |
-| Restart | `pm2 restart modiryar-backend` |
-| Pull code | `cd /root/modiryar && git pull` |
+| View logs | `pm2 logs neshastyar-backend` |
+| Restart | `pm2 restart neshastyar-backend` |
+| Pull code | `cd /root/neshastyar && git pull` |
 
 ---
 

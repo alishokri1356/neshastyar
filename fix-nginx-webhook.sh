@@ -6,14 +6,14 @@
 echo "🔧 Fixing Nginx configuration for webhook support..."
 
 # Backup current configuration
-sudo cp /etc/nginx/sites-available/modiryar /etc/nginx/sites-available/modiryar.backup.$(date +%Y%m%d_%H%M%S)
+sudo cp /etc/nginx/sites-available/neshastyar.com /etc/nginx/sites-available/neshastyar.com.backup.$(date +%Y%m%d_%H%M%S)
 
 echo "📋 Current Nginx configuration:"
-sudo cat /etc/nginx/sites-available/modiryar
+sudo cat /etc/nginx/sites-available/neshastyar.com
 
 echo ""
 echo "🔍 Looking for webhook location block..."
-if grep -q "location /sendmail/" /etc/nginx/sites-available/modiryar; then
+if grep -q "location /sendmail/" /etc/nginx/sites-available/neshastyar.com; then
     echo "✅ Webhook location block already exists!"
 else
     echo "❌ Webhook location block missing. Adding it..."
@@ -36,7 +36,7 @@ else
         proxy_send_timeout 30s;\
         proxy_connect_timeout 30s;\
     }\
-' /etc/nginx/sites-available/modiryar
+' /etc/nginx/sites-available/neshastyar.com
 fi
 
 echo ""
@@ -51,12 +51,12 @@ if [ $? -eq 0 ]; then
     
     echo ""
     echo "🧪 Testing webhook endpoint..."
-    curl -s https://modiryar.online/sendmail/test-meeting-id | head -c 100
+    curl -s https://neshastyar.com/sendmail/test-meeting-id | head -c 100
     echo ""
     
     echo "🎉 Webhook configuration complete!"
 else
     echo "❌ Nginx configuration has errors. Please check manually."
     echo "📋 Current configuration:"
-    sudo cat /etc/nginx/sites-available/modiryar
+    sudo cat /etc/nginx/sites-available/neshastyar.com
 fi

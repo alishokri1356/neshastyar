@@ -80,10 +80,10 @@ const errorHandler = (err, req, res, next) => {
 const corsOptions = {
   origin: [
     // Production
-    'https://modiryar.online',
-    'https://www.modiryar.online',
-    'http://modiryar.online',
-    'http://www.modiryar.online',
+    'https://neshastyar.com',
+    'https://www.neshastyar.com',
+    'http://neshastyar.com',
+    'http://www.neshastyar.com',
     // Development
     'http://localhost:5173',
     'http://localhost:8080',

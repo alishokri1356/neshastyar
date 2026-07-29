@@ -1,6 +1,6 @@
-# Modiryar Backend API
+# Neshastyar Backend API
 
-This is the standalone backend API for the Modiryar meeting management system.
+This is the standalone backend API for the Neshastyar meeting management system.
 
 ## Features
 

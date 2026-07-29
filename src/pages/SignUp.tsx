@@ -61,7 +61,7 @@ const SignUp = () => {
               <Mic2 className="h-6 w-6 text-white" />
               <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">مدیریار</h1>
+            <h1 className="text-2xl font-bold text-foreground">نشست یار</h1>
           </div>
           <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
         </div>

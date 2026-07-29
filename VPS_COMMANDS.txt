@@ -1,17 +1,17 @@
 === COPY AND PASTE THESE COMMANDS IN YOUR VPS ===
 
 # You are currently logged in as root@127.0.0.1
-# You are in /var/www/modiryar.online (WRONG LOCATION)
+# You are in /var/www/neshastyar.com (WRONG LOCATION)
 
 # 1. Go to home directory
 cd /root
 
-# 2. Create modiryar directory
-mkdir -p modiryar
-cd modiryar
+# 2. Create neshastyar directory
+mkdir -p neshastyar
+cd neshastyar
 
 # 3. Clone the project
-git clone https://github.com/alishokri1356/modiryar.git .
+git clone https://github.com/alishokri1356/neshastyar.git .
 
 # 4. Verify clone worked
 ls -la
@@ -35,7 +35,7 @@ After running these commands, the script will:
 - Create uploads directory
 - Start backend with PM2
 - Build frontend
-- Copy frontend to /var/www/modiryar.online
+- Copy frontend to /var/www/neshastyar.com
 
 IMPORTANT: Don't forget to run the database migration in phpMyAdmin!
 URL: http://phpmyadmin.teraxr.com/local

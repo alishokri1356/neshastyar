@@ -1,20 +1,20 @@
-# Nginx Configuration for Modiryar
+# Nginx Configuration for Neshastyar
 
 ## 🔧 Required Nginx Configuration
 
-The production frontend at https://modiryar.online needs to proxy API requests to the backend running on port 3001.
+The production frontend at https://neshastyar.com needs to proxy API requests to the backend running on port 3001.
 
 ---
 
 ## 📝 Nginx Configuration File
 
-Location: `/etc/nginx/sites-available/modiryar` (or similar)
+Location: `/etc/nginx/sites-available/neshastyar.com` (or similar)
 
 ```nginx
 server {
     listen 80;
     listen [::]:80;
-    server_name modiryar.online;
+    server_name neshastyar.com;
 
     # Redirect HTTP to HTTPS
     return 301 https://$server_name$request_uri;
@@ -23,7 +23,7 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name modiryar.online;
+    server_name neshastyar.com;
 
     # SSL configuration (update with your actual SSL certificate paths)
     ssl_certificate /path/to/ssl/cert.pem;
@@ -38,7 +38,7 @@ server {
 
     # Frontend - Serve static files
     location / {
-        root /var/www/modiryar.online;
+        root /var/www/neshastyar.com;
         try_files $uri $uri/ /index.html;
         
         # Cache static assets
@@ -76,7 +76,7 @@ server {
     # Serve uploaded audio files (optional - if you want direct access)
     # WARNING: This bypasses authentication! Better to proxy through backend
     # location /uploads/ {
-    #     alias /root/modiryar/backend/uploads/;
+    #     alias /root/neshastyar/backend/uploads/;
     #     internal;  # Only accessible through X-Accel-Redirect from backend
     # }
 
@@ -87,8 +87,8 @@ server {
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
     # Logging
-    access_log /var/log/nginx/modiryar-access.log;
-    error_log /var/log/nginx/modiryar-error.log;
+    access_log /var/log/nginx/neshastyar-access.log;
+    error_log /var/log/nginx/neshastyar-error.log;
 }
 ```
 
@@ -103,7 +103,7 @@ server {
 ssh root@127.0.0.1
 
 # Edit the Nginx configuration
-sudo nano /etc/nginx/sites-available/modiryar
+sudo nano /etc/nginx/sites-available/neshastyar.com
 
 # Paste the configuration above
 # Update SSL certificate paths if you have them
@@ -113,7 +113,7 @@ sudo nano /etc/nginx/sites-available/modiryar
 
 ```bash
 # Create symlink to sites-enabled
-sudo ln -s /etc/nginx/sites-available/modiryar /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/neshastyar.com /etc/nginx/sites-enabled/
 
 # Or if it already exists, just continue
 ```
@@ -144,7 +144,7 @@ sudo systemctl restart nginx
 sudo systemctl status nginx
 
 # Test API endpoint
-curl https://modiryar.online/api/health
+curl https://neshastyar.com/api/health
 ```
 
 ---
@@ -162,7 +162,7 @@ sudo nginx -t
 **Solution**: Backend is not running
 ```bash
 pm2 status
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 ```
 
 ### Problem: 413 Request Entity Too Large
@@ -186,7 +186,7 @@ client_body_timeout 600s;
 
 ## 📊 Current Configuration
 
-- **Frontend**: Served from `/var/www/modiryar.online`
+- **Frontend**: Served from `/var/www/neshastyar.com`
 - **Backend**: Proxied from `localhost:3001` to `/api/`
 - **Upload Limit**: 500MB
 - **Timeout**: 600 seconds
@@ -207,14 +207,14 @@ pm2 status
 curl http://localhost:3001/health
 
 # Test through Nginx
-curl https://modiryar.online/api/health
+curl https://neshastyar.com/api/health
 
 # View Nginx logs
-sudo tail -f /var/log/nginx/modiryar-error.log
-sudo tail -f /var/log/nginx/modiryar-access.log
+sudo tail -f /var/log/nginx/neshastyar-error.log
+sudo tail -f /var/log/nginx/neshastyar-access.log
 
 # View backend logs
-pm2 logs modiryar-backend
+pm2 logs neshastyar-backend
 ```
 
 ---

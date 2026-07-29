@@ -722,7 +722,9 @@ const MeetingDetail = () => {
       }
 
       // Call the webhook endpoint (no authentication required)
-      const webhookUrl = `https://modiryar.online/sendmail/${meeting.id}`;
+      const apiBase = import.meta.env.VITE_API_URL || 'https://neshastyar.com/api';
+      const origin = apiBase.replace(/\/api\/?$/, '');
+      const webhookUrl = `${origin}/sendmail/${meeting.id}`;
       console.log('🔗 Calling webhook:', webhookUrl);
       
       const response = await fetch(webhookUrl, {

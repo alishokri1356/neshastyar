@@ -1,5 +1,5 @@
 # 🚀 Complete Deployment Guide for Ubuntu VPS
-## Modiryar Audio Storage Implementation
+## Neshastyar Audio Storage Implementation
 
 **Server IP:** 127.0.0.1  
 **Approach:** Option 1 - Filesystem Storage (Recommended for 100MB+ files)
@@ -63,10 +63,10 @@ CREATE INDEX `idx_title` ON `meetings` (`title`);
 ssh root@127.0.0.1
 
 # Connect to MySQL
-mysql -u root -p modiryar
+mysql -u root -p neshastyar
 
 # Or connect remotely from your local machine
-mysql -h 127.0.0.1 -u root -p modiryar
+mysql -h 127.0.0.1 -u root -p neshastyar
 
 # Then paste the SQL commands from Option A
 ```
@@ -80,7 +80,7 @@ mysql -h 127.0.0.1 -u root -p modiryar
 ssh root@127.0.0.1
 
 # Navigate to your application directory
-cd /var/www/modiryar.online
+cd /var/www/neshastyar.com
 
 # Create the backend directory structure if not exists
 mkdir -p backend/uploads/audio
@@ -112,7 +112,7 @@ chown -R $(whoami):$(whoami) backend/uploads
 On your **local development machine**, install the required packages:
 
 ```bash
-cd D:\Projects\Modiryar\modiryar\backend
+cd D:\Projects\Neshastyar\neshastyar\backend
 npm install multer
 ```
 
@@ -132,7 +132,7 @@ git push origin main
 ssh root@127.0.0.1
 
 # Navigate to your app directory
-cd /var/www/modiryar
+cd /var/www/neshastyar
 
 # Pull the latest code
 git pull origin main
@@ -198,7 +198,7 @@ git push origin main
 ssh root@127.0.0.1
 
 # 3. Navigate to your app directory
-cd /var/www/modiryar.online
+cd /var/www/neshastyar.com
 
 # 4. Pull latest changes
 git pull origin main
@@ -214,9 +214,9 @@ chmod 755 uploads/audio
 
 # 7. Restart the backend service
 # If using PM2:
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 # Or if using systemd:
-sudo systemctl restart modiryar-backend
+sudo systemctl restart neshastyar-backend
 # Or manually:
 # Kill existing process and start new one
 pkill -f "node src/server.js"
@@ -237,10 +237,10 @@ ssh root@127.0.0.1
 npm install -g pm2
 
 # Navigate to backend directory
-cd /var/www/modiryar.online/backend
+cd /var/www/neshastyar.com/backend
 
 # Start backend with PM2
-pm2 start src/server.js --name modiryar-backend
+pm2 start src/server.js --name neshastyar-backend
 
 # Save PM2 configuration
 pm2 save
@@ -249,12 +249,12 @@ pm2 save
 pm2 startup
 
 # View logs
-pm2 logs modiryar-backend
+pm2 logs neshastyar-backend
 
 # Other useful PM2 commands:
-# pm2 restart modiryar-backend
-# pm2 stop modiryar-backend
-# pm2 delete modiryar-backend
+# pm2 restart neshastyar-backend
+# pm2 stop neshastyar-backend
+# pm2 delete neshastyar-backend
 # pm2 list
 ```
 
@@ -265,17 +265,17 @@ pm2 logs modiryar-backend
 If you're using Nginx as a reverse proxy:
 
 ```nginx
-# /etc/nginx/sites-available/modiryar
+# /etc/nginx/sites-available/neshastyar.com
 server {
     listen 80;
-    server_name modiryar.online;
+    server_name neshastyar.com;
 
     # Increase upload size limit for large audio files
     client_max_body_size 500M;
     
     # Frontend
     location / {
-        root /var/www/modiryar.online/dist;
+        root /var/www/neshastyar.com/dist;
         try_files $uri $uri/ /index.html;
     }
 
@@ -298,7 +298,7 @@ server {
 
     # Serve uploaded audio files (optional - for direct access)
     location /uploads/ {
-        alias /var/www/modiryar.online/backend/uploads/;
+        alias /var/www/neshastyar.com/backend/uploads/;
         
         # Security: Only authenticated users should access
         # You might want to proxy through backend for auth check
@@ -327,7 +327,7 @@ Since you're storing large files (100MB+), monitor your disk space:
 df -h
 
 # Check uploads directory size
-du -sh /var/www/modiryar.online/backend/uploads/
+du -sh /var/www/neshastyar.com/backend/uploads/
 
 # Set up automatic disk monitoring (optional)
 # Install and configure monitoring tools like:
@@ -344,10 +344,10 @@ Important for production:
 
 ```bash
 # Create backup script
-cat > /usr/local/bin/backup-modiryar-audio.sh << 'EOF'
+cat > /usr/local/bin/backup-neshastyar-audio.sh << 'EOF'
 #!/bin/bash
-BACKUP_DIR="/backup/modiryar/audio"
-SOURCE_DIR="/var/www/modiryar.online/backend/uploads/audio"
+BACKUP_DIR="/backup/neshastyar/audio"
+SOURCE_DIR="/var/www/neshastyar.com/backend/uploads/audio"
 DATE=$(date +%Y-%m-%d)
 
 mkdir -p "$BACKUP_DIR"
@@ -360,12 +360,12 @@ echo "Backup completed: $DATE"
 EOF
 
 # Make executable
-chmod +x /usr/local/bin/backup-modiryar-audio.sh
+chmod +x /usr/local/bin/backup-neshastyar-audio.sh
 
 # Add to crontab (daily at 2 AM)
 crontab -e
 # Add this line:
-# 0 2 * * * /usr/local/bin/backup-modiryar-audio.sh
+# 0 2 * * * /usr/local/bin/backup-neshastyar-audio.sh
 ```
 
 ---
@@ -384,7 +384,7 @@ crontab -e
 ### 📁 File Structure:
 
 ```
-modiryar/
+neshastyar/
 ├── backend/
 │   ├── uploads/
 │   │   └── audio/
@@ -448,13 +448,13 @@ modiryar/
 whoami
 
 # Set permissions
-chmod 755 /var/www/modiryar.online/backend/uploads
+chmod 755 /var/www/neshastyar.com/backend/uploads
 
 # Set owner (if you're root, use root:root):
-chown -R root:root /var/www/modiryar.online/backend/uploads
+chown -R root:root /var/www/neshastyar.com/backend/uploads
 
 # Or if running as a specific user:
-chown -R $(whoami):$(whoami) /var/www/modiryar.online/backend/uploads
+chown -R $(whoami):$(whoami) /var/www/neshastyar.com/backend/uploads
 ```
 
 ### Problem: File upload fails with 413 error
@@ -466,8 +466,8 @@ client_max_body_size 500M;
 ### Problem: Backend not starting
 **Solution**: Check logs and restart:
 ```bash
-pm2 logs modiryar-backend
-pm2 restart modiryar-backend
+pm2 logs neshastyar-backend
+pm2 restart neshastyar-backend
 ```
 
 ---
@@ -475,9 +475,9 @@ pm2 restart modiryar-backend
 ## 📞 Support
 
 If you encounter any issues:
-1. Check logs: `pm2 logs modiryar-backend`
+1. Check logs: `pm2 logs neshastyar-backend`
 2. Check disk space: `df -h`
-3. Check permissions: `ls -la /var/www/modiryar.online/backend/uploads`
+3. Check permissions: `ls -la /var/www/neshastyar.com/backend/uploads`
 4. Test locally first before deploying to VPS
 
 ---

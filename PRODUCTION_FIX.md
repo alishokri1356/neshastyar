@@ -2,9 +2,9 @@
 
 ## ❌ Current Problem
 
-Your production site at https://modiryar.online shows this error:
+Your production site at https://neshastyar.com shows this error:
 ```
-Access to fetch at 'http://localhost:3001/api/auth/login' from origin 'https://modiryar.online' 
+Access to fetch at 'http://localhost:3001/api/auth/login' from origin 'https://neshastyar.com' 
 has been blocked by CORS policy
 ```
 
@@ -35,7 +35,7 @@ ssh root@127.0.0.1
 # Password: MY-PASSWORD
 
 # Navigate to project
-cd /root/modiryar
+cd /root/neshastyar
 
 # Run deployment script
 ./deploy.sh
@@ -44,8 +44,8 @@ cd /root/modiryar
 The script will:
 - Pull latest code
 - Install dependencies  
-- Build frontend with `VITE_API_URL=https://modiryar.online/api`
-- Deploy to `/var/www/modiryar.online`
+- Build frontend with `VITE_API_URL=https://neshastyar.com/api`
+- Deploy to `/var/www/neshastyar.com`
 - Restart backend with updated CORS settings
 
 ### Step 3: Configure Nginx (One-Time Setup)
@@ -56,7 +56,7 @@ You need Nginx to proxy `/api/` requests to your backend on port 3001.
 
 ```bash
 # View your current Nginx config
-sudo cat /etc/nginx/sites-available/modiryar
+sudo cat /etc/nginx/sites-available/neshastyar.com
 # or
 sudo cat /etc/nginx/sites-enabled/default
 
@@ -102,15 +102,15 @@ sudo systemctl reload nginx
 
 Now it uses:
 - **Development**: `http://localhost:3001/api`
-- **Production**: `https://modiryar.online/api` (set by `.env.production`)
+- **Production**: `https://neshastyar.com/api` (set by `.env.production`)
 
 ### 2. Backend CORS
 **Before**: Only allowed localhost origins  
 **After**: Added production domain:
 ```javascript
 origin: [
-  'https://modiryar.online',  // ← Added
-  'http://modiryar.online',   // ← Added
+  'https://neshastyar.com',  // ← Added
+  'http://neshastyar.com',   // ← Added
   'http://localhost:8080',
   // ... other dev ports
 ]
@@ -125,17 +125,17 @@ origin: [
 
 After deployment, test:
 
-1. **Visit**: https://modiryar.online/login
+1. **Visit**: https://neshastyar.com/login
 2. **Try to login**
 3. **Should work** without CORS errors
 
 To verify the API URL is correct:
 ```bash
 # On VPS, check the built frontend
-grep -r "VITE_API_URL" /root/modiryar/.env.production
+grep -r "VITE_API_URL" /root/neshastyar/.env.production
 
 # Should show:
-# VITE_API_URL=https://modiryar.online/api
+# VITE_API_URL=https://neshastyar.com/api
 ```
 
 ---
@@ -145,7 +145,7 @@ grep -r "VITE_API_URL" /root/modiryar/.env.production
 ### Check Backend is Running:
 ```bash
 pm2 status
-pm2 logs modiryar-backend
+pm2 logs neshastyar-backend
 ```
 
 ### Check Nginx Proxy:
@@ -154,13 +154,13 @@ pm2 logs modiryar-backend
 curl http://localhost:3001/health
 
 # Test through Nginx
-curl https://modiryar.online/api/health
+curl https://neshastyar.com/api/health
 ```
 
 ### Check Frontend Build:
 ```bash
 # Verify the built files have the correct API URL
-cd /root/modiryar
+cd /root/neshastyar
 cat .env.production
 ```
 

@@ -73,7 +73,7 @@ git push origin main
 ssh root@127.0.0.1
 
 # 3. Update code
-cd /var/www/modiryar.online
+cd /var/www/neshastyar.com
 git pull
 cd backend
 npm install
@@ -81,7 +81,7 @@ mkdir -p uploads/audio
 chmod 755 uploads
 
 # 4. Restart backend
-pm2 restart modiryar-backend
+pm2 restart neshastyar-backend
 ```
 
 ---

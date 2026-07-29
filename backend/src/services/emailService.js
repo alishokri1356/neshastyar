@@ -14,7 +14,7 @@ class EmailService {
       }
     });
 
-    this.frontendUrl = process.env.FRONTEND_URL || 'https://modiryar.teraxr.com';
+    this.frontendUrl = process.env.FRONTEND_URL || 'https://neshastyar.com';
   }
 
   // Send email verification
@@ -22,13 +22,13 @@ class EmailService {
     const verificationUrl = `${this.frontendUrl}/verify-email?token=${verificationToken}`;
     
     const mailOptions = {
-      from: `"Modiryar" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      from: `"نشست یار" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
       to: email,
-      subject: 'تأیید ایمیل - Modiryar',
+      subject: 'تأیید ایمیل - نشست یار',
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="margin: 0; font-size: 28px;">Modiryar</h1>
+            <h1 style="margin: 0; font-size: 28px;">نشست یار</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">سیستم مدیریت جلسات</p>
           </div>
           
@@ -36,7 +36,7 @@ class EmailService {
             <h2 style="color: #333; margin-top: 0; text-align: right;">سلام ${name} عزیز!</h2>
             
             <p style="color: #666; line-height: 1.6; font-size: 16px; text-align: right;">
-              از ثبت نام شما در Modiryar متشکریم. برای تکمیل فرآیند ثبت نام، لطفاً ایمیل خود را تأیید کنید.
+              از ثبت نام شما در نشست یار متشکریم. برای تکمیل فرآیند ثبت نام، لطفاً ایمیل خود را تأیید کنید.
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -87,13 +87,13 @@ class EmailService {
     const resetUrl = `${this.frontendUrl}/reset-password?token=${resetToken}`;
     
     const mailOptions = {
-      from: `"Modiryar" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      from: `"نشست یار" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
       to: email,
-      subject: 'بازیابی رمز عبور - Modiryar',
+      subject: 'بازیابی رمز عبور - نشست یار',
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="margin: 0; font-size: 28px;">Modiryar</h1>
+            <h1 style="margin: 0; font-size: 28px;">نشست یار</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">سیستم مدیریت جلسات</p>
           </div>
           
@@ -159,13 +159,13 @@ class EmailService {
     const formattedSummary = this.formatSummaryForEmail(summary);
     
     const mailOptions = {
-      from: `"Modiryar" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      from: `"نشست یار" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
       to: email,
       subject: `خلاصه جلسه: ${meetingTitle}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="margin: 0; font-size: 28px;">Modiryar</h1>
+            <h1 style="margin: 0; font-size: 28px;">نشست یار</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">سیستم مدیریت جلسات</p>
           </div>
           
