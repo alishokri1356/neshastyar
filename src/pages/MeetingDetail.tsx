@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy } from 'lucide-react';
+import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, FileText, CheckCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AppShell from '@/components/layout/AppShell';
 import { getStatusBadgeClass } from '@/lib/status';
@@ -51,6 +52,10 @@ const MeetingDetail = () => {
   const [localAllUserTags, setLocalAllUserTags] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
+  const [transcription, setTranscription] = useState('');
+  const [showTranscriptionModal, setShowTranscriptionModal] = useState(false);
+  const [copiedTranscription, setCopiedTranscription] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [originalSummary, setOriginalSummary] = useState('');
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3B82F6');
@@ -116,6 +121,7 @@ const MeetingDetail = () => {
           title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
           date: new Date(meetingData.meeting_date),
           summary: meetingData.summary || '',
+          transcribe: meetingData.transcribe || meetingData.transcription || '',
           status: meetingData.status,
           tags: tags,
           userId: meetingData.user_id,
@@ -142,7 +148,7 @@ const MeetingDetail = () => {
 
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
-        .select('status, summary')
+        .select('status, summary, transcribe, transcription')
         .eq('id', meetingId)
         .eq('user_id', user.id)
         .single();
@@ -151,7 +157,8 @@ const MeetingDetail = () => {
       
       return {
         status: meetingData.status,
-        summary: meetingData.summary || ''
+        summary: meetingData.summary || '',
+        transcribe: meetingData.transcribe || meetingData.transcription || ''
       };
     },
     refetchInterval: 30000, // Reduce to 30 seconds
@@ -220,6 +227,7 @@ const MeetingDetail = () => {
       setMeeting(meetingData);
       setMeetingTags(meetingData.tags);
       setSummary(meetingData.summary);
+      setTranscription(meetingData.transcribe || meetingData.transcription || '');
       setEditedTitle(meetingData.title);
     }
   }, [meetingData]);
@@ -270,7 +278,10 @@ const MeetingDetail = () => {
     if (statusData?.summary && statusData.summary !== summary && !isEditingSummary) {
       setSummary(statusData.summary);
     }
-  }, [statusData?.summary, isEditingSummary]);
+    if (statusData?.transcribe && statusData.transcribe !== transcription) {
+      setTranscription(statusData.transcribe);
+    }
+  }, [statusData?.summary, statusData?.transcribe, isEditingSummary, transcription]);
 
   if (meetingLoading) {
     return (
@@ -299,6 +310,18 @@ const MeetingDetail = () => {
       </div>
     );
   }
+
+  const handleCopyTranscription = () => {
+    const textToCopy = transcription || meeting?.transcribe || meeting?.transcription || '';
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedTranscription(true);
+    setTimeout(() => setCopiedTranscription(false), 2000);
+    toast({
+      title: "متن پیاده‌سازی شده کپی شد",
+      description: "متن کامل پیاده‌سازی شده صوت در کلیپ‌بورد کپی شد.",
+    });
+  };
 
   const handleSaveSummary = async () => {
     try {
@@ -1079,6 +1102,10 @@ const MeetingDetail = () => {
           <Settings className="me-2 h-4 w-4" />
           گزینه‌های جلسه
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setShowTranscriptionModal(true)}>
+          <FileText className="me-2 h-4 w-4" />
+          متن پیاده‌سازی شده (Transcription)
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSendSummaryToEmail}>
           <Mail className="me-2 h-4 w-4" />
           ارسال به ایمیل
@@ -1090,12 +1117,21 @@ const MeetingDetail = () => {
   return (
     <AppShell title={meeting.title} onBack={true} clickableBack actions={headerActions}>
       <div className="space-y-5">
-        {/* Process request CTA */}
-        <div className="space-y-2">
+        {/* Process request CTA & Transcription Button */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Button
+            onClick={() => setShowTranscriptionModal(true)}
+            className="w-full flex items-center justify-center gap-2 border-emerald-500 bg-emerald-50/80 font-bold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-600 transition-all shadow-sm"
+            variant="outline"
+          >
+            <FileText className="h-4 w-4 text-emerald-600" />
+            متن پیاده‌سازی شده جلسه
+          </Button>
+
           {isProcessed ? (
             <Button
               onClick={handleSendSummaryToEmail}
-              className="w-full border-blue-500 bg-white font-bold tracking-wide text-blue-600 shadow-lg transition-all duration-300 hover:border-blue-600 hover:bg-blue-50 hover:shadow-xl"
+              className="w-full border-blue-500 bg-white font-bold tracking-wide text-blue-600 shadow-sm transition-all duration-300 hover:border-blue-600 hover:bg-blue-50"
               variant="outline"
             >
               <Mail className="h-4 w-4" />
@@ -1104,7 +1140,7 @@ const MeetingDetail = () => {
           ) : (
             <Button
               onClick={handleAutoGenerateSummary}
-              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-sm transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700"
             >
               <Sparkles className="h-4 w-4" />
               درخواست پردازش
@@ -1157,11 +1193,13 @@ const MeetingDetail = () => {
                   {meeting.fileName}
                 </p>
 <p className="text-muted-foreground mt-2">
-  {new Date(meeting.date).toLocaleDateString("fa-IR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  })}
+  {meeting?.date && !isNaN(new Date(meeting.date).getTime())
+    ? new Date(meeting.date).toLocaleDateString("fa-IR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })
+    : ''}
 </p>
               </div>
               <Badge
@@ -1651,6 +1689,70 @@ const MeetingDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Fullscreen Transcription Modal Dialog */}
+        <Dialog open={showTranscriptionModal} onOpenChange={setShowTranscriptionModal}>
+          <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-6 text-right" dir="rtl">
+            <DialogHeader className="text-right pb-2 border-b border-border">
+              <div className="flex items-center justify-between gap-4">
+                <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
+                  <FileText className="h-5 w-5 text-emerald-600" />
+                  متن پیاده‌سازی شده صوت جلسه (Transcription)
+                </DialogTitle>
+                {(transcription || meeting?.transcribe || meeting?.transcription) && (
+                  <Button
+                    onClick={handleCopyTranscription}
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-1.5 shrink-0"
+                  >
+                    {copiedTranscription ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-600" />
+                        کپی شد
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        کپی متن
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+              <DialogDescription className="text-muted-foreground text-xs pt-1">
+                رونویسی و متن کامل کلمه به کلمه فایل(های) صوتی جلسه به زبان فارسی
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto mt-4 p-4 rounded-lg bg-muted/40 border border-border text-right" dir="rtl">
+              {(transcription || meeting?.transcribe || meeting?.transcription) ? (
+                <p className="text-foreground leading-relaxed whitespace-pre-wrap text-base selection:bg-emerald-100 font-sans">
+                  {transcription || meeting?.transcribe || meeting?.transcription}
+                </p>
+              ) : (
+                <div className="py-12 text-center text-muted-foreground">
+                  <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                  <p className="font-medium">هنوز متنی برای این جلسه پیاده‌سازی نشده است.</p>
+                  <p className="text-xs mt-1">پس از اتمام فرآیند پردازش توسط هوش مصنوعی، متن در این قسمت نمایش داده خواهد شد.</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4 flex flex-row items-center justify-between sm:justify-between pt-2 border-t border-border">
+              <div className="text-xs text-muted-foreground">
+                {(transcription || meeting?.transcribe || meeting?.transcription) ? (
+                  <span>
+                    تعداد کلمات: {(transcription || meeting?.transcribe || meeting?.transcription).trim().split(/\s+/).length} کلمه
+                  </span>
+                ) : null}
+              </div>
+              <Button onClick={() => setShowTranscriptionModal(false)} variant="outline" size="sm">
+                بستن
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppShell>
   );
