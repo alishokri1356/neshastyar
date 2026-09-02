@@ -12,7 +12,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "modiryar-email-sender"
     },
     {
@@ -23,7 +26,10 @@
       "name": "Extract Meeting ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0]
+      "position": [
+        220,
+        0
+      ]
     },
     {
       "parameters": {
@@ -35,7 +41,10 @@
       "name": "Load Meeting",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.5,
-      "position": [440, 0],
+      "position": [
+        440,
+        0
+      ],
       "credentials": {
         "mySql": {
           "id": "2Pra15EliiSLhGUC",
@@ -45,13 +54,16 @@
     },
     {
       "parameters": {
-        "jsCode": "const meetingId = $('Extract Meeting ID').first().json.meetingId;\nconst rows = $input.all().map((item) => item.json);\nconst meeting = rows[0];\n\nif (!meetingId) {\n  return [{ json: { error: true, statusCode: 400, message: 'Meeting ID is required', meetingId: null } }];\n}\n\nif (!meeting || !meeting.id) {\n  return [{ json: { error: true, statusCode: 404, message: 'Meeting not found', meetingId } }];\n}\n\nif (!meeting.summary || !String(meeting.summary).trim()) {\n  return [{ json: { error: true, statusCode: 400, message: 'No summary available', meetingId } }];\n}\n\nif (meeting.lastTimeEmailSent) {\n  const last = new Date(meeting.lastTimeEmailSent);\n  const diffSeconds = (Date.now() - last.getTime()) / 1000;\n  if (diffSeconds < 60) {\n    const remaining = Math.ceil(60 - diffSeconds);\n    return [{ json: { error: true, statusCode: 429, message: `Please wait ${remaining} seconds`, cooldownRemaining: remaining, meetingId } }];\n  }\n}\n\nfunction stripFences(text) {\n  return String(text).replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/i, '').trim();\n}\n\nfunction tryParseSummary(text) {\n  const cleaned = stripFences(text);\n  try {\n    const parsed = JSON.parse(cleaned);\n    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;\n  } catch {\n    const start = cleaned.indexOf('{');\n    if (start === -1) return null;\n    let depth = 0;\n    for (let i = start; i < cleaned.length; i++) {\n      if (cleaned[i] === '{') depth++;\n      else if (cleaned[i] === '}') {\n        depth--;\n        if (depth === 0) {\n          try {\n            return JSON.parse(cleaned.slice(start, i + 1));\n          } catch {\n            return null;\n          }\n        }\n      }\n    }\n    return null;\n  }\n}\n\nfunction bulletPoints(json) {\n  const raw = json['Bolet Points'] ?? json['Bullet Points'];\n  return Array.isArray(raw) ? raw.filter(Boolean) : [];\n}\n\nfunction formatSummaryHtml(summary) {\n  const json = tryParseSummary(summary);\n  if (!json) {\n    return `<h3 style=\"color:#333;margin-top:0;text-align:right;border-bottom:2px solid #667eea;padding-bottom:10px;\">خلاصه جلسه</h3><div style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;white-space:pre-wrap;direction:rtl;\">${String(summary)}</div>`;\n  }\n\n  let html = '<h3 style=\"color:#333;margin-top:0;text-align:right;border-bottom:2px solid #667eea;padding-bottom:10px;\">خلاصه جلسه</h3>';\n\n  if (json.Subject) {\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">موضوع:</h4><p style=\"color:#333;line-height:1.6;font-size:15px;text-align:right;margin:0;font-weight:bold;direction:rtl;\">${json.Subject}</p></div>`;\n  }\n\n  if (json.Summary) {\n    const isHtml = /<\\/?[a-z][^>]*>/i.test(String(json.Summary));\n    const body = isHtml\n      ? `<div style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;direction:rtl;\">${json.Summary}</div>`\n      : `<p style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;margin:0;white-space:pre-wrap;direction:rtl;\">${json.Summary}</p>`;\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">خلاصه:</h4>${body}</div>`;\n  }\n\n  const people = json['People in meetings'];\n  if (Array.isArray(people) && people.length) {\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">افراد حاضر در جلسه:</h4><div style=\"text-align:right;direction:rtl;\">${people.map((p) => `<span style=\"display:inline-block;background:#f0f0f0;padding:5px 10px;margin:2px;border-radius:15px;font-size:14px;color:#555;\">${p}</span>`).join('')}</div></div>`;\n  }\n\n  const points = bulletPoints(json);\n  if (points.length) {\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">نکات کلیدی:</h4><ul style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;margin:0;padding-right:20px;direction:rtl;\">${points.map((p) => `<li style=\"margin-bottom:8px;\">${p}</li>`).join('')}</ul></div>`;\n  }\n\n  return html;\n}\n\nconst summaryHtml = formatSummaryHtml(meeting.summary);\nconst htmlBody = `\n<div dir=\"rtl\" style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;direction:rtl;\">\n  <div style=\"background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;border-radius:10px 10px 0 0;text-align:center;\">\n    <h1 style=\"margin:0;font-size:28px;\">نشست یار</h1>\n    <p style=\"margin:10px 0 0 0;opacity:0.9;\">سیستم مدیریت جلسات</p>\n  </div>\n  <div style=\"background:#f8f9fa;padding:30px;border-radius:0 0 10px 10px;direction:rtl;\">\n    <div style=\"background:white;border:1px solid #dee2e6;border-radius:8px;padding:20px;margin:0;\">${summaryHtml}</div>\n  </div>\n</div>`;\n\nreturn [{\n  json: {\n    error: false,\n    meetingId: meeting.id,\n    title: meeting.title,\n    email: meeting.email,\n    userName: meeting.name || meeting.email,\n    htmlBody,\n  },\n}];"
+        "jsCode": "const meetingId = $('Extract Meeting ID').first().json.meetingId;\nconst rows = $input.all().map((item) => item.json);\nconst meeting = rows[0];\n\nif (!meetingId) {\n  return [{ json: { error: true, statusCode: 400, message: 'Meeting ID is required', meetingId: null } }];\n}\n\nif (!meeting || !meeting.id) {\n  return [{ json: { error: true, statusCode: 404, message: 'Meeting not found', meetingId } }];\n}\n\nif (!meeting.summary || !String(meeting.summary).trim()) {\n  return [{ json: { error: true, statusCode: 400, message: 'No summary available', meetingId } }];\n}\n\nif (meeting.lastTimeEmailSent) {\n  const last = new Date(meeting.lastTimeEmailSent);\n  const diffSeconds = (Date.now() - last.getTime()) / 1000;\n  if (diffSeconds < 60) {\n    const remaining = Math.ceil(60 - diffSeconds);\n    return [{ json: { error: true, statusCode: 429, message: `Please wait ${remaining} seconds`, cooldownRemaining: remaining, meetingId } }];\n  }\n}\n\nfunction stripFences(text) {\n  return String(text).replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/i, '').trim();\n}\n\nfunction tryParseSummary(text) {\n  const cleaned = stripFences(text);\n  try {\n    const parsed = JSON.parse(cleaned);\n    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;\n  } catch {\n    const start = cleaned.indexOf('{');\n    if (start === -1) return null;\n    let depth = 0;\n    for (let i = start; i < cleaned.length; i++) {\n      if (cleaned[i] === '{') depth++;\n      else if (cleaned[i] === '}') {\n        depth--;\n        if (depth === 0) {\n          try {\n            return JSON.parse(cleaned.slice(start, i + 1));\n          } catch {\n            return null;\n          }\n        }\n      }\n    }\n    return null;\n  }\n}\n\nfunction formatBulletPoint(point) {\n  if (typeof point === 'string') return point.trim();\n  if (point && typeof point === 'object' && !Array.isArray(point)) {\n    return Object.entries(point)\n      .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : String(value ?? '')}`)\n      .join(' — ');\n  }\n  if (point == null) return '';\n  return String(point).trim();\n}\n\nfunction bulletPoints(json) {\n  const raw = json['Bolet Points'] ?? json['Bullet Points'];\n  if (!Array.isArray(raw)) return [];\n  return raw.map(formatBulletPoint).filter((item) => item.length > 0);\n}\n\nfunction formatSummaryHtml(summary) {\n  const json = tryParseSummary(summary);\n  if (!json) {\n    return `<h3 style=\"color:#333;margin-top:0;text-align:right;border-bottom:2px solid #667eea;padding-bottom:10px;\">خلاصه جلسه</h3><div style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;white-space:pre-wrap;direction:rtl;\">${String(summary)}</div>`;\n  }\n\n  let html = '<h3 style=\"color:#333;margin-top:0;text-align:right;border-bottom:2px solid #667eea;padding-bottom:10px;\">خلاصه جلسه</h3>';\n\n  if (json.Subject) {\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">موضوع:</h4><p style=\"color:#333;line-height:1.6;font-size:15px;text-align:right;margin:0;font-weight:bold;direction:rtl;\">${json.Subject}</p></div>`;\n  }\n\n  if (json.Summary) {\n    const isHtml = /<\\/?[a-z][^>]*>/i.test(String(json.Summary));\n    const body = isHtml\n      ? `<div style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;direction:rtl;\">${json.Summary}</div>`\n      : `<p style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;margin:0;white-space:pre-wrap;direction:rtl;\">${json.Summary}</p>`;\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">خلاصه:</h4>${body}</div>`;\n  }\n\n  const people = json['People in meetings'];\n  if (Array.isArray(people) && people.length) {\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">افراد حاضر در جلسه:</h4><div style=\"text-align:right;direction:rtl;\">${people.map((p) => `<span style=\"display:inline-block;background:#f0f0f0;padding:5px 10px;margin:2px;border-radius:15px;font-size:14px;color:#555;\">${p}</span>`).join('')}</div></div>`;\n  }\n\n  const points = bulletPoints(json);\n  if (points.length) {\n    html += `<div style=\"margin-bottom:20px;\"><h4 style=\"color:#555;margin:0 0 10px 0;text-align:right;font-size:16px;\">نکات کلیدی:</h4><ul style=\"color:#333;line-height:1.8;font-size:15px;text-align:right;margin:0;padding-right:20px;direction:rtl;\">${points.map((p) => `<li style=\"margin-bottom:8px;\">${p}</li>`).join('')}</ul></div>`;\n  }\n\n  return html;\n}\n\nconst summaryHtml = formatSummaryHtml(meeting.summary);\nconst htmlBody = `\n<div dir=\"rtl\" style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;direction:rtl;\">\n  <div style=\"background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;border-radius:10px 10px 0 0;text-align:center;\">\n    <h1 style=\"margin:0;font-size:28px;\">نشست یار</h1>\n    <p style=\"margin:10px 0 0 0;opacity:0.9;\">سیستم مدیریت جلسات</p>\n  </div>\n  <div style=\"background:#f8f9fa;padding:30px;border-radius:0 0 10px 10px;direction:rtl;\">\n    <div style=\"background:white;border:1px solid #dee2e6;border-radius:8px;padding:20px;margin:0;\">${summaryHtml}</div>\n  </div>\n</div>`;\n\nreturn [{\n  json: {\n    error: false,\n    meetingId: meeting.id,\n    title: meeting.title,\n    email: meeting.email,\n    userName: meeting.name || meeting.email,\n    htmlBody,\n  },\n}];"
       },
       "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
       "name": "Format Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 0]
+      "position": [
+        660,
+        0
+      ]
     },
     {
       "parameters": {
@@ -80,7 +92,10 @@
       "name": "Is Valid",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [880, 0]
+      "position": [
+        880,
+        0
+      ]
     },
     {
       "parameters": {
@@ -112,7 +127,10 @@
       "name": "Send Email via Resend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, -80]
+      "position": [
+        1100,
+        -80
+      ]
     },
     {
       "parameters": {
@@ -124,7 +142,10 @@
       "name": "Update Timestamp",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.5,
-      "position": [1320, -80],
+      "position": [
+        1320,
+        -80
+      ],
       "credentials": {
         "mySql": {
           "id": "2Pra15EliiSLhGUC",
@@ -144,7 +165,10 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1540, -80]
+      "position": [
+        1540,
+        -80
+      ]
     },
     {
       "parameters": {
@@ -158,33 +182,96 @@
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1100, 120]
+      "position": [
+        1100,
+        120
+      ]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "Extract Meeting ID", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract Meeting ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract Meeting ID": {
-      "main": [[{ "node": "Load Meeting", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Load Meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Load Meeting": {
-      "main": [[{ "node": "Format Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format Email": {
-      "main": [[{ "node": "Is Valid", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is Valid": {
       "main": [
-        [{ "node": "Send Email via Resend", "type": "main", "index": 0 }],
-        [{ "node": "Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Email via Resend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send Email via Resend": {
-      "main": [[{ "node": "Update Timestamp", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update Timestamp": {
-      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
