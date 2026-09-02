@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
 import { mysqlClient } from '@/lib/mysql-client';
-import { normalizeBulletPoints, parseMeetingSummaryJson } from '@/lib/meetingSummary';
+import { normalizeBulletPoints, parseMeetingSummaryJson, htmlToPlainText } from '@/lib/meetingSummary';
 import { useToast } from '@/components/ui/use-toast';
 import moment from 'moment-jalaali';
 import AppShell from '@/components/layout/AppShell';
@@ -103,7 +103,7 @@ const UntaggedMeetings = () => {
     if (parsed) {
       const bullets = normalizeBulletPoints(parsed['Bolet Points'] ?? parsed['Bullet Points']);
       if (bullets.length > 0) return bullets;
-      if (typeof parsed.Summary === 'string') return [parsed.Summary];
+      if (typeof parsed.Summary === 'string') return [htmlToPlainText(parsed.Summary)];
     }
     return summary.split('\n').filter(Boolean);
   };

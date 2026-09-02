@@ -23,9 +23,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy } from 'lucide-react';
+import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AppShell from '@/components/layout/AppShell';
+import RichTextEditor from '@/components/RichTextEditor';
 import { getStatusBadgeClass } from '@/lib/status';
 
 import { mysqlClient } from '@/lib/mysql-client';
@@ -39,6 +40,8 @@ import {
   normalizeBulletPoints,
   formatSummaryForClipboard,
   formatEditableSummaryForClipboard,
+  isHtmlContent,
+  htmlToPlainText,
 } from '@/lib/meetingSummary';
 
 const nameMatchesSearch = (name: string, query: string) => {
@@ -1032,7 +1035,8 @@ const MeetingDetail = () => {
       if (summaryEditMode === 'structured') {
         text = formatEditableSummaryForClipboard(editedSummaryFields);
       } else {
-        text = summary.trim() ? `خلاصه:\n${summary.trim()}` : null;
+        const plain = htmlToPlainText(summary).trim();
+        text = plain ? `خلاصه:\n${plain}` : null;
       }
     } else {
       const currentSummary = statusData?.summary || summary;
@@ -1062,6 +1066,34 @@ const MeetingDetail = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleOpenInGoogleDocs = async () => {
+    const currentSummary = statusData?.summary || summary;
+    const text = formatSummaryForClipboard(currentSummary);
+
+    if (!text) {
+      toast({
+        title: 'خطا',
+        description: 'خلاصه‌ای برای انتقال به Google Docs وجود ندارد.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error('Error copying summary for Google Docs:', error);
+    }
+
+    window.open('https://docs.google.com/document/create', '_blank', 'noopener');
+
+    toast({
+      title: 'سند جدید Google Docs باز شد',
+      description:
+        'خلاصه جلسه در کلیپ‌بورد کپی شد؛ در سند جدید Ctrl+V بزنید. پس از ویرایش، متن را با دکمه «ویرایش» در همین صفحه جای‌گذاری و ذخیره کنید.',
+    });
   };
 
   // Helper function to check if summary is JSON
@@ -1170,7 +1202,14 @@ const MeetingDetail = () => {
         {jsonData.Summary && (
           <div>
             <h3 className="text-lg font-bold text-card-foreground mb-2">خلاصه:</h3>
-            <p className="text-foreground leading-relaxed whitespace-pre-wrap">{jsonData.Summary}</p>
+            {isHtmlContent(String(jsonData.Summary)) ? (
+              <div
+                className="rich-text-body text-foreground"
+                dangerouslySetInnerHTML={{ __html: String(jsonData.Summary) }}
+              />
+            ) : (
+              <p className="text-foreground leading-relaxed whitespace-pre-wrap">{jsonData.Summary}</p>
+            )}
           </div>
         )}
 
@@ -1346,6 +1385,15 @@ const MeetingDetail = () => {
                       کپی
                     </Button>
                     <Button
+                      onClick={handleOpenInGoogleDocs}
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Google Docs
+                    </Button>
+                    <Button
                       onClick={handleStartEditSummary}
                       variant="outline"
                       size="sm"
@@ -1385,17 +1433,14 @@ const MeetingDetail = () => {
 
                       <div className="space-y-2">
                         <Label htmlFor="summary-text">خلاصه</Label>
-                        <Textarea
-                          id="summary-text"
+                        <RichTextEditor
                           value={editedSummaryFields.summaryText}
-                          onChange={(e) =>
+                          onChange={(html) =>
                             setEditedSummaryFields((prev) => ({
                               ...prev,
-                              summaryText: e.target.value,
+                              summaryText: html,
                             }))
                           }
-                          placeholder="خلاصه جلسه را وارد کنید..."
-                          className="min-h-[200px] resize-y"
                         />
                       </div>
 
@@ -1451,11 +1496,9 @@ const MeetingDetail = () => {
                 }
 
                 return (
-                  <Textarea
+                  <RichTextEditor
                     value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    placeholder="خلاصه جلسه را وارد کنید..."
-                    className="min-h-[200px] resize-y"
+                    onChange={setSummary}
                   />
                 );
               }
@@ -1477,6 +1520,16 @@ const MeetingDetail = () => {
                 return renderJsonSummary(jsonData);
               }
               
+              if (isHtmlContent(currentSummary)) {
+                return (
+                  <div
+                    className="rich-text-body text-foreground"
+                    dir="rtl"
+                    dangerouslySetInnerHTML={{ __html: currentSummary }}
+                  />
+                );
+              }
+
               return (
                 <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
                   {currentSummary}

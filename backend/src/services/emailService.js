@@ -209,12 +209,16 @@ class EmailService {
         `;
       }
       
-      // Summary
+      // Summary (may be plain text or rich HTML from the in-app editor)
       if (jsonData.Summary) {
+        const summaryIsHtml = /<\/?[a-z][^>]*>/i.test(jsonData.Summary);
+        const summaryBody = summaryIsHtml
+          ? `<div style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; direction: rtl;">${jsonData.Summary}</div>`
+          : `<p style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; margin: 0; white-space: pre-wrap;">${jsonData.Summary}</p>`;
         html += `
           <div style="margin-bottom: 20px;">
             <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">خلاصه:</h4>
-            <p style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; margin: 0; white-space: pre-wrap;">${jsonData.Summary}</p>
+            ${summaryBody}
           </div>
         `;
       }

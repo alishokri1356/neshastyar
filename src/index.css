@@ -205,3 +205,51 @@
     display: none;
   }
 }
+
+/* Rich text content (TipTap editor body + rendered summary HTML) — RTL Persian */
+.rich-text-body {
+  direction: rtl;
+  text-align: right;
+  line-height: 1.9;
+}
+.rich-text-body p {
+  margin: 0.35rem 0;
+}
+.rich-text-body h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.9rem 0 0.4rem;
+}
+.rich-text-body h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0.8rem 0 0.35rem;
+}
+.rich-text-body ul {
+  list-style: disc;
+  padding-right: 1.5rem;
+  margin: 0.5rem 0;
+}
+.rich-text-body ol {
+  list-style: decimal;
+  padding-right: 1.5rem;
+  margin: 0.5rem 0;
+}
+.rich-text-body li {
+  margin: 0.2rem 0;
+}
+.rich-text-body strong {
+  font-weight: 700;
+}
+.rich-text-body blockquote {
+  border-right: 3px solid hsl(var(--border));
+  padding-right: 0.75rem;
+  margin: 0.5rem 0;
+  color: hsl(var(--muted-foreground));
+}
+.rich-text-editor .ProseMirror {
+  min-height: 200px;
+}
+.rich-text-editor .ProseMirror:focus {
+  outline: none;
+}
