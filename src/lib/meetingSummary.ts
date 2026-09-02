@@ -268,6 +268,46 @@ export const formatEditableSummaryForClipboard = (
   return parts.length > 0 ? parts.join('\n\n') : null;
 };
 
+const escapeHtml = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const toHtmlBlock = (text: string): string =>
+  isHtmlContent(text) ? text : `<p>${escapeHtml(text).split('\n').join('<br>')}</p>`;
+
+/**
+ * Format the summary as rich HTML for the clipboard, so pasting into
+ * Google Docs / Word keeps headings, formatting, and bullet lists.
+ */
+export const formatSummaryAsHtml = (summaryText: string): string | null => {
+  if (!summaryText?.trim()) return null;
+
+  const parts: string[] = [];
+  const json = parseMeetingSummaryJson(summaryText);
+
+  if (json) {
+    const editable = jsonToEditableSummary(json);
+    if (editable.subject.trim()) {
+      parts.push(`<h2>موضوع</h2>${toHtmlBlock(editable.subject.trim())}`);
+    }
+    if (editable.summaryText.trim()) {
+      parts.push(`<h2>خلاصه</h2>${toHtmlBlock(editable.summaryText.trim())}`);
+    }
+    if (editable.bulletPoints.length > 0) {
+      parts.push(
+        `<h2>نکات کلیدی</h2><ul>${editable.bulletPoints
+          .map((point) => `<li>${escapeHtml(point)}</li>`)
+          .join('')}</ul>`,
+      );
+    }
+  } else {
+    parts.push(toHtmlBlock(summaryText.trim()));
+  }
+
+  return parts.length > 0
+    ? `<div dir="rtl" style="direction:rtl;text-align:right;">${parts.join('')}</div>`
+    : null;
+};
+
 export const formatSummaryForClipboard = (summaryText: string): string | null => {
   if (!summaryText?.trim()) return null;
 

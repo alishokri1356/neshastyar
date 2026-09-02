@@ -39,6 +39,7 @@ import {
   emptyEditableSummary,
   normalizeBulletPoints,
   formatSummaryForClipboard,
+  formatSummaryAsHtml,
   formatEditableSummaryForClipboard,
   isHtmlContent,
   htmlToPlainText,
@@ -78,6 +79,8 @@ const MeetingDetail = () => {
   const [editedSummaryFields, setEditedSummaryFields] = useState<EditableMeetingSummary>(
     emptyEditableSummary()
   );
+  const [googleDocsDialogOpen, setGoogleDocsDialogOpen] = useState(false);
+  const [googleDocsCopied, setGoogleDocsCopied] = useState(false);
   const [suggestedParticipantDialogOpen, setSuggestedParticipantDialogOpen] = useState(false);
   const [selectedSuggestedParticipant, setSelectedSuggestedParticipant] = useState<string | null>(null);
   const [participantNameInput, setParticipantNameInput] = useState('');
@@ -1068,11 +1071,41 @@ const MeetingDetail = () => {
     }
   };
 
-  const handleOpenInGoogleDocs = async () => {
+  const copySummaryForGoogleDocs = async (): Promise<boolean> => {
     const currentSummary = statusData?.summary || summary;
     const text = formatSummaryForClipboard(currentSummary);
+    const html = formatSummaryAsHtml(currentSummary);
 
-    if (!text) {
+    if (!text) return false;
+
+    // Prefer rich (text/html) clipboard so Google Docs keeps headings/lists on paste
+    try {
+      if (html && navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+          }),
+        ]);
+        return true;
+      }
+    } catch (error) {
+      console.error('Rich clipboard copy failed, falling back to plain text:', error);
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      console.error('Error copying summary for Google Docs:', error);
+      return false;
+    }
+  };
+
+  const handleOpenInGoogleDocs = async () => {
+    const currentSummary = statusData?.summary || summary;
+
+    if (!formatSummaryForClipboard(currentSummary)) {
       toast({
         title: 'خطا',
         description: 'خلاصه‌ای برای انتقال به Google Docs وجود ندارد.',
@@ -1081,19 +1114,19 @@ const MeetingDetail = () => {
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (error) {
-      console.error('Error copying summary for Google Docs:', error);
-    }
+    const copied = await copySummaryForGoogleDocs();
+    setGoogleDocsCopied(copied);
+    setGoogleDocsDialogOpen(true);
+  };
 
-    window.open('https://docs.google.com/document/create', '_blank', 'noopener');
-
-    toast({
-      title: 'سند جدید Google Docs باز شد',
-      description:
-        'خلاصه جلسه در کلیپ‌بورد کپی شد؛ در سند جدید Ctrl+V بزنید. پس از ویرایش، متن را با دکمه «ویرایش» در همین صفحه جای‌گذاری و ذخیره کنید.',
-    });
+  const handleConfirmOpenGoogleDocs = () => {
+    const docTitle = meeting?.title ? `خلاصه جلسه - ${meeting.title}` : 'خلاصه جلسه';
+    window.open(
+      `https://docs.google.com/document/create?title=${encodeURIComponent(docTitle)}`,
+      '_blank',
+      'noopener'
+    );
+    setGoogleDocsDialogOpen(false);
   };
 
   // Helper function to check if summary is JSON
@@ -1831,6 +1864,57 @@ const MeetingDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={googleDocsDialogOpen} onOpenChange={setGoogleDocsDialogOpen}>
+          <DialogContent className="text-right" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>انتقال خلاصه به Google Docs</DialogTitle>
+              <DialogDescription>
+                گوگل اجازه درج خودکار متن در سند جدید را نمی‌دهد؛ به همین دلیل خلاصه جلسه با
+                قالب‌بندی کامل در کلیپ‌بورد کپی شده است.
+              </DialogDescription>
+            </DialogHeader>
+
+            {googleDocsCopied ? (
+              <div className="rounded-md border border-green-300 bg-green-50 p-3 text-sm leading-7 text-green-900">
+                <p className="font-bold">خلاصه کپی شد ✓</p>
+                <p>
+                  پس از باز شدن سند جدید، کلیدهای <span className="font-bold">Ctrl+V</span> (در مک{' '}
+                  <span className="font-bold">Cmd+V</span>) را بزنید تا خلاصه با قالب‌بندی درج شود.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm leading-7 text-amber-900">
+                <p>
+                  کپی خودکار در کلیپ‌بورد انجام نشد. ابتدا با دکمه «کپی» خلاصه را کپی کنید، سپس در
+                  سند جدید Ctrl+V بزنید.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:justify-start">
+              <Button onClick={handleConfirmOpenGoogleDocs}>
+                <ExternalLink className="h-4 w-4" />
+                باز کردن سند جدید
+              </Button>
+              {!googleDocsCopied && (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const copied = await copySummaryForGoogleDocs();
+                    setGoogleDocsCopied(copied);
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                  کپی خلاصه
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => setGoogleDocsDialogOpen(false)}>
+                انصراف
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={suggestedParticipantDialogOpen} onOpenChange={handleSuggestedParticipantDialogChange}>
           <DialogContent className="text-right" dir="rtl">
