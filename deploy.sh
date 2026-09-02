@@ -115,10 +115,12 @@ npm run build
 echo -e "${GREEN}✅ Frontend built successfully${NC}"
 
 # Copy the contents of the 'dist' folder to the Nginx web directory
-echo "--- Copying build files to web root ---"
+echo "--- Syncing build files to web root ---"
 mkdir -p /var/www/neshastyar.com
-sudo cp -R dist/* /var/www/neshastyar.com/
-echo -e "${GREEN}✅ Frontend files copied to /var/www/neshastyar.com/${NC}"
+rm -rf /var/www/neshastyar.com/assets
+cp -R dist/* /var/www/neshastyar.com/
+echo -e "${GREEN}✅ Frontend files synced to /var/www/neshastyar.com/${NC}"
+echo -e "${GREEN}   Built from commit: $(git -C "$PROJECT_DIR" rev-parse --short HEAD)${NC}"
 
 echo "--- Frontend deployment complete ---"
 echo ""

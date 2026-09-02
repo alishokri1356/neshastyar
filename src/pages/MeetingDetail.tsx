@@ -10,6 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -67,6 +75,10 @@ const MeetingDetail = () => {
   const [editedSummaryFields, setEditedSummaryFields] = useState<EditableMeetingSummary>(
     emptyEditableSummary()
   );
+  const [suggestedParticipantDialogOpen, setSuggestedParticipantDialogOpen] = useState(false);
+  const [selectedSuggestedParticipant, setSelectedSuggestedParticipant] = useState<string | null>(null);
+  const [participantNameInput, setParticipantNameInput] = useState('');
+  const [isAddingSuggestedParticipant, setIsAddingSuggestedParticipant] = useState(false);
 
   // Fetch meeting and all user tags from database with auto-refresh
   const { data: meetingData, isLoading: meetingLoading } = useQuery({
@@ -249,6 +261,36 @@ const MeetingDetail = () => {
         nameMatchesSearch(participant.name, participantSearchQuery),
     );
   }, [localAllUserParticipants, linkedParticipants, participantSearchQuery]);
+
+  const suggestedDialogMatchingParticipants = useMemo(() => {
+    const query = participantNameInput.trim();
+    if (!query) {
+      return [];
+    }
+
+    const lowerQuery = query.toLowerCase();
+
+    return localAllUserParticipants
+      .filter(
+        (participant) =>
+          !linkedParticipants.some((linked) => linked.id === participant.id) &&
+          nameMatchesSearch(participant.name, query),
+      )
+      .sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aStarts = aName.startsWith(lowerQuery) ? 0 : 1;
+        const bStarts = bName.startsWith(lowerQuery) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+
+        const aIndex = aName.indexOf(lowerQuery);
+        const bIndex = bName.indexOf(lowerQuery);
+        if (aIndex !== bIndex) return aIndex - bIndex;
+
+        return a.name.localeCompare(b.name, 'fa');
+      })
+      .slice(0, 8);
+  }, [participantNameInput, localAllUserParticipants, linkedParticipants]);
 
   const tagSearchQuery = newTagName.trim();
 
@@ -617,6 +659,92 @@ const MeetingDetail = () => {
           variant: "destructive",
         });
       }
+      throw error;
+    }
+  };
+
+  const handleOpenSuggestedParticipantDialog = (person: string) => {
+    setSelectedSuggestedParticipant(person);
+    setParticipantNameInput(person);
+    setSuggestedParticipantDialogOpen(true);
+  };
+
+  const handleSuggestedParticipantDialogChange = (open: boolean) => {
+    if (!open && isAddingSuggestedParticipant) {
+      return;
+    }
+
+    setSuggestedParticipantDialogOpen(open);
+
+    if (!open) {
+      setSelectedSuggestedParticipant(null);
+      setParticipantNameInput('');
+    }
+  };
+
+  const handleConfirmAddSuggestedParticipant = async () => {
+    if (!selectedSuggestedParticipant || !meetingId) {
+      return;
+    }
+
+    const trimmedName = participantNameInput.trim();
+
+    if (!trimmedName) {
+      toast({
+        title: "نام وارد نشده است",
+        description: "لطفاً یک نام معتبر برای شرکت‌کننده وارد کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const originalName = selectedSuggestedParticipant.trim();
+    const nameChanged = trimmedName.toLowerCase() !== originalName.toLowerCase();
+
+    setIsAddingSuggestedParticipant(true);
+
+    try {
+      if (nameChanged) {
+        const { data: updatedMeeting, error } = await mysqlClient.meetings.renameSuggestedParticipant({
+          meetingId,
+          oldName: originalName,
+          newName: trimmedName,
+        });
+
+        if (error) {
+          throw new Error(
+            typeof error === 'string'
+              ? error
+              : error?.message || error?.error || 'تغییر نام شرکت‌کننده ناموفق بود.'
+          );
+        }
+
+        if (updatedMeeting?.summary) {
+          setSummary(updatedMeeting.summary);
+          setOriginalSummary(updatedMeeting.summary);
+          setMeeting((prev: any) => ({ ...prev, summary: updatedMeeting.summary }));
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
+        queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
+      }
+
+      await handleAddSuggestedParticipant(trimmedName);
+
+      setSuggestedParticipantDialogOpen(false);
+      setSelectedSuggestedParticipant(null);
+      setParticipantNameInput('');
+    } catch (error: any) {
+      if (error?.message && !error.message.includes('Relationship already exists')) {
+        console.error('Error adding suggested participant:', error);
+        toast({
+          title: "خطا",
+          description: error?.message || "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsAddingSuggestedParticipant(false);
     }
   };
 
@@ -1422,13 +1550,12 @@ const MeetingDetail = () => {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-2">
                       شرکت‌کنندگان پیشنهادی:
-                      <span className="text-xs font-normal me-2">(برای افزودن کلیک کنید)</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {unassignedSuggestedPeople.map((person: string, index: number) => (
                         <button
                           key={index}
-                          onClick={() => handleAddSuggestedParticipant(person)}
+                          onClick={() => handleOpenSuggestedParticipantDialog(person)}
                           className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
                         >
                           {person}
@@ -1651,6 +1778,77 @@ const MeetingDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={suggestedParticipantDialogOpen} onOpenChange={handleSuggestedParticipantDialogChange}>
+          <DialogContent className="text-right" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>افزودن شرکت‌کننده</DialogTitle>
+              <DialogDescription>
+                نام شرکت‌کننده را در صورت نیاز ویرایش کنید. این نام در خلاصه جلسه و متن رونویسی نیز به‌روزرسانی می‌شود.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label htmlFor="suggested-participant-name">نام شرکت‌کننده</Label>
+              <Input
+                id="suggested-participant-name"
+                value={participantNameInput}
+                onChange={(e) => setParticipantNameInput(e.target.value)}
+                placeholder="نام شرکت‌کننده"
+                disabled={isAddingSuggestedParticipant}
+                autoComplete="off"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleConfirmAddSuggestedParticipant();
+                  }
+                }}
+              />
+
+              {participantNameInput.trim().length > 0 && (
+                <div className="pt-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    شرکت‌کنندگان موجود:
+                  </p>
+                  {suggestedDialogMatchingParticipants.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {suggestedDialogMatchingParticipants.map((participant) => (
+                        <button
+                          key={participant.id}
+                          type="button"
+                          onClick={() => setParticipantNameInput(participant.name)}
+                          disabled={isAddingSuggestedParticipant}
+                          className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors bg-muted/40 disabled:opacity-50"
+                        >
+                          {participant.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      شرکت‌کننده‌ای با این نام پیدا نشد. با همین نام جدید اضافه می‌شود.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:justify-start">
+              <Button
+                onClick={handleConfirmAddSuggestedParticipant}
+                disabled={isAddingSuggestedParticipant || !participantNameInput.trim()}
+              >
+                {isAddingSuggestedParticipant ? 'در حال افزودن...' : 'افزودن به لیست'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSuggestedParticipantDialogChange(false)}
+                disabled={isAddingSuggestedParticipant}
+              >
+                لغو
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppShell>
   );

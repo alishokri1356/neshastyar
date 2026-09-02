@@ -71,6 +71,153 @@ const replaceNameInList = (list, oldName, newName) => {
   return { changed, updatedList };
 };
 
+const replaceNameInText = (text, oldName, newName) => {
+  if (!text || typeof text !== 'string' || !oldName || oldName === newName) {
+    return { changed: false, updated: text };
+  }
+
+  const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(escaped, 'g');
+  const updated = text.replace(regex, newName);
+
+  return { changed: updated !== text, updated };
+};
+
+const applyParticipantRenameToPeopleField = (peopleValue, oldName, newName) => {
+  if (!peopleValue) {
+    return { changed: false, updated: peopleValue };
+  }
+
+  try {
+    const parsedPeople = JSON.parse(peopleValue);
+
+    if (Array.isArray(parsedPeople)) {
+      const { changed, updatedList } = replaceNameInList(parsedPeople, oldName, newName);
+      if (changed) {
+        return { changed: true, updated: JSON.stringify(updatedList) };
+      }
+      return { changed: false, updated: peopleValue };
+    }
+
+    if (parsedPeople && typeof parsedPeople === 'object' && Array.isArray(parsedPeople.people)) {
+      const { changed, updatedList } = replaceNameInList(parsedPeople.people, oldName, newName);
+      if (changed) {
+        parsedPeople.people = updatedList;
+        return { changed: true, updated: JSON.stringify(parsedPeople) };
+      }
+      return { changed: false, updated: peopleValue };
+    }
+  } catch {
+    const rawPeople = peopleValue
+      .split(',')
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+
+    if (rawPeople.length > 0) {
+      const { changed, updatedList } = replaceNameInList(rawPeople, oldName, newName);
+      if (changed) {
+        return { changed: true, updated: updatedList.join(', ') };
+      }
+    }
+  }
+
+  return { changed: false, updated: peopleValue };
+};
+
+const SUMMARY_TEXT_KEYS = ['Summary', 'Subject'];
+const SUMMARY_BULLET_KEYS = ['Bolet Points', 'Bullet Points'];
+
+const applyParticipantRenameToSummaryField = (summaryValue, oldName, newName) => {
+  if (!summaryValue) {
+    return { changed: false, updated: summaryValue };
+  }
+
+  const summaryData = parseMeetingSummaryJson(summaryValue);
+  if (!summaryData || typeof summaryData !== 'object') {
+    return { changed: false, updated: summaryValue };
+  }
+
+  let changed = false;
+
+  PARTICIPANT_SUMMARY_KEYS.forEach((key) => {
+    if (Array.isArray(summaryData[key])) {
+      const { changed: listChanged, updatedList } = replaceNameInList(summaryData[key], oldName, newName);
+      if (listChanged) {
+        summaryData[key] = updatedList;
+        changed = true;
+      }
+    }
+  });
+
+  SUMMARY_TEXT_KEYS.forEach((key) => {
+    if (typeof summaryData[key] === 'string') {
+      const { changed: textChanged, updated } = replaceNameInText(summaryData[key], oldName, newName);
+      if (textChanged) {
+        summaryData[key] = updated;
+        changed = true;
+      }
+    }
+  });
+
+  SUMMARY_BULLET_KEYS.forEach((key) => {
+    if (Array.isArray(summaryData[key])) {
+      summaryData[key] = summaryData[key].map((point) => {
+        if (typeof point !== 'string') {
+          return point;
+        }
+
+        const { changed: pointChanged, updated } = replaceNameInText(point, oldName, newName);
+        if (pointChanged) {
+          changed = true;
+          return updated;
+        }
+
+        return point;
+      });
+    }
+  });
+
+  if (changed) {
+    return { changed: true, updated: JSON.stringify(summaryData) };
+  }
+
+  return { changed: false, updated: summaryValue };
+};
+
+const renameParticipantInMeetingRecord = (meeting, oldName, newName) => {
+  let changed = false;
+  let updatedSummary = meeting.summary ?? null;
+  let updatedPeople = meeting.people ?? null;
+  let updatedTranscription = meeting.transcription ?? null;
+
+  const peopleResult = applyParticipantRenameToPeopleField(meeting.people, oldName, newName);
+  if (peopleResult.changed) {
+    updatedPeople = peopleResult.updated;
+    changed = true;
+  }
+
+  const summaryResult = applyParticipantRenameToSummaryField(meeting.summary, oldName, newName);
+  if (summaryResult.changed) {
+    updatedSummary = summaryResult.updated;
+    changed = true;
+  }
+
+  if (meeting.transcription) {
+    const transcriptionResult = replaceNameInText(meeting.transcription, oldName, newName);
+    if (transcriptionResult.changed) {
+      updatedTranscription = transcriptionResult.updated;
+      changed = true;
+    }
+  }
+
+  return {
+    changed,
+    updatedSummary,
+    updatedPeople,
+    updatedTranscription,
+  };
+};
+
 const removeNameFromListCaseInsensitive = (list, nameToRemove) => {
   const normalizedRemove = nameToRemove.trim().toLowerCase();
   let changed = false;
@@ -261,4 +408,6 @@ module.exports = {
   removeNamesFromListCaseInsensitive,
   removeNamesFromMeetingSuggestions,
   mergeNamesIntoTarget,
+  replaceNameInText,
+  renameParticipantInMeetingRecord,
 };

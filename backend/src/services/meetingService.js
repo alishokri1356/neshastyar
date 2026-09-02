@@ -8,6 +8,7 @@ const {
   replaceNameInList,
   removeNameFromList,
   mergeNamesIntoTarget,
+  renameParticipantInMeetingRecord,
 } = require('../utils/participantUtils');
 
 // Helper function to convert ISO datetime to MySQL format
@@ -453,6 +454,44 @@ class MeetingService {
       ...result,
       status: 'ارسال درخواست پردازش',
     };
+  }
+
+  async renameSuggestedParticipantInMeeting(meetingId, userId, oldName, newName) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const trimmedOldName = (oldName ?? '').trim();
+    const trimmedNewName = (newName ?? '').trim();
+
+    if (!trimmedOldName || !trimmedNewName) {
+      throw new Error('Both old and new participant names are required');
+    }
+
+    const meeting = await this.getMeetingById(meetingId, userId);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    if (trimmedOldName === trimmedNewName) {
+      return meeting;
+    }
+
+    const {
+      changed,
+      updatedSummary,
+      updatedPeople,
+      updatedTranscription,
+    } = renameParticipantInMeetingRecord(meeting, trimmedOldName, trimmedNewName);
+
+    if (changed) {
+      await db.query(
+        'UPDATE meetings SET people = ?, summary = ?, transcription = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+        [updatedPeople, updatedSummary, updatedTranscription, meetingId, userId]
+      );
+    }
+
+    return await this.getMeetingById(meetingId, userId);
   }
 }
 

@@ -581,6 +581,42 @@ class MySQLClient {
       },
     };
 
+  meetings = {
+    renameSuggestedParticipant: async ({
+      meetingId,
+      oldName,
+      newName,
+    }: {
+      meetingId: string;
+      oldName: string;
+      newName: string;
+    }) => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/meetings/${meetingId}/participants/rename-suggested`,
+          {
+            method: 'PUT',
+            headers: {
+              ...this.getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ oldName, newName }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return { data: null, error: data };
+        }
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error };
+      }
+    },
+  };
+
   // Database methods
   from(table: string) {
     let queryOptions: any = {};
