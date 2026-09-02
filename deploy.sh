@@ -108,6 +108,7 @@ echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 echo "--- Creating production environment ---"
 # Use the same domain with /api path (Nginx will proxy to backend)
 echo "VITE_API_URL=https://neshastyar.com/api" > .env.production
+echo "VITE_EMAIL_WEBHOOK_URL=https://n8nnew.teraxr.com/webhook/modiryar-email-sender" >> .env.production
 
 # Build the final, optimized production-ready static files
 echo "--- Building frontend ---"

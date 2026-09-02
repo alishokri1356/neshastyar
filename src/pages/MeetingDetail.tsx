@@ -855,17 +855,17 @@ const MeetingDetail = () => {
         return;
       }
 
-      // Call the webhook endpoint (no authentication required)
-      const apiBase = import.meta.env.VITE_API_URL || 'https://neshastyar.com/api';
-      const origin = apiBase.replace(/\/api\/?$/, '');
-      const webhookUrl = `${origin}/sendmail/${meeting.id}`;
-      console.log('🔗 Calling webhook:', webhookUrl);
-      
+      const emailWebhookBase =
+        import.meta.env.VITE_EMAIL_WEBHOOK_URL ||
+        'https://n8nnew.teraxr.com/webhook/modiryar-email-sender';
+      const webhookUrl = `${emailWebhookBase}?meetingId=${encodeURIComponent(meeting.id)}`;
+      console.log('🔗 Calling n8n email webhook:', webhookUrl);
+
       const response = await fetch(webhookUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
       });
 
       if (!response.ok) {

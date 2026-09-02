@@ -85,3 +85,33 @@ Authorization: Bearer <token>
 ```
 
 The n8n **meeting** MySQL node filters by `id` from `x-meeting-id` header and status `ارسال درخواست پردازش`.
+
+## Modiryar Email Sender workflow
+
+Import or use the deployed workflow **`Modiryar Email Sender`** (`n8n/Modiryar-Email-Sender-workflow.json`).
+
+It sends the meeting summary email by loading data from MySQL and sending via `noreply@neshastyar.com` SMTP.
+
+### Trigger
+
+```http
+GET https://n8nnew.teraxr.com/webhook/modiryar-email-sender?meetingId={meeting-uuid}
+```
+
+The web app **ارسال به ایمیل** button calls this webhook.
+
+### Flow
+
+```
+Webhook → Load Meeting (MySQL) → Format Email (Code) → Is Valid?
+  ├─ true  → Send Email (SMTP) → Update Timestamp → Respond Success
+  └─ false → Respond Error
+```
+
+### Test
+
+```bash
+curl "https://n8nnew.teraxr.com/webhook/modiryar-email-sender?meetingId=97b8f06b-fbbf-45df-8ba9-7ce85d6e60bc"
+```
+
+Credentials required in n8n: **MySQL_Modiryar**, **Neshastyar SMTP**.
