@@ -103,10 +103,42 @@ The web app **ارسال به ایمیل** button calls this webhook.
 ### Flow
 
 ```
-Webhook → Load Meeting (MySQL) → Format Email (Code) → Is Valid?
+Webhook → Extract Meeting ID → Load Meeting (MySQL) → Format Email (Code) → Is Valid?
   ├─ true  → Send Email (SMTP) → Update Timestamp → Respond Success
   └─ false → Respond Error
 ```
+
+### Load Meeting query parameter
+
+**Extract Meeting ID** (Code node) reads `query.meetingId` from the webhook and outputs `{ meetingId }`.
+
+**Load Meeting** uses the immediate upstream value only:
+
+```sql
+WHERE m.id = '{{ $json.meetingId }}'
+```
+
+Do **not** use `$('Webhook')` in Load Meeting — n8n throws `Node 'Webhook' hasn't been executed` if you run that node alone.
+
+The frontend sends:
+
+```
+GET .../webhook/modiryar-email-sender?meetingId={uuid}
+```
+
+### Testing in n8n
+
+1. Click **Listen for test event** on the **Webhook** node.
+2. Call the test URL with a real UUID: `?meetingId=...`
+3. Let the full workflow run from Webhook — do not click **Execute step** on Load Meeting alone.
+
+To test Load Meeting in isolation, pin sample data on **Extract Meeting ID**:
+
+```json
+{ "meetingId": "97b8f06b-fbbf-45df-8ba9-7ce85d6e60bc" }
+```
+
+Then run **Extract Meeting ID → Load Meeting**.
 
 ### Test
 
