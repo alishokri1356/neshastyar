@@ -84,24 +84,35 @@
     },
     {
       "parameters": {
-        "fromEmail": "noreply@neshastyar.com",
-        "toEmail": "={{ $json.email }}",
-        "subject": "=خلاصه جلسه: {{ $json.title }}",
-        "emailFormat": "html",
-        "html": "={{ $json.htmlBody }}",
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_RESEND_API_KEY"
+            },
+            {
+              "name": "User-Agent",
+              "value": "neshastyar-n8n/1.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: 'Neshastyar <noreply@neshastyar.com>', to: [$json.email], subject: 'خلاصه جلسه: ' + $json.title, html: $json.htmlBody }) }}",
         "options": {}
       },
       "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
-      "name": "Send Email",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [1100, -80],
-      "credentials": {
-        "smtp": {
-          "id": "GXU6txNJH772JQRg",
-          "name": "Neshastyar SMTP"
-        }
-      }
+      "name": "Send Email via Resend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, -80]
     },
     {
       "parameters": {
@@ -165,11 +176,11 @@
     },
     "Is Valid": {
       "main": [
-        [{ "node": "Send Email", "type": "main", "index": 0 }],
+        [{ "node": "Send Email via Resend", "type": "main", "index": 0 }],
         [{ "node": "Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "Send Email": {
+    "Send Email via Resend": {
       "main": [[{ "node": "Update Timestamp", "type": "main", "index": 0 }]]
     },
     "Update Timestamp": {

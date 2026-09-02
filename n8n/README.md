@@ -90,7 +90,7 @@ The n8n **meeting** MySQL node filters by `id` from `x-meeting-id` header and st
 
 Import or use the deployed workflow **`Modiryar Email Sender`** (`n8n/Modiryar-Email-Sender-workflow.json`).
 
-It sends the meeting summary email by loading data from MySQL and sending via `noreply@neshastyar.com` SMTP.
+It sends the meeting summary email by loading data from MySQL and sending via [Resend](https://resend.com) from `noreply@neshastyar.com`.
 
 ### Trigger
 
@@ -104,7 +104,7 @@ The web app **ارسال به ایمیل** button calls this webhook.
 
 ```
 Webhook → Extract Meeting ID → Load Meeting (MySQL) → Format Email (Code) → Is Valid?
-  ├─ true  → Send Email (SMTP) → Update Timestamp → Respond Success
+  ├─ true  → Send Email via Resend (HTTP) → Update Timestamp → Respond Success
   └─ false → Respond Error
 ```
 
@@ -146,4 +146,6 @@ Then run **Extract Meeting ID → Load Meeting**.
 curl "https://n8nnew.teraxr.com/webhook/modiryar-email-sender?meetingId=97b8f06b-fbbf-45df-8ba9-7ce85d6e60bc"
 ```
 
-Credentials required in n8n: **MySQL_Modiryar**, **Neshastyar SMTP**.
+Credentials required in n8n: **MySQL_Modiryar**, **Resend API key** (set in the **Send Email via Resend** node `Authorization` header as `Bearer re_...`).
+
+Resend requires a `User-Agent` header on API requests; the workflow sets `neshastyar-n8n/1.0`.
