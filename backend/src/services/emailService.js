@@ -4,17 +4,33 @@ require('dotenv').config();
 
 class EmailService {
   constructor() {
+    const smtpPort = parseInt(process.env.SMTP_PORT, 10) || 465;
+    const smtpHost = process.env.SMTP_HOST || 'mail.neshastyar.com';
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+
+    if (!smtpUser || !smtpPass) {
+      console.warn('Email service: SMTP_USER and SMTP_PASS must be set in environment');
+    }
+
+    this.fromAddress = process.env.SMTP_FROM || smtpUser || 'noreply@neshastyar.com';
+    this.fromName = process.env.SMTP_FROM_NAME || 'نشست یار';
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER || 'shokriali@gmail.com',
-        pass: process.env.SMTP_PASS || 'orslxvkgfzqfpgjx'
-      }
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
+      tls: {
+        rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false',
+      },
     });
 
     this.frontendUrl = process.env.FRONTEND_URL || 'https://neshastyar.com';
+  }
+
+  getFromHeader() {
+    return `"${this.fromName}" <${this.fromAddress}>`;
   }
 
   // Send email verification
@@ -22,7 +38,7 @@ class EmailService {
     const verificationUrl = `${this.frontendUrl}/verify-email?token=${verificationToken}`;
     
     const mailOptions = {
-      from: `"نشست یار" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      from: this.getFromHeader(),
       to: email,
       subject: 'تأیید ایمیل - نشست یار',
       html: `
@@ -87,7 +103,7 @@ class EmailService {
     const resetUrl = `${this.frontendUrl}/reset-password?token=${resetToken}`;
     
     const mailOptions = {
-      from: `"نشست یار" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      from: this.getFromHeader(),
       to: email,
       subject: 'بازیابی رمز عبور - نشست یار',
       html: `
@@ -159,7 +175,7 @@ class EmailService {
     const formattedSummary = this.formatSummaryForEmail(summary);
     
     const mailOptions = {
-      from: `"نشست یار" <${process.env.SMTP_USER || 'shokriali@gmail.com'}>`,
+      from: this.getFromHeader(),
       to: email,
       subject: `خلاصه جلسه: ${meetingTitle}`,
       html: `
