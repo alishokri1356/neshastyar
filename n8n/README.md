@@ -90,7 +90,7 @@ The n8n **meeting** MySQL node filters by `id` from `x-meeting-id` header and st
 
 Import or use the deployed workflow **`Modiryar Email Sender`** (`n8n/Modiryar-Email-Sender-workflow.json`).
 
-It sends the meeting summary email by loading data from MySQL and sending via `noreply@neshastyar.com` SMTP.
+It sends the meeting summary email by loading data from MySQL and sending via [Resend](https://resend.com) from `noreply@neshastyar.com`.
 
 ### Trigger
 
@@ -104,46 +104,10 @@ The web app **ارسال به ایمیل** button calls this webhook.
 
 ```
 Webhook → Extract Meeting ID → Load Meeting (MySQL) → Format Email (Code) → Is Valid?
-  ├─ true  → Send Email (SMTP) → Update Timestamp → Respond Success
+  ├─ true  → Send Email via Resend (HTTP) → Update Timestamp → Respond Success
   └─ false → Respond Error
 ```
 
-### Load Meeting query parameter
+Credentials required in n8n: **MySQL_Modiryar**, and a **Resend API key** via env `RESEND_API_KEY` (used in the **Send Email via Resend** node Authorization header as `Bearer {{ $env.RESEND_API_KEY }}`).
 
-**Extract Meeting ID** (Code node) reads `query.meetingId` from the webhook and outputs `{ meetingId }`.
-
-**Load Meeting** uses the immediate upstream value only:
-
-```sql
-WHERE m.id = '{{ $json.meetingId }}'
-```
-
-Do **not** use `$('Webhook')` in Load Meeting — n8n throws `Node 'Webhook' hasn't been executed` if you run that node alone.
-
-The frontend sends:
-
-```
-GET .../webhook/modiryar-email-sender?meetingId={uuid}
-```
-
-### Testing in n8n
-
-1. Click **Listen for test event** on the **Webhook** node.
-2. Call the test URL with a real UUID: `?meetingId=...`
-3. Let the full workflow run from Webhook — do not click **Execute step** on Load Meeting alone.
-
-To test Load Meeting in isolation, pin sample data on **Extract Meeting ID**:
-
-```json
-{ "meetingId": "97b8f06b-fbbf-45df-8ba9-7ce85d6e60bc" }
-```
-
-Then run **Extract Meeting ID → Load Meeting**.
-
-### Test
-
-```bash
-curl "https://n8nnew.teraxr.com/webhook/modiryar-email-sender?meetingId=97b8f06b-fbbf-45df-8ba9-7ce85d6e60bc"
-```
-
-Credentials required in n8n: **MySQL_Modiryar**, **Neshastyar SMTP**.
+Resend requires a `User-Agent` header on API requests; the workflow sets `neshastyar-n8n/1.0`.

@@ -27,6 +27,8 @@ import ResetPassword from "./pages/ResetPassword";
 import ParticipantsManager from "./pages/ParticipantsManager";
 import TagManager from "./pages/TagManager";
 import AccountManagement from "./pages/AccountManagement";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminUsers from "./pages/admin/AdminUsers";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +61,10 @@ const App = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Admin panel */}
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
             
             {/* Protected routes - require authentication */}
             <Route path="/home" element={

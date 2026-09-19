@@ -16,6 +16,7 @@ const tagRoutes = require('./routes/tags');
 const meetingTagRoutes = require('./routes/meetingTags');
 const meetingParticipantRoutes = require('./routes/meetingParticipants');
 const fileRoutes = require('./routes/files');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -127,6 +128,7 @@ app.use('/', webhookRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', emailRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/tags', tagRoutes);

@@ -1,47 +1,62 @@
-const nodemailer = require('nodemailer');
 const { getBulletPointsFromSummaryJson, parseMeetingSummaryJson } = require('../utils/summaryUtils');
 require('dotenv').config();
 
 class EmailService {
   constructor() {
-    const smtpPort = parseInt(process.env.SMTP_PORT, 10) || 465;
-    const smtpHost = process.env.SMTP_HOST || 'mail.neshastyar.com';
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-
-    if (!smtpUser || !smtpPass) {
-      console.warn('Email service: SMTP_USER and SMTP_PASS must be set in environment');
-    }
-
-    this.fromAddress = process.env.SMTP_FROM || smtpUser || 'noreply@neshastyar.com';
-    this.fromName = process.env.SMTP_FROM_NAME || 'نشست یار';
-
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
-      tls: {
-        rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false',
-      },
-    });
-
+    this.apiKey = process.env.RESEND_API_KEY;
+    this.fromAddress = process.env.RESEND_FROM || process.env.SMTP_FROM || 'noreply@neshastyar.com';
+    this.fromName = process.env.RESEND_FROM_NAME || process.env.SMTP_FROM_NAME || 'نشست یار';
     this.frontendUrl = process.env.FRONTEND_URL || 'https://neshastyar.com';
+
+    if (!this.apiKey) {
+      console.warn('Email service: RESEND_API_KEY must be set in environment');
+    }
   }
 
   getFromHeader() {
-    return `"${this.fromName}" <${this.fromAddress}>`;
+    return `${this.fromName} <${this.fromAddress}>`;
+  }
+
+  async sendEmail({ to, subject, html }) {
+    if (!this.apiKey) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'neshastyar-backend/1.0',
+      },
+      body: JSON.stringify({
+        from: this.getFromHeader(),
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      // ignore non-JSON error bodies
+    }
+
+    if (!response.ok) {
+      console.error('Resend API error:', response.status, data);
+      throw new Error(data.message || `Failed to send email via Resend (${response.status})`);
+    }
+
+    return { success: true, messageId: data.id };
   }
 
   // Send email verification
   async sendVerificationEmail(email, name, verificationToken) {
     const verificationUrl = `${this.frontendUrl}/verify-email?token=${verificationToken}`;
-    
-    const mailOptions = {
-      from: this.getFromHeader(),
-      to: email,
-      subject: 'تأیید ایمیل - نشست یار',
-      html: `
+
+    const html = `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="margin: 0; font-size: 28px;">نشست یار</h1>
@@ -85,13 +100,16 @@ class EmailService {
             </p>
           </div>
         </div>
-      `
-    };
+      `;
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.sendEmail({
+        to: email,
+        subject: 'تأیید ایمیل - نشست یار',
+        html,
+      });
       console.log('Verification email sent:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      return result;
     } catch (error) {
       console.error('Error sending verification email:', error);
       throw new Error('Failed to send verification email');
@@ -101,12 +119,8 @@ class EmailService {
   // Send password reset email
   async sendPasswordResetEmail(email, name, resetToken) {
     const resetUrl = `${this.frontendUrl}/reset-password?token=${resetToken}`;
-    
-    const mailOptions = {
-      from: this.getFromHeader(),
-      to: email,
-      subject: 'بازیابی رمز عبور - نشست یار',
-      html: `
+
+    const html = `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="margin: 0; font-size: 28px;">نشست یار</h1>
@@ -156,13 +170,16 @@ class EmailService {
             </p>
           </div>
         </div>
-      `
-    };
+      `;
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.sendEmail({
+        to: email,
+        subject: 'بازیابی رمز عبور - نشست یار',
+        html,
+      });
       console.log('Password reset email sent:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      return result;
     } catch (error) {
       console.error('Error sending password reset email:', error);
       throw new Error('Failed to send password reset email');
@@ -171,14 +188,9 @@ class EmailService {
 
   // Send meeting summary email
   async sendMeetingSummaryEmail(email, name, meetingTitle, summary) {
-    // Parse and format the summary
     const formattedSummary = this.formatSummaryForEmail(summary);
-    
-    const mailOptions = {
-      from: this.getFromHeader(),
-      to: email,
-      subject: `خلاصه جلسه: ${meetingTitle}`,
-      html: `
+
+    const html = `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="margin: 0; font-size: 28px;">نشست یار</h1>
@@ -191,13 +203,16 @@ class EmailService {
             </div>
           </div>
         </div>
-      `
-    };
+      `;
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.sendEmail({
+        to: email,
+        subject: `خلاصه جلسه: ${meetingTitle}`,
+        html,
+      });
       console.log('Meeting summary email sent:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      return result;
     } catch (error) {
       console.error('Error sending meeting summary email:', error);
       throw new Error('Failed to send meeting summary email');
@@ -207,15 +222,13 @@ class EmailService {
   // Format summary for email display
   formatSummaryForEmail(summary) {
     try {
-      // Try to parse as JSON first (tolerant of trailing junk / control chars)
       const jsonData = parseMeetingSummaryJson(summary);
       if (!jsonData) {
         throw new Error('Summary is not structured JSON');
       }
-      
+
       let html = '<h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>';
-      
-      // Subject
+
       if (jsonData.Subject) {
         html += `
           <div style="margin-bottom: 20px;">
@@ -224,8 +237,7 @@ class EmailService {
           </div>
         `;
       }
-      
-      // Summary (may be plain text or rich HTML from the in-app editor)
+
       if (jsonData.Summary) {
         const summaryIsHtml = /<\/?[a-z][^>]*>/i.test(jsonData.Summary);
         const summaryBody = summaryIsHtml
@@ -238,40 +250,37 @@ class EmailService {
           </div>
         `;
       }
-      
-      // People in meetings
-      if (jsonData["People in meetings"] && jsonData["People in meetings"].length > 0) {
+
+      if (jsonData['People in meetings'] && jsonData['People in meetings'].length > 0) {
         html += `
           <div style="margin-bottom: 20px;">
             <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">افراد حاضر در جلسه:</h4>
             <div style="text-align: right;">
-              ${jsonData["People in meetings"].map(person => 
-                `<span style="display: inline-block; background: #f0f0f0; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; color: #555;">${person}</span>`
-              ).join('')}
+              ${jsonData['People in meetings']
+                .map(
+                  (person) =>
+                    `<span style="display: inline-block; background: #f0f0f0; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; color: #555;">${person}</span>`
+                )
+                .join('')}
             </div>
           </div>
         `;
       }
-      
-      // Bullet Points
+
       const bulletPoints = getBulletPointsFromSummaryJson(jsonData);
       if (bulletPoints.length > 0) {
         html += `
           <div style="margin-bottom: 20px;">
             <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">نکات کلیدی:</h4>
             <ul style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; margin: 0; padding-right: 20px;">
-              ${bulletPoints.map(point => 
-                `<li style="margin-bottom: 8px;">${point}</li>`
-              ).join('')}
+              ${bulletPoints.map((point) => `<li style="margin-bottom: 8px;">${point}</li>`).join('')}
             </ul>
           </div>
         `;
       }
-      
+
       return html;
-      
     } catch (error) {
-      // If it's not JSON, treat as plain text
       return `
         <h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>
         <div style="color: #333; line-height: 1.8; font-size: 15px; text-align: right; white-space: pre-wrap;">${summary}</div>
@@ -279,16 +288,13 @@ class EmailService {
     }
   }
 
-  // Test email connection
   async testConnection() {
-    try {
-      await this.transporter.verify();
-      console.log('Email service connection verified');
-      return true;
-    } catch (error) {
-      console.error('Email service connection failed:', error);
+    if (!this.apiKey) {
+      console.error('Email service connection failed: RESEND_API_KEY is not configured');
       return false;
     }
+    console.log('Email service configured for Resend');
+    return true;
   }
 }
 

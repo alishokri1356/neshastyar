@@ -4,6 +4,22 @@ const emailService = require('./emailService');
 const crypto = require('crypto');
 
 class UserService {
+  async recordEmailStatus(userId, type, status, messageId = null, errorMessage = null) {
+    await db.query(
+      `
+      UPDATE users
+      SET last_email_type = ?,
+          last_email_status = ?,
+          last_email_at = NOW(),
+          last_email_id = ?,
+          last_email_error = ?,
+          updated_at = NOW()
+      WHERE id = ?
+      `,
+      [type, status, messageId, errorMessage ? String(errorMessage).slice(0, 1000) : null, userId]
+    );
+  }
+
   // Create new user with email verification
   async createUser(email, password, name = null) {
     const id = authService.generateId();
@@ -30,14 +46,15 @@ class UserService {
       updated_at: now
     };
 
-    // Send verification email
+    // Send verification email — account stays created so user can use resend-verification
     try {
-      await emailService.sendVerificationEmail(email, name || 'کاربر', emailVerificationToken);
+      const result = await emailService.sendVerificationEmail(email, name || 'کاربر', emailVerificationToken);
+      await this.recordEmailStatus(id, 'verification', 'sent', result.messageId || null, null);
     } catch (error) {
       console.error('Failed to send verification email:', error);
-      // Don't throw error - user is created successfully even if email fails
+      await this.recordEmailStatus(id, 'verification', 'failed', null, error.message || 'send failed');
     }
-    
+
     return user;
   }
 
@@ -106,6 +123,13 @@ class UserService {
     return userWithoutPassword;
   }
 
+  async touchLastLogin(userId) {
+    await db.query(
+      'UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = ?',
+      [userId]
+    );
+  }
+
   // Verify email with token
   async verifyEmail(token) {
     const sql = `
@@ -165,9 +189,15 @@ class UserService {
     await db.query(updateSql, [emailVerificationToken, emailVerificationExpires, user.id]);
 
     // Send verification email
-    await emailService.sendVerificationEmail(email, user.name || 'کاربر', emailVerificationToken);
-    
-    return { success: true };
+    try {
+      const result = await emailService.sendVerificationEmail(email, user.name || 'کاربر', emailVerificationToken);
+      await this.recordEmailStatus(user.id, 'verification', 'sent', result.messageId || null, null);
+      return { success: true, messageId: result.messageId || null };
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      await this.recordEmailStatus(user.id, 'verification', 'failed', null, error.message || 'send failed');
+      throw new Error('Failed to send verification email');
+    }
   }
 
   // Request password reset
@@ -195,13 +225,62 @@ class UserService {
 
     // Send password reset email
     try {
-      await emailService.sendPasswordResetEmail(email, user.name || 'کاربر', passwordResetToken);
+      const result = await emailService.sendPasswordResetEmail(email, user.name || 'کاربر', passwordResetToken);
+      await this.recordEmailStatus(user.id, 'password_reset', 'sent', result.messageId || null, null);
+      return { success: true, messageId: result.messageId || null };
     } catch (error) {
       console.error('Failed to send password reset email:', error);
+      await this.recordEmailStatus(user.id, 'password_reset', 'failed', null, error.message || 'send failed');
       throw new Error('Failed to send password reset email');
     }
-    
-    return { success: true };
+  }
+
+  // Admin: resend verification by user id
+  async adminResendVerification(userId) {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    if (user.email_verified) {
+      throw new Error('Email already verified');
+    }
+    return this.resendVerificationEmail(user.email);
+  }
+
+  // Admin: send password reset by user id
+  async adminSendPasswordReset(userId) {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const passwordResetToken = crypto.randomBytes(32).toString('hex');
+    const passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
+
+    await db.query(
+      `
+      UPDATE users
+      SET password_reset_token = ?,
+          password_reset_expires = ?,
+          updated_at = NOW()
+      WHERE id = ?
+      `,
+      [passwordResetToken, passwordResetExpires, user.id]
+    );
+
+    try {
+      const result = await emailService.sendPasswordResetEmail(
+        user.email,
+        user.name || 'کاربر',
+        passwordResetToken
+      );
+      await this.recordEmailStatus(user.id, 'password_reset', 'sent', result.messageId || null, null);
+      return { success: true, messageId: result.messageId || null };
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+      await this.recordEmailStatus(user.id, 'password_reset', 'failed', null, error.message || 'send failed');
+      throw new Error('Failed to send password reset email');
+    }
   }
 
   // Reset password with token

@@ -36,6 +36,7 @@ class AuthController {
         });
       }
 
+      await userService.touchLastLogin(user.id);
       const session = authService.createSession(user);
 
       res.json({
