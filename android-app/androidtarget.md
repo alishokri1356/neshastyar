@@ -1,4 +1,4 @@
-# Modiryar Android Rewrite Target
+# Neshastyar Android Rewrite Target
 
 > **Read this file first** before writing any Android code in `android-app/`.
 > It is the product + API contract for a fully native Android client.
@@ -11,21 +11,21 @@
 Build a **fully native Kotlin + Jetpack Compose** Android app that:
 
 1. Ships **all UI inside the APK** (no remote WebView, no Capacitor `server.url`, no Lovable remote shell).
-2. Talks only to the existing Modiryar backend for data and uploads.
+2. Talks only to the existing Neshastyar backend for data and uploads.
 3. Keeps **microphone recording and file upload running when the screen is off or the device is locked** (Foreground Service + WorkManager).
 4. Matches current web feature parity for auth, meetings, tags, participants, account, record/upload.
 5. Uses **Persian RTL** UI (Vazirmatn or equivalent) and Jalali dates where the web app does.
 
 | Item | Value |
 |------|--------|
-| Production API base | `https://modiryar.online/api` |
+| Production API base | `https://neshastyar.com/api` |
 | Local API base | `http://<host>:3001/api` |
 | Auth header | `Authorization: Bearer <access_token>` |
 | App language / layout | `fa` / RTL |
 | Stack | Kotlin, Jetpack Compose, MVVM, Retrofit/OkHttp, Room, DataStore (encrypted for tokens), WorkManager |
 | Do **not** use | Capacitor, Flutter, React Native, remote HTML UI |
 
-Suggested application id: `online.modiryar.app` (or keep consistent with Play Store plan). Suggested module root: this folder `android-app/`.
+Suggested application id: `com.neshastyar.app` (or keep consistent with Play Store plan). Suggested module root: this folder `android-app/`.
 
 ---
 
@@ -240,7 +240,7 @@ Most data routes use JWT **and** `requireEmailVerification`. Unverified → **40
 
 ## 5. API reference (client-relevant)
 
-Production base URL: **`https://modiryar.online/api`** (from [`.env.production`](../.env.production)).
+Production base URL: **`https://neshastyar.com/api`** (from [`.env.production`](../.env.production)).
 
 Unless noted, protected routes need Bearer + verified email.
 
@@ -369,10 +369,10 @@ Prefer recording as **AAC in `.m4a`** on Android.
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| GET | `https://modiryar.online/sendmail/:meetingId` | None | Used by web MeetingDetail; **not** under `/api` |
+| GET | `https://neshastyar.com/sendmail/:meetingId` | None | Used by web MeetingDetail; **not** under `/api` |
 | POST | `/email/send-summary` | None | `{ meetingId, meetingTitle, summary, userEmail, userName? }`; **429** cooldown 60s |
 
-Android should call the same sendmail URL the web uses, or `/email/send-summary` with proper body — prefer matching web: **GET** `https://modiryar.online/sendmail/{meetingId}`.
+Android should call the same sendmail URL the web uses, or `/email/send-summary` with proper body — prefer matching web: **GET** `https://neshastyar.com/sendmail/{meetingId}`.
 
 ### 5.9 Webhooks (do **not** call from mobile)
 
@@ -459,7 +459,7 @@ Suggested participants/tags from AI live in summary JSON until user approves int
 - Multi-file: allow adding recordings and imported files (SAF) like web Record screen.
 - Upload: enqueue WorkManager jobs; show progress; retry on failure; resume after reboot if work is persisted.
 - Handle audio focus loss (calls): pause or stop cleanly and update notification.
-- On aggressive OEMs, surface guidance to disable battery optimization for Modiryar.
+- On aggressive OEMs, surface guidance to disable battery optimization for Neshastyar.
 
 ### 8.2 Permissions checklist
 
@@ -588,7 +588,7 @@ If this doc conflicts with code, prefer live backend/web behavior and then updat
 ## 13. Quick checklist for the Android agent
 
 - [ ] UI is 100% native Compose; no remote HTML
-- [ ] API base configurable; default prod `https://modiryar.online/api`
+- [ ] API base configurable; default prod `https://neshastyar.com/api`
 - [ ] Bearer token on protected calls
 - [ ] Recording uses microphone Foreground Service + sticky notification
 - [ ] Audio written to disk; drafts in Room
