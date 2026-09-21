@@ -71,6 +71,9 @@ const authLimiter = rateLimit({
 // Apply auth rate limiting to all auth routes
 router.use(authLimiter);
 
+// POST /api/auth/google
+router.post('/google', authController.googleAuth);
+
 // POST /api/auth/login
 router.post('/login', authController.login);
 

@@ -200,6 +200,20 @@ class UserService {
     }
   }
 
+  // Mark an email as verified directly (e.g. for OAuth logins)
+  async markEmailAsVerified(userId) {
+    const updateSql = `
+      UPDATE users 
+      SET email_verified = true, 
+          email_verification_token = NULL, 
+          email_verification_expires = NULL,
+          updated_at = NOW()
+      WHERE id = ?
+    `;
+    await db.query(updateSql, [userId]);
+    return await this.findById(userId);
+  }
+
   // Request password reset
   async requestPasswordReset(email) {
     const user = await this.findByEmail(email);

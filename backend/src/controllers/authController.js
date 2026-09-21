@@ -1,7 +1,94 @@
 const userService = require('../services/userService');
 const authService = require('../services/authService');
+const { OAuth2Client } = require('google-auth-library');
+const crypto = require('crypto');
+
+// Support multiple client IDs (e.g., one for Web, one for Android if they differ)
+// We include the hardcoded Web Client ID for the Android app so that even if the server
+// has a different GOOGLE_CLIENT_ID for the React web app, it will accept both.
+const envClientId = process.env.GOOGLE_CLIENT_ID;
+const androidWebClientId = '361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com';
+
+const ALLOWED_CLIENT_IDS = [];
+if (envClientId) {
+  ALLOWED_CLIENT_IDS.push(...envClientId.split(',').map(id => id.trim()));
+}
+if (!ALLOWED_CLIENT_IDS.includes(androidWebClientId)) {
+  ALLOWED_CLIENT_IDS.push(androidWebClientId);
+}
+
+const googleClient = new OAuth2Client();
 
 class AuthController {
+  // POST /api/auth/google
+  async googleAuth(req, res) {
+    try {
+      const { id_token, idToken } = req.body;
+      const tokenToVerify = id_token || idToken; // Support both naming conventions
+      
+      if (!tokenToVerify) {
+        return res.status(400).json({
+          error: 'Missing Google ID token',
+          message: 'Google ID token is required'
+        });
+      }
+
+      // Verify Google token
+      const ticket = await googleClient.verifyIdToken({
+        idToken: tokenToVerify,
+        audience: ALLOWED_CLIENT_IDS
+      });
+      const payload = ticket.getPayload();
+      
+      if (!payload || !payload.email) {
+        return res.status(401).json({
+          error: 'Invalid token',
+          message: 'Google token does not contain email'
+        });
+      }
+
+      const email = payload.email;
+      const name = payload.name || payload.given_name || 'کاربر گوگل';
+
+      let user = await userService.findByEmail(email);
+
+      if (!user) {
+        // User does not exist, create a new one with verified email and a random password
+        const randomPassword = crypto.randomBytes(32).toString('base64');
+        user = await userService.createUser(email, randomPassword, name);
+        // Automatically mark email as verified since it came from Google
+        user = await userService.markEmailAsVerified(user.id);
+      } else if (!user.email_verified) {
+        // Existing user but email not verified, let's verify it since they logged in via Google
+        user = await userService.markEmailAsVerified(user.id);
+      }
+
+      // Proceed to log the user in
+      await userService.touchLastLogin(user.id);
+      
+      // Remove sensitive fields
+      const { password_hash, email_verification_token, email_verification_expires, password_reset_token, password_reset_expires, ...userWithoutSensitiveData } = user;
+
+      const session = authService.createSession(userWithoutSensitiveData);
+
+      res.json({
+        data: {
+          user: session.user,
+          session: session
+        },
+        error: null
+      });
+
+    } catch (error) {
+      console.error('Google Auth error:', error);
+      res.status(401).json({
+        error: 'Authentication failed',
+        message: 'Invalid Google token or backend error',
+        details: error.message
+      });
+    }
+  }
+
   // POST /api/auth/login
   async login(req, res) {
     try {
