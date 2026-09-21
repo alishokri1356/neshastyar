@@ -85,6 +85,14 @@ fun TagSelectionScreen(
         }
 
         Spacer(Modifier.height(12.dp))
+        val tagQuery = normalizeTagQuery(state.newTagName)
+        val visibleTags = if (tagQuery.isEmpty()) {
+            state.tags
+        } else {
+            state.tags.filter { tag ->
+                normalizeTagQuery(tag.name?.takeIf { it.isNotBlank() } ?: tag.id).contains(tagQuery)
+            }
+        }
         if (state.loading) {
             CircularProgressIndicator(
                 color = NeshastyarColors.Primary,
@@ -92,13 +100,21 @@ fun TagSelectionScreen(
                     .padding(24.dp)
                     .align(Alignment.CenterHorizontally),
             )
+        } else if (visibleTags.isEmpty()) {
+            Text(
+                text = if (tagQuery.isEmpty()) "برچسبی وجود ندارد" else "برچسبی با این نام پیدا نشد",
+                color = NeshastyarColors.TextMuted,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 8.dp),
+            )
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 userScrollEnabled = !state.uploading,
             ) {
-                items(state.tags, key = { it.id }) { tag ->
+                items(visibleTags, key = { it.id }) { tag ->
                     NeshastyarCard(
                         modifier = Modifier.clickable(enabled = !state.uploading) { viewModel.toggle(tag.id) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(10.dp),
@@ -155,4 +171,12 @@ fun TagSelectionScreen(
             modifier = Modifier.padding(bottom = 8.dp),
         )
     }
+}
+
+private fun normalizeTagQuery(value: String): String {
+    return value.trim()
+        .replace('ي', 'ی')
+        .replace('ك', 'ک')
+        .replace("\u200c", "")
+        .lowercase()
 }
