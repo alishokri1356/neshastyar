@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -261,6 +262,10 @@ private fun SocialPlaceholder(label: String, modifier: Modifier = Modifier) {
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = NeshastyarColors.TextSecondary, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            GoogleLogo()
+            Spacer(Modifier.width(8.dp))
+            Text(label, color = NeshastyarColors.TextSecondary, fontWeight = FontWeight.Medium)
+        }
     }
 }

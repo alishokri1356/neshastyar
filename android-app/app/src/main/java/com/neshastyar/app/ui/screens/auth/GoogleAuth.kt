@@ -1,6 +1,13 @@
 package com.neshastyar.app.ui.screens.auth
 
 import android.content.Context
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.neshastyar.app.R
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -12,6 +19,15 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
 class GoogleSignInCancelledException : Exception()
+
+@Composable
+fun GoogleLogo(modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(R.drawable.ic_google),
+        contentDescription = null,
+        modifier = modifier.size(20.dp),
+    )
+}
 
 /**
  * Button flow for Sign in / Sign up with Google.

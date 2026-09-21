@@ -3,7 +3,9 @@ package com.neshastyar.app.ui.screens.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -176,7 +178,11 @@ fun SignUpScreen(
                 .fillMaxWidth()
                 .height(52.dp),
         ) {
-            Text("ثبت‌نام با حساب گوگل")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                GoogleLogo()
+                Spacer(Modifier.width(8.dp))
+                Text("ثبت‌نام با حساب گوگل")
+            }
         }
 
         TextButton(onClick = onBackToLogin, modifier = Modifier.padding(top = 12.dp)) {
