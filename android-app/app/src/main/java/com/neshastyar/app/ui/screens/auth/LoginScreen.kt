@@ -234,13 +234,12 @@ fun LoginScreen(
                     HorizontalDivider(modifier = Modifier.weight(1f), color = NeshastyarColors.Outline)
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SocialPlaceholder(
-                        label = "گوگل",
-                        modifier = Modifier.weight(1f).clickable { signInWithGoogle() }
-                    )
-                    SocialPlaceholder("اپل", Modifier.weight(1f))
-                }
+                SocialPlaceholder(
+                    label = "گوگل",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { signInWithGoogle() },
+                )
             }
 
             TextButton(onClick = onSignUp, modifier = Modifier.padding(top = 20.dp)) {
