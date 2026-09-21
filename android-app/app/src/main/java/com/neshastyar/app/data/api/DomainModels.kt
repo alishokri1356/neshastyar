@@ -32,6 +32,31 @@ data class UploadAudioResponse(
     val error: String? = null,
 )
 
+data class CreateUploadSessionRequest(
+    val uploadId: String,
+    val fileName: String,
+    val totalSize: Long,
+    val mimeType: String,
+)
+
+data class UploadSessionData(
+    val uploadId: String? = null,
+    val bytesReceived: Long? = null,
+    val totalSize: Long? = null,
+    val complete: Boolean? = null,
+    val relativePath: String? = null,
+    val size: Long? = null,
+    val format: String? = null,
+    val originalName: String? = null,
+    val filename: String? = null,
+)
+
+data class UploadSessionResponse(
+    val data: UploadSessionData? = null,
+    val error: String? = null,
+    val message: String? = null,
+)
+
 data class CreateAudioFileRequest(
     val meeting_id: String,
     val file_name: String,

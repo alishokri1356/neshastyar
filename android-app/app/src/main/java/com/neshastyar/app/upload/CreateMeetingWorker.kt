@@ -49,7 +49,7 @@ class CreateMeetingWorker @AssistedInject constructor(
                 )
             },
             onFailure = { e ->
-                if (runAttemptCount < 3) Result.retry()
+                if (runAttemptCount < 8) Result.retry()
                 else Result.failure(workDataOf(KEY_ERROR to (e.message ?: "آپلود ناموفق")))
             },
         )

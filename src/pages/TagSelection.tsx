@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +20,16 @@ interface AudioFile {
   type: 'recording' | 'upload';
 }
 import { mysqlClient } from '@/lib/mysql-client';
+import { uploadFileResumable, UploadAbortedError } from '@/lib/resumableUpload';
+import {
+  clearUploadDraft,
+  loadUploadDraft,
+  markUploadLinked,
+  saveCompletedUpload,
+  saveUploadDraftFiles,
+  saveUploadMeetingId,
+  setUploadActive,
+} from '@/lib/uploadDraftStore';
 import { useToast } from '@/components/ui/use-toast';
 
 // Get API base URL from environment
@@ -95,17 +105,19 @@ const getTagMatchScore = (query: string, tagName: string): number | null => {
 const TagSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tags, addTag, addMeeting, setTags, clearRecordDraft } = useMeetingStore();
+  const { tags, addTag, addMeeting, setTags, clearRecordDraft, recordDraft } = useMeetingStore();
   const { toast } = useToast();
   
   const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadCancelled, setUploadCancelled] = useState(false);
   
   // State for individual file upload progress
   const [fileUploadProgress, setFileUploadProgress] = useState<Map<string, number>>(new Map());
+  const [canResume, setCanResume] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const saveMeetingRef = useRef<() => Promise<void>>(async () => {});
   
   // State for audio playback
   const [playingFileId, setPlayingFileId] = useState<string | null>(null);
@@ -120,9 +132,73 @@ const TagSelection = () => {
     }
   }, [fileUploadProgress]);
 
-  const audioFiles = location.state?.audioFiles as AudioFile[] | null;
-  const commentText = location.state?.commentText as string | undefined;
-  
+  const routeDraft = location.state as { audioFiles?: AudioFile[]; commentText?: string } | null;
+  const [audioFiles, setAudioFiles] = useState<AudioFile[] | null>(
+    routeDraft?.audioFiles ?? recordDraft?.audioFiles ?? null,
+  );
+  const [commentText, setCommentText] = useState(
+    routeDraft?.commentText ?? recordDraft?.commentText ?? '',
+  );
+  const audioFilesRef = useRef(audioFiles);
+  audioFilesRef.current = audioFiles;
+  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
+  const autoResumeStarted = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const draft = await loadUploadDraft();
+        if (cancelled) return;
+        const inMemory = audioFilesRef.current;
+        const restoredFromDisk = (!inMemory || inMemory.length === 0) && Boolean(draft?.files?.length);
+        if (restoredFromDisk && draft) {
+          const restored: AudioFile[] = draft.files.map((file) => ({
+            id: file.id,
+            name: file.name,
+            duration: file.duration,
+            blob: file.blob,
+            type: file.type,
+          }));
+          setAudioFiles(restored);
+          audioFilesRef.current = restored;
+          setCommentText(draft.commentText || '');
+          if (draft.selectedTagIds?.length) setPendingTagIds(draft.selectedTagIds);
+          if (draft.uploading || Object.keys(draft.completed || {}).length > 0) setCanResume(true);
+          if (draft.uploading && !autoResumeStarted.current) {
+            autoResumeStarted.current = true;
+            void saveMeetingRef.current();
+          }
+        } else if (inMemory?.length) {
+          await saveUploadDraftFiles(
+            inMemory.map((file) => ({
+              id: file.id,
+              name: file.name,
+              duration: file.duration,
+              type: file.type,
+              blob: file.blob,
+            })),
+            commentText,
+            [],
+          );
+          await setUploadActive(false);
+        }
+      } catch (error) {
+        console.error('Failed to restore upload draft', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingTagIds.length || tags.length === 0) return;
+    const matched = tags.filter((tag) => pendingTagIds.includes(tag.id));
+    if (matched.length > 0) {
+      setSelectedTags(matched);
+    }
+  }, [pendingTagIds, tags]);
 
   // Fetch user's tags from database on component mount
   useEffect(() => {
@@ -310,7 +386,8 @@ const TagSelection = () => {
   };
 
   const handleSaveMeeting = async () => {
-    if (!audioFiles || audioFiles.length === 0) {
+    const files = audioFilesRef.current;
+    if (!files || files.length === 0) {
       toast({
         title: "خطا",
         description: "هیچ فایل صوتی یافت نشد",
@@ -319,16 +396,35 @@ const TagSelection = () => {
       return;
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     setIsUploading(true);
-    setUploadProgress(0);
-    setUploadCancelled(false);
+    setCanResume(true);
 
     try {
-      // Get current user
+      const storedBefore = await loadUploadDraft();
+      const tagIds = selectedTags.length
+        ? selectedTags.map((tag) => tag.id)
+        : (storedBefore?.selectedTagIds || []);
+      await saveUploadDraftFiles(
+        files.map((file) => ({
+          id: file.id,
+          name: file.name,
+          duration: file.duration,
+          type: file.type,
+          blob: file.blob,
+        })),
+        commentText || storedBefore?.commentText || '',
+        tagIds,
+      );
+      await setUploadActive(true);
+
       const { data: { session } } = await mysqlClient.auth.getSession();
       const user = session?.user;
-      
-      if (!user) {
+      const token = session?.access_token || session?.token;
+
+      if (!user || !token) {
+        await setUploadActive(false);
         toast({
           title: "احراز هویت الزامی است",
           description: "لطفاً برای ذخیره جلسات وارد شوید",
@@ -337,119 +433,96 @@ const TagSelection = () => {
         return;
       }
 
-      // Calculate total duration
-      const totalDuration = audioFiles.reduce((sum, file) => sum + file.duration, 0);
-      
-      // Generate meeting title from first file
-      const firstFile = audioFiles[0];
-      const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg)$/i, '') || 'جلسه';
+      const firstFile = files[0];
+      const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg|webm|aac|flac)$/i, '') || 'جلسه';
+      const stored = await loadUploadDraft();
+      const uploadedFiles: Array<{
+        id: string;
+        fileName: string;
+        filePath: string;
+        fileSize: number;
+        duration: number;
+        format: string;
+        uploadOrder: number;
+        linked?: boolean;
+      }> = [];
 
-      // Upload all audio files
-      const uploadedFiles = [];
-      
-      for (let i = 0; i < audioFiles.length; i++) {
-        const file = audioFiles[i];
-        const fileName = `${Date.now()}-${i}-${file.name}`;
-        
-        // Initialize progress for this file
-        setFileUploadProgress(prev => new Map(prev).set(file.id, 0));
-        
-        const formData = new FormData();
-        formData.append('audio', file.blob, fileName);
-
-        // Create XMLHttpRequest for progress tracking
-        const xhr = new XMLHttpRequest();
-        
-        const uploadPromise = new Promise((resolve, reject) => {
-          xhr.upload.addEventListener('progress', (event) => {
-            if (event.lengthComputable) {
-              const percentComplete = Math.round((event.loaded / event.total) * 100);
-              setFileUploadProgress(prev => {
-                const newMap = new Map(prev).set(file.id, percentComplete);
-                
-                // Calculate overall progress - ensure all files are counted
-                const totalProgress = audioFiles.reduce((sum, file) => {
-                  const fileProgress = newMap.get(file.id) || 0;
-                  return sum + fileProgress;
-                }, 0);
-                const averageProgress = Math.round(totalProgress / audioFiles.length);
-                setUploadProgress(averageProgress);
-                
-                return newMap;
-              });
-            }
-          });
-
-          xhr.addEventListener('load', () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              const uploadResult = JSON.parse(xhr.responseText);
-              resolve(uploadResult);
-            } else {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
-            }
-          });
-
-          xhr.addEventListener('error', () => {
-            reject(new Error('Upload failed'));
-          });
-
-          xhr.open('POST', `${API_BASE_URL}/upload/audio`);
-          xhr.setRequestHeader('Authorization', `Bearer ${session.access_token || session.token}`);
-          xhr.send(formData);
-        });
-
-        try {
-          const uploadResult = await uploadPromise;
+      for (let i = 0; i < files.length; i++) {
+        if (controller.signal.aborted) throw new UploadAbortedError();
+        const file = files[i];
+        const existing = stored?.completed?.[file.id];
+        if (existing?.filePath) {
+          setFileUploadProgress((prev) => new Map(prev).set(file.id, 100));
           uploadedFiles.push({
-            fileName: fileName,
-            filePath: uploadResult.data.relativePath,
-            fileSize: uploadResult.data.size,
-            duration: file.duration,
-            format: uploadResult.data.format,
-            uploadOrder: i + 1
+            id: file.id,
+            fileName: existing.fileName,
+            filePath: existing.filePath,
+            fileSize: existing.fileSize,
+            duration: existing.duration,
+            format: existing.format,
+            uploadOrder: existing.uploadOrder || i + 1,
+            linked: existing.linked,
           });
-          
-          // Set progress to 100% for completed file
-          setFileUploadProgress(prev => {
-            const newMap = new Map(prev).set(file.id, 100);
-            
-            // Calculate overall progress - ensure all files are counted
-            const totalProgress = audioFiles.reduce((sum, file) => {
-              const fileProgress = newMap.get(file.id) || 0;
-              return sum + fileProgress;
-            }, 0);
-            const averageProgress = Math.round(totalProgress / audioFiles.length);
-            setUploadProgress(averageProgress);
-            
-            return newMap;
-          });
-        } catch (error) {
-          throw new Error(error instanceof Error ? error.message : 'بارگذاری فایل ناموفق بود');
+          continue;
         }
-      }
 
-      // Create meeting in database
-      const { data: meetingData, error: meetingError } = await mysqlClient
-        .from('meetings')
-        .insert({
-          meeting_date: new Date().toISOString(),
-          user_id: user.id,
-          summary: '',
-          title: meetingTitle,
-          status: 'آماده پردازش',
-          CommentText: commentText || null
+        setFileUploadProgress((prev) => new Map(prev).set(file.id, prev.get(file.id) || 0));
+        const safeName = file.name.replace(/[^\w.\-()\u0600-\u06FF ]+/g, '_') || 'audio.m4a';
+        const result = await uploadFileResumable({
+          apiBaseUrl: API_BASE_URL,
+          token,
+          uploadId: file.id,
+          file: file.blob,
+          fileName: safeName,
+          mimeType: file.blob.type || 'audio/mp4',
+          signal: controller.signal,
+          onProgress: (loaded, total) => {
+            const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
+            setFileUploadProgress((prev) => new Map(prev).set(file.id, percent));
+          },
         });
 
-      if (meetingError) {
-        throw new Error(meetingError.message);
+        const completed = {
+          fileName: safeName,
+          filePath: result.relativePath,
+          fileSize: result.size,
+          duration: file.duration,
+          format: result.format,
+          uploadOrder: i + 1,
+          linked: false,
+        };
+        await saveCompletedUpload(file.id, completed);
+        uploadedFiles.push({ id: file.id, ...completed });
+        setFileUploadProgress((prev) => new Map(prev).set(file.id, 100));
       }
 
-      // Insert audio files into audio_files table
+      let meetingId = stored?.meetingId || null;
+      if (!meetingId) {
+        const { data: meetingData, error: meetingError } = await mysqlClient
+          .from('meetings')
+          .insert({
+            meeting_date: new Date().toISOString(),
+            user_id: user.id,
+            summary: '',
+            title: meetingTitle,
+            status: 'آماده پردازش',
+            CommentText: commentText || null
+          });
+
+        if (meetingError) {
+          throw new Error(meetingError.message);
+        }
+        meetingId = meetingData.id || meetingData[0]?.id;
+        if (!meetingId) throw new Error('شناسه جلسه از سرور برنگشت');
+        await saveUploadMeetingId(meetingId);
+      }
+
       for (const uploadedFile of uploadedFiles) {
+        if (uploadedFile.linked) continue;
         const { error: audioFileError } = await mysqlClient
           .from('audio_files')
           .insert({
-            meeting_id: meetingData.id || meetingData[0]?.id,
+            meeting_id: meetingId,
             file_name: uploadedFile.fileName,
             file_path: uploadedFile.filePath,
             file_size: uploadedFile.fileSize,
@@ -459,22 +532,23 @@ const TagSelection = () => {
           });
 
         if (audioFileError) {
-          console.error('Error inserting audio file:', audioFileError);
+          throw new Error(audioFileError.message || 'ثبت فایل صوتی ناموفق بود');
         }
+        await markUploadLinked(uploadedFile.id);
       }
 
       // Create meeting-tag relationships
-      if (selectedTags.length > 0) {
+      if (tagIds.length > 0) {
         // Create relationships one by one since backend expects single relationship per request
-        for (const tag of selectedTags) {
+        for (const tagId of tagIds) {
           const { error: tagsError } = await mysqlClient
             .from('meeting_tags')
             .insert({
-              meeting_id: meetingData.id || meetingData[0]?.id,
-              tag_id: tag.id
+              meeting_id: meetingId,
+              tag_id: tagId
             });
 
-          if (tagsError) {
+          if (tagsError && !String(tagsError.message || '').toLowerCase().includes('already exists')) {
             toast({
               title: "خطا در پیوند برچسب‌ها",
               description: tagsError.message,
@@ -487,7 +561,7 @@ const TagSelection = () => {
 
       // Auto-trigger summary generation via backend (sends meetingId in webhook header)
       try {
-        const createdMeetingId = meetingData.id || meetingData[0]?.id;
+        const createdMeetingId = meetingId;
 
         const analyzeResponse = await fetch(
           `${API_BASE_URL}/meetings/${createdMeetingId}/analyze`,
@@ -527,30 +601,35 @@ const TagSelection = () => {
         description: "خلاصه جلسه پس از پردازش به ایمیل شما ارسال خواهد شد.",
       });
 
+      await clearUploadDraft();
       clearRecordDraft();
+      setCanResume(false);
       navigate('/home');
-         } catch (error) {
+    } catch (error) {
+      if (error instanceof UploadAbortedError || (error as Error)?.name === 'AbortError') {
+        return;
+      }
+      setCanResume(true);
       toast({
         title: "خطا",
-        description: "ذخیره جلسه ناموفق بود",
+        description: "بارگذاری قطع شد. با زدن ادامه آپلود، از همان نقطه ادامه پیدا می‌کند.",
         variant: "destructive",
       });
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
-      setUploadCancelled(false);
-      setFileUploadProgress(new Map()); // Clear individual file progress
+      abortRef.current = null;
     }
   };
+  saveMeetingRef.current = handleSaveMeeting;
 
   const handleCancelUpload = () => {
-    setUploadCancelled(true);
+    abortRef.current?.abort();
+    void setUploadActive(false);
     setIsUploading(false);
-    setUploadProgress(0);
-    setFileUploadProgress(new Map()); // Clear individual file progress
+    setCanResume(true);
     toast({
-      title: "بارگذاری لغو شد",
-      description: "بارگذاری جلسه لغو شد",
+      title: "بارگذاری متوقف شد",
+      description: "بخش ارسال‌شده ذخیره شده است و می‌توانید بعداً ادامه دهید.",
     });
   };
 
@@ -825,7 +904,7 @@ const TagSelection = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>لغو بارگذاری؟</AlertDialogTitle>
                     <AlertDialogDescription>
-                      آیا مطمئن هستید که می‌خواهید بارگذاری را لغو کنید؟ این عمل فرآیند بارگذاری فعلی را متوقف می‌کند و باید از ابتدا شروع کنید.
+                      بارگذاری متوقف می‌شود. بخش ارسال‌شده روی سرور می‌ماند و بعداً می‌توانید از همان نقطه ادامه دهید.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -842,7 +921,7 @@ const TagSelection = () => {
             </div>
           ) : (
             <Button onClick={handleSaveMeeting} variant="primary" size="lg" className="w-full">
-              آپلود جلسه
+              {canResume ? 'ادامه آپلود' : 'آپلود جلسه'}
             </Button>
           )}
         </div>

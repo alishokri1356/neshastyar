@@ -1,11 +1,13 @@
 package com.neshastyar.app.data.api
 
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
@@ -77,6 +79,22 @@ interface NeshastyarApi {
     @Multipart
     @POST("upload/audio")
     suspend fun uploadAudio(@Part audio: MultipartBody.Part): Response<UploadAudioResponse>
+
+    @POST("upload/sessions")
+    suspend fun createUploadSession(@Body body: CreateUploadSessionRequest): Response<UploadSessionResponse>
+
+    @GET("upload/sessions/{uploadId}")
+    suspend fun getUploadSession(@Path("uploadId") uploadId: String): Response<UploadSessionResponse>
+
+    @PATCH("upload/sessions/{uploadId}")
+    suspend fun appendUploadChunk(
+        @Path("uploadId") uploadId: String,
+        @Query("offset") offset: Long,
+        @Body body: RequestBody,
+    ): Response<UploadSessionResponse>
+
+    @POST("upload/sessions/{uploadId}/complete")
+    suspend fun completeUploadSession(@Path("uploadId") uploadId: String): Response<UploadAudioResponse>
 
     @POST("audio-files")
     suspend fun createAudioFile(@Body body: CreateAudioFileRequest): Response<CreateAudioFileResponse>

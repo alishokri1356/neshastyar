@@ -2,6 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const db = require('../config/database');
+const uploadSessionService = require('../services/uploadSessionService');
 
 // Configure multer for large file uploads
 const storage = multer.diskStorage({
@@ -114,6 +115,70 @@ class FileController {
         error: 'Upload failed',
         message: error.message
       });
+    }
+  }
+
+  sendSessionError(res, error, fallback) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      error: fallback,
+      message: error.message || fallback,
+      data: error.data || null,
+    });
+  }
+
+  // POST /api/upload/sessions
+  async createUploadSession(req, res) {
+    try {
+      const data = await uploadSessionService.createOrResume(req.user.sub, req.body || {});
+      return res.json({ data, error: null });
+    } catch (error) {
+      console.error('Create upload session error:', error);
+      return this.sendSessionError(res, error, 'Failed to start upload');
+    }
+  }
+
+  // GET /api/upload/sessions/:uploadId
+  async getUploadSession(req, res) {
+    try {
+      const data = await uploadSessionService.getStatus(req.user.sub, req.params.uploadId);
+      return res.json({ data, error: null });
+    } catch (error) {
+      console.error('Get upload session error:', error);
+      return this.sendSessionError(res, error, 'Failed to read upload');
+    }
+  }
+
+  // PATCH /api/upload/sessions/:uploadId?offset=
+  async appendUploadChunk(req, res) {
+    try {
+      const data = await uploadSessionService.appendChunk(req.user.sub, req.params.uploadId, req);
+      return res.json({ data, error: null });
+    } catch (error) {
+      console.error('Append upload chunk error:', error);
+      return this.sendSessionError(res, error, 'Failed to append upload chunk');
+    }
+  }
+
+  // POST /api/upload/sessions/:uploadId/complete
+  async completeUploadSession(req, res) {
+    try {
+      const data = await uploadSessionService.complete(req.user.sub, req.params.uploadId);
+      return res.json({ data, error: null });
+    } catch (error) {
+      console.error('Complete upload session error:', error);
+      return this.sendSessionError(res, error, 'Failed to finish upload');
+    }
+  }
+
+  // DELETE /api/upload/sessions/:uploadId
+  async deleteUploadSession(req, res) {
+    try {
+      const data = await uploadSessionService.remove(req.user.sub, req.params.uploadId);
+      return res.json({ data, error: null });
+    } catch (error) {
+      console.error('Delete upload session error:', error);
+      return this.sendSessionError(res, error, 'Failed to delete upload');
     }
   }
 

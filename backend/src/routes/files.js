@@ -18,8 +18,15 @@ router.get('/download/audio/:meetingId', FileController.downloadAudioByMeetingId
 router.use(authenticateToken);
 router.use(requireEmailVerification);
 
-// Upload audio file
+// Upload audio file (single request, kept for compatibility)
 router.post('/upload/audio', upload.single('audio'), FileController.uploadAudio);
+
+// Resumable chunked upload
+router.post('/upload/sessions', (req, res) => FileController.createUploadSession(req, res));
+router.get('/upload/sessions/:uploadId', (req, res) => FileController.getUploadSession(req, res));
+router.patch('/upload/sessions/:uploadId', (req, res) => FileController.appendUploadChunk(req, res));
+router.post('/upload/sessions/:uploadId/complete', (req, res) => FileController.completeUploadSession(req, res));
+router.delete('/upload/sessions/:uploadId', (req, res) => FileController.deleteUploadSession(req, res));
 
 // Get audio file
 router.get('/files/audio/:userId/:filename', FileController.getAudio);
