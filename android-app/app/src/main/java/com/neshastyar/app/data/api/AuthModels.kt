@@ -1,5 +1,9 @@
 package com.neshastyar.app.data.api
 
+import com.squareup.moshi.Json
+
+data class GoogleAuthRequest(@Json(name = "id_token") val idToken: String)
+
 data class LoginRequest(
     val email: String,
     val password: String,

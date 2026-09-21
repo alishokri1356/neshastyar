@@ -38,6 +38,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.unit.dp
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.StatusStyle
@@ -163,11 +166,13 @@ fun NeshastyarTextField(
     trailingIcon: (@Composable () -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    textStyle: androidx.compose.ui.text.TextStyle = LocalTextStyle.current,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
+        textStyle = textStyle,
         placeholder = placeholder?.let { { Text(it, color = NeshastyarColors.TextMuted) } },
         singleLine = singleLine,
         minLines = minLines,

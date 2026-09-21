@@ -311,6 +311,42 @@ class AdminController {
     }
   }
 
+  // DELETE /api/admin/users/:id
+  async deleteUser(req, res) {
+    try {
+      const { id } = req.params;
+      const user = await this.fetchMappedUser(id);
+      if (!user) {
+        return res.status(404).json({
+          error: 'Not found',
+          message: 'User not found',
+        });
+      }
+
+      const result = await userService.deleteUser(id);
+      return res.json({
+        data: {
+          deleted: true,
+          id,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          },
+          counts: result.counts,
+        },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Admin delete user error:', error);
+      const status = error.message === 'User not found' ? 404 : 500;
+      return res.status(status).json({
+        error: 'Delete failed',
+        message: error.message || 'Failed to delete user',
+      });
+    }
+  }
+
   // POST /api/admin/users/:id/resend-verification
   async resendVerification(req, res) {
     try {

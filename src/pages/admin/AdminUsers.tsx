@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Search,
   Shield,
+  Trash2,
   Users,
 } from 'lucide-react';
 
@@ -78,8 +79,10 @@ const AdminUsers = () => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [deleting, setDeleting] = useState<AdminUser | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [emailActionId, setEmailActionId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async (search = '') => {
@@ -172,6 +175,34 @@ const AdminUsers = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    setIsDeleting(true);
+    try {
+      await adminFetch<{ data: { deleted: boolean; id: string } }>(
+        `/users/${deleting.id}`,
+        { method: 'DELETE' }
+      );
+      setUsers((prev) => prev.filter((u) => u.id !== deleting.id));
+      if (editing?.id === deleting.id) {
+        setEditing(null);
+      }
+      setDeleting(null);
+      toast({
+        title: 'کاربر حذف شد',
+        description: 'حساب کاربر و تمام داده‌های مرتبط از پایگاه داده پاک شد.',
+      });
+    } catch (error) {
+      toast({
+        title: 'خطا در حذف کاربر',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -311,7 +342,7 @@ const AdminUsers = () => {
             <div>
               <h2 className="text-base font-semibold">مدیریت کاربران</h2>
               <p className="text-sm text-slate-400">
-                وضعیت حساب، تأیید ایمیل، ارسال ایمیل و رمز عبور
+                وضعیت حساب، تأیید ایمیل، ارسال ایمیل، رمز عبور و حذف کاربر
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -467,6 +498,16 @@ const AdminUsers = () => {
                               )}
                               ارسال بازیابی رمز
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isDeleting || Boolean(emailActionId)}
+                              onClick={() => setDeleting(user)}
+                              className="border-rose-500/30 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20 justify-start disabled:opacity-40"
+                            >
+                              <Trash2 className="ml-1 h-3.5 w-3.5" />
+                              حذف کاربر
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -594,6 +635,62 @@ const AdminUsers = () => {
                 </>
               ) : (
                 'ذخیره تغییرات'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeleting(null);
+        }}
+      >
+        <DialogContent className="max-w-lg border-white/10 bg-slate-900 text-slate-100 sm:rounded-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>حذف کاربر</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              این عمل قابل بازگشت نیست. حساب کاربر و همه داده‌های مرتبط برای همیشه حذف می‌شود.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleting ? (
+            <div className="space-y-3 py-2">
+              <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3">
+                <p className="font-medium text-white">{deleting.name || 'بدون نام'}</p>
+                <p className="text-sm text-slate-300" dir="ltr">{deleting.email}</p>
+                <p className="mt-2 text-xs text-rose-200">
+                  {deleting.usage.meeting_count} جلسه و سایر داده‌های کاربر (برچسب‌ها، شرکت‌کنندگان و فایل‌های صوتی) حذف خواهند شد.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => setDeleting(null)}
+              className="border-white/15 bg-transparent"
+            >
+              انصراف
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-rose-600 text-white hover:bg-rose-500"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  در حال حذف...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="ml-2 h-4 w-4" />
+                  حذف قطعی کاربر
+                </>
               )}
             </Button>
           </DialogFooter>

@@ -3,6 +3,7 @@ package com.neshastyar.app.data.repository
 import com.squareup.moshi.Moshi
 import com.neshastyar.app.data.api.AuthResponse
 import com.neshastyar.app.data.api.EmailOnlyRequest
+import com.neshastyar.app.data.api.GoogleAuthRequest
 import com.neshastyar.app.data.api.LoginRequest
 import com.neshastyar.app.data.api.NeshastyarApi
 import com.neshastyar.app.data.api.SessionDto
@@ -36,6 +37,15 @@ class AuthRepository @Inject constructor(
     suspend fun login(email: String, password: String): AuthResult {
         return try {
             val response = api.login(LoginRequest(email.trim(), password))
+            handleAuthResponse(response)
+        } catch (e: Exception) {
+            AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
+        }
+    }
+
+    suspend fun googleLogin(idToken: String): AuthResult {
+        return try {
+            val response = api.googleAuth(GoogleAuthRequest(idToken))
             handleAuthResponse(response)
         } catch (e: Exception) {
             AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
@@ -206,9 +216,9 @@ class AuthRepository @Inject constructor(
     }
 
     private fun persianize(msg: String): String = when {
-        msg.contains("Invalid", ignoreCase = true) -> "ایمیل یا رمز عبور نامعتبر است"
+        msg.contains("Invalid email or password", ignoreCase = true) || msg.contains("Missing credentials", ignoreCase = true) -> "ایمیل یا رمز عبور نامعتبر است"
         msg.contains("already exists", ignoreCase = true) -> "این ایمیل قبلاً ثبت شده است"
-        msg.contains("required", ignoreCase = true) -> "ایمیل و رمز عبور الزامی است"
+        msg.contains("Email and password are required", ignoreCase = true) -> "ایمیل و رمز عبور الزامی است"
         msg.contains("Database unavailable", ignoreCase = true) -> "سرور موقتاً در دسترس نیست"
         else -> msg
     }

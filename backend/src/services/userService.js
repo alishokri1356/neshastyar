@@ -1,3 +1,5 @@
+const fs = require('fs/promises');
+const path = require('path');
 const db = require('../config/database');
 const authService = require('./authService');
 const emailService = require('./emailService');
@@ -99,11 +101,191 @@ class UserService {
     return await this.findById(id);
   }
 
-  // Delete user
+  async schemaHasTable(connection, tableName) {
+    const [rows] = await connection.query(
+      `SELECT 1
+       FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+       LIMIT 1`,
+      [tableName]
+    );
+    return rows.length > 0;
+  }
+
+  async schemaHasColumn(connection, tableName, columnName) {
+    const [rows] = await connection.query(
+      `SELECT 1
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+       LIMIT 1`,
+      [tableName, columnName]
+    );
+    return rows.length > 0;
+  }
+
+  resolveStoredFilePath(filePath) {
+    if (!filePath || typeof filePath !== 'string') return null;
+    const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+    const resolved = path.isAbsolute(filePath)
+      ? path.resolve(filePath)
+      : path.resolve(process.cwd(), filePath);
+    if (!resolved.startsWith(uploadsRoot + path.sep) && resolved !== uploadsRoot) {
+      return null;
+    }
+    return resolved;
+  }
+
+  async cleanupUserFiles(userId, filePaths) {
+    for (const filePath of filePaths) {
+      const resolved = this.resolveStoredFilePath(filePath);
+      if (!resolved) continue;
+      try {
+        await fs.unlink(resolved);
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          console.warn('Failed to delete user audio file:', resolved, error.message);
+        }
+      }
+    }
+
+    if (!userId || /[/\\]|\.\./.test(userId)) return;
+    const userUploadDir = path.resolve(process.cwd(), 'uploads', 'audio', userId);
+    const audioRoot = path.resolve(process.cwd(), 'uploads', 'audio');
+    if (!userUploadDir.startsWith(audioRoot + path.sep)) return;
+
+    try {
+      await fs.rm(userUploadDir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn('Failed to delete user upload directory:', userUploadDir, error.message);
+    }
+  }
+
+  // Delete user and all owned data (meetings, tags, participants, files)
   async deleteUser(id) {
-    const sql = 'DELETE FROM users WHERE id = ?';
-    await db.query(sql, [id]);
-    return true;
+    if (!id) {
+      throw new Error('User id is required');
+    }
+
+    const connection = await db.getConnection();
+    const filePaths = new Set();
+    const deleted = {
+      meetings: 0,
+      tags: 0,
+      participants: 0,
+      sessions: 0,
+      audio_files: 0,
+    };
+
+    try {
+      await connection.beginTransaction();
+
+      const [users] = await connection.query('SELECT id FROM users WHERE id = ?', [id]);
+      if (!users.length) {
+        throw new Error('User not found');
+      }
+
+      const hasAudioPath = await this.schemaHasColumn(connection, 'meetings', 'audio_file_path');
+      const [meetings] = await connection.query(
+        hasAudioPath
+          ? 'SELECT id, audio_file_path FROM meetings WHERE user_id = ?'
+          : 'SELECT id FROM meetings WHERE user_id = ?',
+        [id]
+      );
+      const meetingIds = meetings.map((meeting) => meeting.id);
+      deleted.meetings = meetingIds.length;
+
+      for (const meeting of meetings) {
+        if (meeting.audio_file_path) filePaths.add(meeting.audio_file_path);
+      }
+
+      if (meetingIds.length && (await this.schemaHasTable(connection, 'audio_files'))) {
+        const placeholders = meetingIds.map(() => '?').join(',');
+        const [audioFiles] = await connection.query(
+          `SELECT file_path FROM audio_files WHERE meeting_id IN (${placeholders})`,
+          meetingIds
+        );
+        deleted.audio_files = audioFiles.length;
+        for (const audioFile of audioFiles) {
+          if (audioFile.file_path) filePaths.add(audioFile.file_path);
+        }
+        await connection.query(
+          `DELETE FROM audio_files WHERE meeting_id IN (${placeholders})`,
+          meetingIds
+        );
+      }
+
+      if (meetingIds.length && (await this.schemaHasTable(connection, 'meeting_tags'))) {
+        const placeholders = meetingIds.map(() => '?').join(',');
+        await connection.query(
+          `DELETE FROM meeting_tags WHERE meeting_id IN (${placeholders})`,
+          meetingIds
+        );
+      }
+
+      if (meetingIds.length && (await this.schemaHasTable(connection, 'meeting_participants'))) {
+        const placeholders = meetingIds.map(() => '?').join(',');
+        await connection.query(
+          `DELETE FROM meeting_participants WHERE meeting_id IN (${placeholders})`,
+          meetingIds
+        );
+      }
+
+      if (await this.schemaHasTable(connection, 'meeting_tags')) {
+        await connection.query(
+          `DELETE mt FROM meeting_tags mt
+           INNER JOIN tags t ON t.id = mt.tag_id
+           WHERE t.user_id = ?`,
+          [id]
+        );
+      }
+
+      if (await this.schemaHasTable(connection, 'meeting_participants')) {
+        await connection.query(
+          `DELETE mp FROM meeting_participants mp
+           INNER JOIN participants p ON p.id = mp.participant_id
+           WHERE p.user_id = ?`,
+          [id]
+        );
+      }
+
+      await connection.query('DELETE FROM meetings WHERE user_id = ?', [id]);
+
+      if (await this.schemaHasTable(connection, 'tags')) {
+        const [tagResult] = await connection.query('DELETE FROM tags WHERE user_id = ?', [id]);
+        deleted.tags = tagResult.affectedRows || 0;
+      }
+
+      if (await this.schemaHasTable(connection, 'participants')) {
+        const [participantResult] = await connection.query(
+          'DELETE FROM participants WHERE user_id = ?',
+          [id]
+        );
+        deleted.participants = participantResult.affectedRows || 0;
+      }
+
+      if (await this.schemaHasTable(connection, 'sessions')) {
+        const [sessionResult] = await connection.query(
+          'DELETE FROM sessions WHERE user_id = ?',
+          [id]
+        );
+        deleted.sessions = sessionResult.affectedRows || 0;
+      }
+
+      await connection.query('DELETE FROM users WHERE id = ?', [id]);
+      await connection.commit();
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('User delete rollback failed:', rollbackError);
+      }
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    await this.cleanupUserFiles(id, filePaths);
+    return { deleted: true, id, counts: deleted };
   }
 
   // Verify user credentials

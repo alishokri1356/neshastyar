@@ -53,7 +53,7 @@ class LoginViewModel @Inject constructor(
     fun login() {
         val state = _ui.value
         if (state.email.isBlank() || state.password.isBlank()) {
-            _ui.update { it.copy(error = "Ø§ÛŒÙ…ÛŒÙ„ Ùˆ Ø±Ù…Ø² Ø¹Ø¨ÙˆØ± Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯") }
+            _ui.update { it.copy(error = "ایمیل و رمز عبور را وارد کنید") }
             return
         }
         viewModelScope.launch {
@@ -64,9 +64,27 @@ class LoginViewModel @Inject constructor(
                     it.copy(loading = false, error = result.message, info = result.email)
                 }
                 is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
-                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ÙˆØ±ÙˆØ¯ Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯") }
+                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ورود ناموفق بود") }
             }
         }
+    }
+
+    fun googleLogin(idToken: String) {
+        viewModelScope.launch {
+            _ui.update { it.copy(loading = true, error = null, info = null) }
+            when (val result = authRepository.googleLogin(idToken)) {
+                is AuthResult.Success -> _ui.update { it.copy(loading = false, loggedIn = true) }
+                is AuthResult.NeedsVerification -> _ui.update {
+                    it.copy(loading = false, error = result.message, info = result.email)
+                }
+                is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
+                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ورود با گوگل ناموفق بود") }
+            }
+        }
+    }
+
+    fun setError(msg: String) {
+        _ui.update { it.copy(error = msg, loading = false) }
     }
 }
 
@@ -85,15 +103,15 @@ class SignUpViewModel @Inject constructor(
     fun signup() {
         val state = _ui.value
         if (state.email.isBlank() || state.password.isBlank()) {
-            _ui.update { it.copy(error = "Ø§ÛŒÙ…ÛŒÙ„ Ùˆ Ø±Ù…Ø² Ø¹Ø¨ÙˆØ± Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª") }
+            _ui.update { it.copy(error = "ایمیل و رمز عبور الزامی است") }
             return
         }
         if (state.password.length < 6) {
-            _ui.update { it.copy(error = "Ø±Ù…Ø² Ø¹Ø¨ÙˆØ± Ø¨Ø§ÛŒØ¯ Ø­Ø¯Ø§Ù‚Ù„ Û¶ Ú©Ø§Ø±Ø§Ú©ØªØ± Ø¨Ø§Ø´Ø¯") }
+            _ui.update { it.copy(error = "رمز عبور باید حداقل ۶ کاراکتر باشد") }
             return
         }
         if (state.password != state.confirmPassword) {
-            _ui.update { it.copy(error = "Ø±Ù…Ø²Ù‡Ø§ÛŒ Ø¹Ø¨ÙˆØ± Ù…Ø·Ø§Ø¨Ù‚Øª Ù†Ø¯Ø§Ø±Ù†Ø¯") }
+            _ui.update { it.copy(error = "رمزهای عبور مطابقت ندارند") }
             return
         }
         viewModelScope.launch {
@@ -104,13 +122,31 @@ class SignUpViewModel @Inject constructor(
                         loading = false,
                         done = true,
                         successMessage = (result as? AuthResult.NeedsVerification)?.message
-                            ?: "Ø«Ø¨Øªâ€ŒÙ†Ø§Ù… Ù…ÙˆÙÙ‚. Ø§ÛŒÙ…ÛŒÙ„ ØªØ£ÛŒÛŒØ¯ Ø±Ø§ Ø¨Ø±Ø±Ø³ÛŒ Ú©Ù†ÛŒØ¯.",
+                            ?: "ثبت‌نام موفق. ایمیل تأیید را بررسی کنید.",
                     )
                 }
                 is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
-                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "Ø«Ø¨Øªâ€ŒÙ†Ø§Ù… Ù†Ø§Ù…ÙˆÙÙ‚ Ø¨ÙˆØ¯") }
+                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ثبت‌نام ناموفق بود") }
             }
         }
+    }
+
+    fun googleLogin(idToken: String) {
+        viewModelScope.launch {
+            _ui.update { it.copy(loading = true, error = null) }
+            when (val result = authRepository.googleLogin(idToken)) {
+                is AuthResult.Success -> _ui.update { it.copy(loading = false, done = true) }
+                is AuthResult.NeedsVerification -> _ui.update {
+                    it.copy(loading = false, error = result.message)
+                }
+                is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
+                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ثبت‌نام با گوگل ناموفق بود") }
+            }
+        }
+    }
+
+    fun setError(msg: String) {
+        _ui.update { it.copy(error = msg, loading = false) }
     }
 }
 

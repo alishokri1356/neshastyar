@@ -15,6 +15,9 @@ import retrofit2.http.Url
 
 interface NeshastyarApi {
     // Auth
+    @POST("auth/google")
+    suspend fun googleAuth(@Body body: GoogleAuthRequest): Response<AuthResponse>
+
     @POST("auth/login")
     suspend fun login(@Body body: LoginRequest): Response<AuthResponse>
 

@@ -20,12 +20,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
     }
 
     buildTypes {
         debug {
             // Emulator → host machine: 10.0.2.2; physical device on LAN: use your PC IP
             buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
             applicationIdSuffix = ".debug"
             isDebuggable = true
         }
@@ -36,6 +38,7 @@ android {
                 "proguard-rules.pro",
             )
             buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
         }
     }
 
@@ -100,4 +103,9 @@ dependencies {
 
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.android)
+    
+    // Google Sign In (Credential Manager)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
 }
