@@ -28,12 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -84,34 +78,13 @@ fun LoginScreen(
     fun signInWithGoogle() {
         coroutineScope.launch {
             try {
-                val credentialManager = CredentialManager.create(context)
-                val googleIdOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(webClientId)
-                    .setAutoSelectEnabled(false)
-                    .build()
-
-                val request = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
-                    .build()
-
-                val result = credentialManager.getCredential(
-                    request = request,
-                    context = context
-                )
-
-                val credential = result.credential
-                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                    val idToken = googleIdTokenCredential.idToken
-                    viewModel.googleLogin(idToken)
-                } else {
-                    viewModel.setError("نوع لاگین ناشناخته")
-                }
-            } catch (e: GetCredentialException) {
-                viewModel.setError(e.message ?: "خطا در ورود با گوگل")
+                val idToken = requestGoogleIdToken(context, webClientId)
+                viewModel.googleLogin(idToken)
+            } catch (e: GoogleSignInCancelledException) {
+                // User closed the account picker.
             } catch (e: Exception) {
-                viewModel.setError(e.message ?: "خطای ناشناخته")
+                val message = googleAuthErrorMessage(e, "خطا در ورود با گوگل")
+                if (message.isNotBlank()) viewModel.setError(message)
             }
         }
     }
