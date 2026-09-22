@@ -74,6 +74,23 @@ class MySQLClient {
       return { data: { user: data.data.user, session: data.data.session }, error: null };
     },
 
+    signInWithGoogle: async ({ idToken }: { idToken: string }) => {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { data: { user: null, session: null }, error: data };
+      }
+
+      this.saveSession(data.data.session);
+      return { data: { user: data.data.user, session: data.data.session }, error: null };
+    },
+
     signOut: async () => {
       if (!this.session) {
         return { error: null };

@@ -14,6 +14,7 @@ import Home from "./pages/Home";
 import TagDetail from "./pages/TagDetail";
 import MeetingDetail from "./pages/MeetingDetail";
 import MeetingDetailsOptions from "./pages/MeetingDetailsOptions";
+import MeetingTranscription from "./pages/MeetingTranscription";
 import DeleteConfirmation from "./pages/DeleteConfirmation";
 import Record from "./pages/Record";
 import TagSelection from "./pages/TagSelection";
@@ -85,6 +86,11 @@ const App = () => {
             <Route path="/meeting/:meetingId/meeting_details_options" element={
               <ProtectedRoute>
                 <MeetingDetailsOptions />
+              </ProtectedRoute>
+            } />
+            <Route path="/meeting/:meetingId/transcription" element={
+              <ProtectedRoute>
+                <MeetingTranscription />
               </ProtectedRoute>
             } />
             <Route path="/meeting/:meetingId/delete" element={

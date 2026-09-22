@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, ExternalLink } from 'lucide-react';
+import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, ExternalLink, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AppShell from '@/components/layout/AppShell';
 import RichTextEditor from '@/components/RichTextEditor';
@@ -1375,13 +1375,25 @@ const MeetingDetail = () => {
         </Card>
 
         {isProcessed && (
-          <Button
-            onClick={handleAutoGenerateSummary}
-            className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
-          >
-            <Sparkles className="h-4 w-4" />
-            درخواست پردازش مجدد
-          </Button>
+          <div className="space-y-2">
+            <Button
+              onClick={handleAutoGenerateSummary}
+              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
+            >
+              <Sparkles className="h-4 w-4" />
+              درخواست پردازش مجدد
+            </Button>
+            <Button
+              onClick={() =>
+                window.open(`/meeting/${meetingId}/transcription`, '_blank', 'noopener,noreferrer')
+              }
+              variant="outline"
+              className="w-full font-bold tracking-wide"
+            >
+              <FileText className="h-4 w-4" />
+              مشاهده متن رونویسی
+            </Button>
+          </div>
         )}
 
         {/* Summary */}
