@@ -41,7 +41,7 @@ const MeetingTranscription = () => {
 
   if (isLoading) {
     return (
-      <AppShell title="متن رونویسی" onBack={`/meeting/${meetingId}`} hideNav>
+      <AppShell title="جزییات صحبت های جلسه" onBack={`/meeting/${meetingId}`} hideNav>
         <div className="flex items-center justify-center py-12">
           <p className="text-muted-foreground">در حال بارگذاری...</p>
         </div>
@@ -51,7 +51,7 @@ const MeetingTranscription = () => {
 
   if (!data) {
     return (
-      <AppShell title="متن رونویسی" onBack={`/meeting/${meetingId}`} hideNav>
+      <AppShell title="جزییات صحبت های جلسه" onBack={`/meeting/${meetingId}`} hideNav>
         <div className="flex items-center justify-center py-12">
           <p className="text-muted-foreground">جلسه یافت نشد.</p>
         </div>
@@ -63,14 +63,14 @@ const MeetingTranscription = () => {
   const renderAsHtml = transcription.length > 0 && isHtmlContent(transcription);
 
   return (
-    <AppShell title="متن رونویسی" subtitle={data.title} onBack={`/meeting/${meetingId}`} hideNav>
+    <AppShell title="جزییات صحبت های جلسه" subtitle={data.title} onBack={`/meeting/${meetingId}`} hideNav>
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-lg text-card-foreground">متن کامل رونویسی جلسه</CardTitle>
+          <CardTitle className="text-lg text-card-foreground">جزییات صحبت های جلسه</CardTitle>
         </CardHeader>
         <CardContent>
           {!transcription ? (
-            <p className="text-muted-foreground text-center py-8">متن رونویسی برای این جلسه موجود نیست.</p>
+            <p className="text-muted-foreground text-center py-8">جزییات صحبت های این جلسه موجود نیست.</p>
           ) : renderAsHtml ? (
             <div
               className="prose prose-sm max-w-none text-card-foreground leading-7"
