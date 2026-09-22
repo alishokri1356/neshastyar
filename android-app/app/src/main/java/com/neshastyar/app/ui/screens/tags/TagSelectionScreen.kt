@@ -56,7 +56,7 @@ fun TagSelectionScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = NeshastyarColors.TextPrimary)
             }
             Text(
-                "انتخاب برچسب",
+                "برچسب‌گذاری و ارسال به هوش مصنوعی",
                 fontWeight = FontWeight.Bold,
                 color = NeshastyarColors.TextPrimary,
             )
@@ -119,7 +119,10 @@ fun TagSelectionScreen(
                         modifier = Modifier.clickable(enabled = !state.uploading) { viewModel.toggle(tag.id) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(10.dp),
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Checkbox(
                                 checked = tag.id in state.selected,
                                 onCheckedChange = { if (!state.uploading) viewModel.toggle(tag.id) },
@@ -129,7 +132,7 @@ fun TagSelectionScreen(
                                     uncheckedColor = NeshastyarColors.Outline,
                                 ),
                             )
-                            Text(tag.name ?: tag.id, color = NeshastyarColors.TextPrimary)
+                Text(tag.name ?: tag.id, color = NeshastyarColors.TextPrimary, modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -164,7 +167,7 @@ fun TagSelectionScreen(
         }
 
         NeshastyarPrimaryButton(
-            text = if (state.uploading) "در حال آپلود…" else "آپلود جلسه",
+            text = if (state.uploading) "در حال آپلود…" else "تأیید و شروع تحلیل هوشمند",
             onClick = viewModel::upload,
             enabled = !state.uploading,
             loading = state.uploading,

@@ -131,7 +131,7 @@ fun RecordScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت", tint = NeshastyarColors.TextPrimary)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("نشست یار", fontWeight = FontWeight.Bold, color = NeshastyarColors.TextPrimary)
+                    Text("ضبط جلسه", fontWeight = FontWeight.Bold, color = NeshastyarColors.Primary)
                 }
             }
 

@@ -174,7 +174,7 @@ fun MeetingDetailScreen(
                     item {
                         NeshastyarCard {
                             SectionHeader(
-                                title = "خلاصه هوشمند هوش مصنوعی",
+                                title = "خلاصه اجرایی هوش مصنوعی",
                                 icon = Icons.Default.AutoAwesome,
                                 iconTint = NeshastyarColors.Secondary,
                             )

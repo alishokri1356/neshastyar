@@ -1,7 +1,7 @@
 package com.neshastyar.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import android.app.Activity
 
-private val PremiumPurpleScheme = darkColorScheme(
+private val EditorialScheme = lightColorScheme(
     primary = NeshastyarColors.Primary,
     onPrimary = NeshastyarColors.OnPrimary,
     primaryContainer = NeshastyarColors.PrimaryContainer,
@@ -119,15 +119,15 @@ fun NeshastyarTheme(
             val window = (view.context as? Activity)?.window ?: return@SideEffect
             WindowCompat.setDecorFitsSystemWindows(window, false)
             window.statusBarColor = android.graphics.Color.TRANSPARENT
-            window.navigationBarColor = android.graphics.Color.parseColor("#0A0414")
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
+            window.navigationBarColor = android.graphics.Color.parseColor("#FBF9F4")
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = true
         }
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         MaterialTheme(
-            colorScheme = PremiumPurpleScheme,
+            colorScheme = EditorialScheme,
             typography = NeshastyarTypography,
             content = content,
         )

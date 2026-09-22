@@ -231,7 +231,7 @@ fun UserAvatarChip(label: String = "کاربر") {
             Icon(
                 Icons.Default.Person,
                 contentDescription = null,
-                tint = NeshastyarColors.PrimaryBright,
+                tint = NeshastyarColors.Primary,
                 modifier = Modifier.size(20.dp),
             )
         }

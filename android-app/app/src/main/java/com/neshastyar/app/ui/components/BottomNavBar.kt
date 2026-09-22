@@ -56,8 +56,8 @@ fun NeshastyarBottomBar(
                 },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = NeshastyarColors.PrimaryBright,
-                    selectedTextColor = NeshastyarColors.PrimaryBright,
+                    selectedIconColor = NeshastyarColors.Primary,
+                    selectedTextColor = NeshastyarColors.Primary,
                     unselectedIconColor = NeshastyarColors.TextMuted,
                     unselectedTextColor = NeshastyarColors.TextMuted,
                     indicatorColor = NeshastyarColors.PrimaryContainer,

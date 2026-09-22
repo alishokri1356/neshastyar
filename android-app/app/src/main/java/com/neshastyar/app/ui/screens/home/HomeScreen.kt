@@ -20,13 +20,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -40,7 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,16 +66,6 @@ fun HomeScreen(
 
     Scaffold(
         containerColor = NeshastyarColors.Background,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onRecord,
-                containerColor = NeshastyarColors.Primary,
-                contentColor = NeshastyarColors.OnPrimary,
-                shape = CircleShape,
-            ) {
-                Icon(Icons.Default.Mic, contentDescription = "ضبط جلسه")
-            }
-        },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = state.refreshing,
@@ -114,27 +100,7 @@ fun HomeScreen(
                             HomeHeader(name = state.name)
                         }
                         item {
-                            Text(
-                                text = "سلام، وقت بخیر",
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = NeshastyarColors.TextPrimary,
-                            )
-                            Text(
-                                text = if (state.todayCount > 0) {
-                                    "${toPersianDigits(state.todayCount)} جلسه جدید برای امروز ثبت شده است."
-                                } else {
-                                    "جلسات اخیر شما در اینجا نمایش داده می‌شود."
-                                },
-                                color = NeshastyarColors.TextSecondary,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
-                            )
-                        }
-                        item {
-                            StatsRow(
-                                totalMeetings = state.totalCount,
-                                analyzingCount = state.analyzingCount,
-                            )
+                            RecordBanner(onClick = onRecord)
                         }
                         if (state.groups.isEmpty()) {
                             item {
@@ -168,89 +134,72 @@ fun HomeScreen(
 
 @Composable
 private fun HomeHeader(name: String?) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        UserAvatarChip(label = name?.takeIf { it.isNotBlank() } ?: "کاربر")
+    val greetingName = name?.takeIf { it.isNotBlank() } ?: "کاربر"
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "نشست یار",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = NeshastyarColors.Primary,
+            )
+            UserAvatarChip(label = greetingName)
+        }
         Text(
-            text = "نشست یار",
+            text = "سلام، وقت بخیر",
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
             color = NeshastyarColors.TextPrimary,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(
+            text = "جلسات اخیر، خلاصه‌ها و وضعیت تحلیل",
+            color = NeshastyarColors.TextMuted,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 2.dp),
         )
     }
 }
 
 @Composable
-private fun StatsRow(totalMeetings: Int, analyzingCount: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatMiniCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.BarChart,
-                iconTint = NeshastyarColors.Secondary,
-                label = "کل جلسات",
-                value = toPersianDigits(totalMeetings),
+private fun RecordBanner(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFFB91C1C), Color(0xFFE11D48)),
+                ),
             )
-            StatMiniCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Mic,
-                iconTint = NeshastyarColors.PrimaryBright,
-                label = "در حال تحلیل",
-                value = toPersianDigits(analyzingCount),
-            )
-        }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(NeshastyarColors.PrimaryContainer, NeshastyarColors.Surface),
-                    ),
-                )
-                .padding(16.dp),
+                .size(52.dp)
+                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(NeshastyarColors.Primary.copy(alpha = 0.25f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Default.AutoAwesome, null, tint = NeshastyarColors.Secondary)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("وضعیت هوش مصنوعی", color = NeshastyarColors.TextSecondary, fontSize = 13.sp)
-                    Text(
-                        text = if (analyzingCount > 0) "در حال تحلیل…" else "آماده",
-                        fontWeight = FontWeight.Bold,
-                        color = NeshastyarColors.TextPrimary,
-                        fontSize = 18.sp,
-                    )
-                }
-            }
+            Icon(
+                Icons.Default.Mic,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(28.dp),
+            )
         }
-    }
-}
-
-@Composable
-private fun StatMiniCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    iconTint: androidx.compose.ui.graphics.Color,
-    label: String,
-    value: String,
-) {
-    NeshastyarCard(modifier = modifier, contentPadding = PaddingValues(14.dp)) {
-        Icon(icon, null, tint = iconTint, modifier = Modifier.size(22.dp))
-        Text(label, color = NeshastyarColors.TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = NeshastyarColors.TextPrimary)
+        Text(
+            text = "ضبط و خلاصه سازی جلسه",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+        )
     }
 }
 
@@ -269,21 +218,27 @@ private fun MeetingCard(meeting: MeetingDto, onClick: () -> Unit) {
         accentBar = analyzing,
         contentPadding = PaddingValues(14.dp),
     ) {
-        Text(
-            text = meeting.title?.ifBlank { null } ?: "جلسه",
-            fontWeight = FontWeight.SemiBold,
-            color = NeshastyarColors.TextPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(10.dp))
         Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Text(
+                text = meeting.title?.ifBlank { null } ?: "جلسه",
+                fontWeight = FontWeight.SemiBold,
+                color = NeshastyarColors.TextPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
             StatusChip(meeting.status)
-            if (whenText.isNotBlank()) {
+        }
+        if (whenText.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.AccessTime, null, tint = NeshastyarColors.TextMuted, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(whenText, color = NeshastyarColors.TextMuted, fontSize = 12.sp, maxLines = 1)
             }
         }
@@ -305,7 +260,7 @@ private fun EmptyMeetingsCard() {
                 modifier = Modifier.padding(top = 12.dp),
             )
             Text(
-                "با دکمه میکروفون یک جلسه ضبط کنید",
+                "برای شروع، «ضبط و خلاصه سازی جلسه» را بزنید",
                 color = NeshastyarColors.TextMuted,
                 modifier = Modifier.padding(top = 4.dp),
             )

@@ -5,16 +5,16 @@ import com.neshastyar.app.ui.theme.NeshastyarColors
 
 object StatusStyle {
     fun labelColor(status: String?): Color = when {
-        status.isProcessed() -> NeshastyarColors.Secondary
+        status.isProcessed() -> NeshastyarColors.Success
         status.isAnalyzing() -> NeshastyarColors.Analyzing
-        status.isNeedReview() -> Color(0xFFF59E0B)
+        status.isNeedReview() -> NeshastyarColors.Error
         else -> NeshastyarColors.TextMuted
     }
 
     fun background(status: String?): Color = when {
-        status.isProcessed() -> NeshastyarColors.WarningContainer
+        status.isProcessed() -> NeshastyarColors.SuccessContainer
         status.isAnalyzing() -> NeshastyarColors.AnalyzingContainer
-        status.isNeedReview() -> Color(0xFF3D2A0A)
+        status.isNeedReview() -> NeshastyarColors.ErrorContainer
         else -> NeshastyarColors.SurfaceVariant
     }
 
