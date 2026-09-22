@@ -86,5 +86,15 @@ fun AccountScreen(
                 onClick = viewModel::logout,
             )
         }
+
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = "نسخه برنامه: ${com.neshastyar.app.BuildConfig.VERSION_NAME}",
+            color = NeshastyarColors.TextMuted,
+            fontSize = 12.sp,
+            modifier = Modifier
+                .align(androidx.compose.ui.Alignment.CenterHorizontally)
+                .padding(bottom = 16.dp),
+        )
     }
 }

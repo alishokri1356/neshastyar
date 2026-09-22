@@ -83,6 +83,15 @@ Requires Bearer token.
 | `POST` | `/participants/merge` | `{ "sourceIds": [], "targetName" }` | Merge participants. |
 | `POST` | `/meeting-participants` | `{ "meeting_id", "participant_id", "name" }` | Add participant to a meeting. |
 
+## Android app (`/api/android`)
+
+Public. No authentication required.
+
+| Method | Endpoint | Request / Query Params | Description |
+|---|---|---|---|
+| `GET` | `/android/latest` | None | Latest APK from `android-app` (`neshastyar_major.minor.build.apk`). Returns `{ data: { version, major, minor, build, filename, size, url, path } }` |
+| `GET` | `/android/latest/download` | None | Redirects to or streams the latest APK file. Direct files are also at `https://neshastyar.com/download/apk/` |
+
 ## Email / Summary (`/api/email`)
 
 | Method | Endpoint | Request Body | Description |

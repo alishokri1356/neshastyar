@@ -8,6 +8,8 @@
 .externalNativeBuild/
 .cxx/
 *.apk
+!apk/
+!apk/*.apk
 *.ap_
 *.aab
 *.dex

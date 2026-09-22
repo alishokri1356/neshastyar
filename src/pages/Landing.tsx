@@ -1,10 +1,44 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Mic, Sparkles, Users, Search } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.DEV
+  ? "http://localhost:3001/api"
+  : import.meta.env.VITE_API_URL || "https://neshastyar.com/api";
+
+type LatestApk = {
+  version: string;
+  filename: string;
+  url: string;
+  path: string;
+};
+
 const Landing = () => {
   const navigate = useNavigate();
+  const [latestApk, setLatestApk] = useState<LatestApk | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${API_BASE_URL}/android/latest`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled && payload?.data) {
+          setLatestApk(payload.data);
+        }
+      })
+      .catch(() => {
+        // Keep the download button even if version lookup fails.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const apkDownloadHref = `${API_BASE_URL}/android/latest/download`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,6 +108,23 @@ const Landing = () => {
               ورود
             </Button>
           </div>
+
+          <a
+            href={apkDownloadHref}
+            className="mx-auto mb-8 block max-w-xl transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="دانلود آخرین نسخه اپلیکیشن اندروید"
+          >
+            <img
+              src="/android-download-badge.png"
+              alt="دانلود اپلیکیشن اندروید نشست یار"
+              className="w-full rounded-2xl border border-border/50 shadow-medium"
+            />
+            <p className="mt-3 text-sm text-muted-foreground">
+              {latestApk
+                ? `دانلود مستقیم برای اندروید • نسخه ${latestApk.version}`
+                : "دانلود مستقیم برای اندروید"}
+            </p>
+          </a>
         </div>
       </section>
 

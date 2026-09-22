@@ -123,6 +123,29 @@ cp -R dist/* /var/www/neshastyar.com/
 echo -e "${GREEN}✅ Frontend files synced to /var/www/neshastyar.com/${NC}"
 echo -e "${GREEN}   Built from commit: $(git -C "$PROJECT_DIR" rev-parse --short HEAD)${NC}"
 
+echo "--- Publishing Android APKs ---"
+APK_DEST="/var/www/neshastyar.com/download/apk"
+mkdir -p "$APK_DEST"
+copied=0
+skipped=0
+while IFS= read -r apk; do
+  [ -z "$apk" ] && continue
+  name="$(basename "$apk")"
+  if [ -f "$APK_DEST/$name" ]; then
+    echo "skip duplicate $name"
+    skipped=$((skipped + 1))
+  else
+    cp "$apk" "$APK_DEST/$name"
+    echo "copied $name"
+    copied=$((copied + 1))
+  fi
+done < <(find "$PROJECT_DIR/android-app" -type f -name 'neshastyar_*.apk' \
+  ! -path '*/intermediates/*' \
+  ! -path '*/.gradle/*' \
+  2>/dev/null)
+chmod -R 755 "$APK_DEST"
+echo -e "${GREEN}✅ APKs published to $APK_DEST (copied: $copied, skipped: $skipped)${NC}"
+
 echo "--- Frontend deployment complete ---"
 echo ""
 
@@ -135,6 +158,7 @@ echo "📍 Project Directory: $PROJECT_DIR"
 echo "📁 Backend: $PROJECT_DIR/backend"
 echo "📁 Uploads: $PROJECT_DIR/backend/uploads/audio"
 echo "📁 Frontend: /var/www/neshastyar.com"
+echo "📁 Android APKs: /var/www/neshastyar.com/download/apk"
 echo "🔌 Backend Port: 3001"
 echo "🌐 Domain: neshastyar.com"
 echo ""

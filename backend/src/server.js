@@ -17,6 +17,7 @@ const meetingTagRoutes = require('./routes/meetingTags');
 const meetingParticipantRoutes = require('./routes/meetingParticipants');
 const fileRoutes = require('./routes/files');
 const adminRoutes = require('./routes/admin');
+const androidRoutes = require('./routes/android');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -135,6 +136,7 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/meeting-tags', meetingTagRoutes);
 app.use('/api/meeting-participants', meetingParticipantRoutes);
 app.use('/api', fileRoutes);
+app.use('/api/android', androidRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
