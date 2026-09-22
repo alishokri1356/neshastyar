@@ -18,6 +18,7 @@ interface AuthState {
   session: Session | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   signup: (email: string, password: string, confirmPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -61,6 +62,20 @@ export const useAuthStore = create<AuthState>()(
 
         if (error) {
           throw new Error(error.error || error.message || 'Login failed');
+        }
+
+        set({
+          session: data.session,
+          user: data.user,
+          isAuthenticated: true,
+        });
+      },
+
+      loginWithGoogle: async (idToken: string) => {
+        const { data, error } = await mysqlClient.auth.signInWithGoogle({ idToken });
+
+        if (error) {
+          throw new Error(error.error || error.message || 'Google login failed');
         }
 
         set({

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToast } from '@/hooks/use-toast';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { Mic2, Sparkles } from 'lucide-react';
 
 const SignUp = () => {
@@ -13,8 +14,9 @@ const SignUp = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { signup } = useAuthStore();
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const { signup, loginWithGoogle } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -22,9 +24,9 @@ const SignUp = () => {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast({
-        title: "خطا",
-        description: "رمزهای عبور مطابقت ندارند",
-        variant: "destructive",
+        title: 'خطا',
+        description: 'رمزهای عبور مطابقت ندارند',
+        variant: 'destructive',
       });
       return;
     }
@@ -33,28 +35,51 @@ const SignUp = () => {
     try {
       await signup(email, password, confirmPassword);
       toast({
-        title: "ایمیل خود را بررسی کنید!",
-        description: "ما لینک تأیید را برای شما ارسال کرده‌ایم. لطفاً ایمیل خود را بررسی کنید و قبل از ورود بر روی لینک کلیک کنید.",
+        title: 'ایمیل خود را بررسی کنید!',
+        description:
+          'ما لینک تأیید را برای شما ارسال کرده‌ایم. لطفاً ایمیل خود را بررسی کنید و قبل از ورود بر روی لینک کلیک کنید.',
         duration: 6000,
       });
-      // Don't navigate automatically - user needs to confirm email first
       navigate('/login');
     } catch (error) {
       const errorMessage = (error as Error).message;
       toast({
-        title: "خطا",
-        description: errorMessage || "ایجاد حساب کاربری ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
+        title: 'خطا',
+        description: errorMessage || 'ایجاد حساب کاربری ناموفق بود. لطفاً دوباره تلاش کنید.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGoogle = useCallback(
+    async (idToken: string) => {
+      setGoogleLoading(true);
+      try {
+        await loginWithGoogle(idToken);
+        toast({
+          title: 'خوش آمدید!',
+          description: 'حساب گوگل شما آماده است.',
+        });
+        navigate('/');
+      } catch (error) {
+        toast({
+          title: 'خطا در ثبت‌نام با گوگل',
+          description: (error as Error).message || 'عملیات ناموفق بود.',
+          variant: 'destructive',
+        });
+        throw error;
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [loginWithGoogle, navigate, toast]
+  );
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
       <div className="w-full max-w-md space-y-8">
-        {/* Logo and Brand */}
         <div className="space-y-4 text-center">
           <div className="flex items-center justify-center gap-2">
             <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
@@ -74,6 +99,28 @@ const SignUp = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="space-y-4 mb-6">
+              <GoogleSignInButton
+                onCredential={handleGoogle}
+                disabled={isLoading || googleLoading}
+                onError={(message) =>
+                  toast({
+                    title: 'خطا در ثبت‌نام با گوگل',
+                    description: message,
+                    variant: 'destructive',
+                  })
+                }
+              />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">یا</span>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">ایمیل</Label>
@@ -88,7 +135,7 @@ const SignUp = () => {
                   className="transition-all focus:ring-primary/20"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">رمز عبور</Label>
                 <Input
@@ -102,7 +149,7 @@ const SignUp = () => {
                   className="transition-all focus:ring-primary/20"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">تکرار رمز عبور</Label>
                 <Input
@@ -116,23 +163,23 @@ const SignUp = () => {
                   className="transition-all focus:ring-primary/20"
                 />
               </div>
-              
-              <Button 
-                type="submit" 
-                variant="primary" 
-                className="w-full" 
-                disabled={isLoading}
+
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full"
+                disabled={isLoading || googleLoading}
                 size="lg"
               >
-                {isLoading ? "در حال ایجاد حساب..." : "ثبت نام"}
+                {isLoading ? 'در حال ایجاد حساب...' : 'ثبت نام'}
               </Button>
             </form>
-            
+
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">
-                قبلاً حساب کاربری دارید؟{" "}
-                <Link 
-                  to="/login" 
+                قبلاً حساب کاربری دارید؟{' '}
+                <Link
+                  to="/login"
                   className="font-medium text-primary hover:text-primary-glow transition-colors"
                 >
                   ورود
