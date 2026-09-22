@@ -249,8 +249,8 @@ class AuthController {
         });
       }
 
-      // Check if email is verified
-      if (!user.email_verified) {
+      // Check if email is verified. Admin impersonation can open an unverified account.
+      if (!user.email_verified && !decoded.impersonated) {
         return res.status(403).json({
           data: { session: null },
           error: {
@@ -265,7 +265,10 @@ class AuthController {
         });
       }
 
-      const session = authService.createSession(user);
+      const session = authService.createSession(
+        user,
+        decoded.impersonated ? { impersonated: true } : {},
+      );
 
       res.json({
         data: { session: session },

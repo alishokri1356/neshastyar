@@ -10,6 +10,9 @@ router.get('/users', requireAdmin, (req, res) => adminController.listUsers(req, 
 router.get('/users/:id', requireAdmin, (req, res) => adminController.getUser(req, res));
 router.patch('/users/:id', requireAdmin, (req, res) => adminController.updateUser(req, res));
 router.delete('/users/:id', requireAdmin, (req, res) => adminController.deleteUser(req, res));
+router.post('/users/:id/impersonate', requireAdmin, (req, res) =>
+  adminController.impersonateUser(req, res)
+);
 router.post('/users/:id/resend-verification', requireAdmin, (req, res) =>
   adminController.resendVerification(req, res)
 );

@@ -311,6 +311,46 @@ class AdminController {
     }
   }
 
+  // POST /api/admin/users/:id/impersonate
+  async impersonateUser(req, res) {
+    try {
+      const { id } = req.params;
+      const user = await userService.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          error: 'Not found',
+          message: 'User not found',
+        });
+      }
+
+      const {
+        password_hash,
+        email_verification_token,
+        email_verification_expires,
+        password_reset_token,
+        password_reset_expires,
+        ...safeUser
+      } = user;
+
+      const session = authService.createSession(safeUser, { impersonated: true });
+      console.log(`Admin ${req.admin?.username || 'admin'} signed in as user ${user.id}`);
+
+      return res.json({
+        data: {
+          user: session.user,
+          session,
+        },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Admin impersonate user error:', error);
+      return res.status(500).json({
+        error: 'Impersonation failed',
+        message: error.message || 'Failed to sign in as user',
+      });
+    }
+  }
+
   // DELETE /api/admin/users/:id
   async deleteUser(req, res) {
     try {

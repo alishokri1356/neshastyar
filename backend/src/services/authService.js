@@ -38,13 +38,14 @@ class AuthService {
     return uuidv4();
   }
 
-  // Create session token
-  createSession(user) {
+  // Create session token. extraClaims are signed into the JWT (for example admin impersonation).
+  createSession(user, extraClaims = {}) {
     const token = this.generateToken({ 
       sub: user.id, 
       email: user.email,
       aud: 'authenticated',
-      role: 'authenticated'
+      role: 'authenticated',
+      ...extraClaims,
     });
 
     const expiresAt = new Date();

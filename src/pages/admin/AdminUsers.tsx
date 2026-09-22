@@ -23,6 +23,7 @@ import {
 import {
   KeyRound,
   Loader2,
+  LogIn,
   LogOut,
   Mail,
   Pencil,
@@ -84,6 +85,8 @@ const AdminUsers = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [emailActionId, setEmailActionId] = useState<string | null>(null);
+  const [impersonating, setImpersonating] = useState<AdminUser | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   const loadUsers = useCallback(async (search = '') => {
     setIsLoading(true);
@@ -175,6 +178,59 @@ const AdminUsers = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleImpersonate = async () => {
+    if (!impersonating) return;
+    const popup = window.open('about:blank', '_blank');
+    setIsImpersonating(true);
+    try {
+      const result = await adminFetch<{
+        data: {
+          user: { id: string; email: string; name?: string | null };
+          session: {
+            access_token: string;
+            expires_at: string;
+            user?: { id: string; email: string; name?: string | null };
+          };
+        };
+      }>(`/users/${impersonating.id}/impersonate`, { method: 'POST' });
+
+      const session = result.data.session;
+      const user = result.data.user || session.user;
+      localStorage.setItem('mysql_session', JSON.stringify(session));
+      localStorage.setItem(
+        'auth-storage',
+        JSON.stringify({
+          state: {
+            user,
+            session,
+            isAuthenticated: true,
+          },
+          version: 0,
+        }),
+      );
+
+      if (popup) {
+        popup.location.href = '/home';
+      } else {
+        window.location.href = '/home';
+      }
+      setImpersonating(null);
+      toast({
+        title: 'ورود انجام شد',
+        description: `برنامه در تب جدید با حساب ${impersonating.email} باز شد.`,
+      });
+    } catch (error) {
+      popup?.close();
+      toast({
+        title: 'ورود به حساب کاربر ناموفق بود',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImpersonating(false);
     }
   };
 
@@ -464,6 +520,16 @@ const AdminUsers = () => {
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={isImpersonating || isDeleting || Boolean(emailActionId)}
+                              onClick={() => setImpersonating(user)}
+                              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20 justify-start disabled:opacity-40"
+                            >
+                              <LogIn className="ml-1 h-3.5 w-3.5" />
+                              ورود به حساب
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => openEdit(user)}
                               className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 justify-start"
                             >
@@ -635,6 +701,55 @@ const AdminUsers = () => {
                 </>
               ) : (
                 'ذخیره تغییرات'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(impersonating)}
+        onOpenChange={(open) => {
+          if (!open && !isImpersonating) setImpersonating(null);
+        }}
+      >
+        <DialogContent className="max-w-lg border-white/10 bg-slate-900 text-slate-100 sm:rounded-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>ورود به حساب کاربر</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              برنامه در یک تب جدید با این حساب باز می‌شود. نشست مدیریت در این صفحه باقی می‌ماند.
+            </DialogDescription>
+          </DialogHeader>
+          {impersonating ? (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+              <p className="font-medium text-white">{impersonating.name || 'بدون نام'}</p>
+              <p className="text-sm text-slate-300" dir="ltr">{impersonating.email}</p>
+            </div>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              disabled={isImpersonating}
+              onClick={() => setImpersonating(null)}
+              className="border-white/15 bg-transparent"
+            >
+              انصراف
+            </Button>
+            <Button
+              onClick={handleImpersonate}
+              disabled={isImpersonating}
+              className="bg-emerald-600 text-white hover:bg-emerald-500"
+            >
+              {isImpersonating ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  در حال ورود...
+                </>
+              ) : (
+                <>
+                  <LogIn className="ml-2 h-4 w-4" />
+                  ورود به حساب
+                </>
               )}
             </Button>
           </DialogFooter>

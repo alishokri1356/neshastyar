@@ -13,7 +13,7 @@ const requireEmailVerification = async (req, res, next) => {
       });
     }
 
-    if (!user.email_verified) {
+    if (!user.email_verified && !req.user?.impersonated) {
       return res.status(403).json({
         error: 'Email not verified',
         message: 'Please verify your email address to access this feature',
