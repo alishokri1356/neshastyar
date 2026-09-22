@@ -135,8 +135,8 @@ app.use('/api/participants', participantRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/meeting-tags', meetingTagRoutes);
 app.use('/api/meeting-participants', meetingParticipantRoutes);
-app.use('/api', fileRoutes);
 app.use('/api/android', androidRoutes);
+app.use('/api', fileRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
