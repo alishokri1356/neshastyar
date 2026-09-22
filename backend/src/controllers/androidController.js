@@ -1,6 +1,22 @@
-const fs = require('fs');
-const path = require('path');
-const { findLatestApk, PUBLIC_APK_DIR } = require('../services/androidAppService');
+const { findLatestApk, findApkByFilename } = require('../services/androidAppService');
+
+function apkPayload(apk) {
+  return {
+    version: apk.version,
+    major: apk.major,
+    minor: apk.minor,
+    build: apk.build,
+    filename: apk.filename,
+    size: apk.size,
+    downloadUrl: apk.downloadUrl,
+    downloadPath: apk.downloadPath,
+  };
+}
+
+function sendApkFile(res, apk) {
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.download(apk.filePath, apk.filename);
+}
 
 class AndroidController {
   // GET /api/android/latest
@@ -15,16 +31,7 @@ class AndroidController {
       }
 
       res.json({
-        data: {
-          version: apk.version,
-          major: apk.major,
-          minor: apk.minor,
-          build: apk.build,
-          filename: apk.filename,
-          size: apk.size,
-          url: apk.url,
-          path: apk.path,
-        },
+        data: apkPayload(apk),
         error: null,
       });
     } catch (error) {
@@ -37,22 +44,21 @@ class AndroidController {
   }
 
   // GET /api/android/latest/download
+  // GET /api/android/latest/download/:filename
   async downloadLatest(req, res) {
     try {
-      const apk = findLatestApk();
+      const requestedName = req.params.filename;
+      const apk = requestedName ? findApkByFilename(requestedName) : findLatestApk();
       if (!apk) {
         return res.status(404).json({
           error: 'Not found',
-          message: 'No Android APK is available',
+          message: requestedName
+            ? `Android APK ${requestedName} is not available`
+            : 'No Android APK is available',
         });
       }
 
-      const publicFile = path.join(PUBLIC_APK_DIR, apk.filename);
-      if (fs.existsSync(publicFile)) {
-        return res.redirect(302, apk.path);
-      }
-
-      res.download(apk.filePath, apk.filename);
+      sendApkFile(res, apk);
     } catch (error) {
       console.error('Android APK download error:', error);
       res.status(500).json({

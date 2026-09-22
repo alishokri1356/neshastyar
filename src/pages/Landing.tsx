@@ -4,15 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Mic, Sparkles, Users, Search } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.DEV
-  ? "http://localhost:3001/api"
-  : import.meta.env.VITE_API_URL || "https://neshastyar.com/api";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://neshastyar.com/api").replace(/\/$/, "");
 
 type LatestApk = {
   version: string;
   filename: string;
-  url: string;
-  path: string;
+  downloadUrl: string;
 };
 
 const Landing = () => {
@@ -26,7 +23,13 @@ const Landing = () => {
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (!cancelled && payload?.data) {
-          setLatestApk(payload.data);
+          const data = payload.data;
+          setLatestApk({
+            ...data,
+            downloadUrl:
+              data.downloadUrl ||
+              `${API_BASE_URL}/android/latest/download/${data.filename}`,
+          });
         }
       })
       .catch(() => {
@@ -38,7 +41,7 @@ const Landing = () => {
     };
   }, []);
 
-  const apkDownloadHref = `${API_BASE_URL}/android/latest/download`;
+  const apkDownloadHref = latestApk?.downloadUrl || null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,9 +113,14 @@ const Landing = () => {
           </div>
 
           <a
-            href={apkDownloadHref}
+            href={apkDownloadHref || undefined}
+            download={latestApk?.filename}
+            onClick={(event) => {
+              if (!apkDownloadHref) event.preventDefault();
+            }}
             className="mx-auto mb-8 block max-w-xl transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="دانلود آخرین نسخه اپلیکیشن اندروید"
+            aria-disabled={!apkDownloadHref}
           >
             <img
               src="/android-download-badge.png"

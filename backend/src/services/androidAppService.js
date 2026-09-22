@@ -69,14 +69,14 @@ function toDownloadInfo(filePath) {
   if (!parsed) return null;
 
   const stats = fs.statSync(filePath);
-  const publicPath = `/download/apk/${parsed.filename}`;
+  const downloadPath = `/api/android/latest/download/${parsed.filename}`;
 
   return {
     ...parsed,
     filePath,
     size: stats.size,
-    url: `${publicBaseUrl()}${publicPath}`,
-    path: publicPath,
+    downloadPath,
+    downloadUrl: `${publicBaseUrl()}${downloadPath}`,
   };
 }
 
@@ -104,8 +104,39 @@ function findLatestApk() {
   return all[0] || null;
 }
 
+function findApkByFilename(filename) {
+  const parsed = parseApkFilename(filename);
+  if (!parsed) return null;
+
+  const latest = findLatestApk();
+  if (latest && latest.filename.toLowerCase() === parsed.filename.toLowerCase()) {
+    return latest;
+  }
+
+  const searchDirs = [
+    path.join(ANDROID_APP_DIR, 'apk'),
+    path.join(ANDROID_APP_DIR, 'app', 'build', 'outputs', 'apk'),
+    PUBLIC_APK_DIR,
+  ];
+
+  let match = null;
+  for (const dir of searchDirs) {
+    for (const filePath of collectApkFiles(dir)) {
+      if (path.basename(filePath).toLowerCase() !== parsed.filename.toLowerCase()) continue;
+      const info = toDownloadInfo(filePath);
+      if (!info) continue;
+      if (!match || sourceRank(filePath) > sourceRank(match.filePath)) {
+        match = info;
+      }
+    }
+  }
+
+  return match;
+}
+
 module.exports = {
   findLatestApk,
+  findApkByFilename,
   ANDROID_APP_DIR,
   PUBLIC_APK_DIR,
 };

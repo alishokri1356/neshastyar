@@ -89,8 +89,8 @@ Public. No authentication required.
 
 | Method | Endpoint | Request / Query Params | Description |
 |---|---|---|---|
-| `GET` | `/android/latest` | None | Latest APK from `android-app` (`neshastyar_major.minor.build.apk`). Returns `{ data: { version, major, minor, build, filename, size, url, path } }` |
-| `GET` | `/android/latest/download` | None | Redirects to or streams the latest APK file. Direct files are also at `https://neshastyar.com/download/apk/` |
+| `GET` | `/android/latest` | None | Latest APK (`neshastyar_major.minor.build.apk`). Returns `{ data: { version, filename, downloadUrl } }` where `downloadUrl` is `https://neshastyar.com/api/android/latest/download/neshastyar_1.1.MMdd.apk` |
+| `GET` | `/android/latest/download/:filename` | `filename` e.g. `neshastyar_1.1.0922.apk` | Streams that APK. Landing page uses this URL from `/android/latest`. |
 
 ## Email / Summary (`/api/email`)
 
