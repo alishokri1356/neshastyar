@@ -47,6 +47,9 @@ interface NeshastyarApi {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body body: ResetPasswordRequest): Response<SimpleSuccessResponse>
 
+    @GET("android/latest")
+    suspend fun getLatestAndroidApp(): Response<LatestAndroidResponse>
+
     // Meetings
     @GET("meetings")
     suspend fun getMeetings(

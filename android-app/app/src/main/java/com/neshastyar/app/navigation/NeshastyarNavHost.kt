@@ -3,8 +3,11 @@ package com.neshastyar.app.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -31,12 +34,21 @@ import com.neshastyar.app.ui.screens.tags.TagDetailScreen
 import com.neshastyar.app.ui.screens.tags.TagListScreen
 import com.neshastyar.app.ui.screens.tags.TagManageScreen
 import com.neshastyar.app.ui.screens.tags.TagSelectionScreen
+import com.neshastyar.app.ui.update.AppUpdateDialog
+import com.neshastyar.app.ui.update.AppUpdateViewModel
 
 @Composable
-fun NeshastyarNavHost() {
+fun NeshastyarNavHost(
+    updateViewModel: AppUpdateViewModel = hiltViewModel(),
+) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
+    val appUpdate by updateViewModel.update.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        updateViewModel.check()
+    }
 
     fun goLoginClear() {
         navController.navigate(Routes.Login.route) {
@@ -187,5 +199,12 @@ fun NeshastyarNavHost() {
                 MeetingOptionsScreen(onBack = { navController.popBackStack() })
             }
         }
+    }
+
+    appUpdate?.let { update ->
+        AppUpdateDialog(
+            update = update,
+            onDismiss = updateViewModel::dismiss,
+        )
     }
 }
