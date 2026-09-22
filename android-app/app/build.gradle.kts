@@ -1,3 +1,12 @@
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+val majorVersion = 1
+val minorVersion = 1
+val buildVersion = LocalDate.now().format(DateTimeFormatter.ofPattern("MMdd"))
+val computedVersionName = "$majorVersion.$minorVersion.$buildVersion"
+val computedVersionCode = "$majorVersion$minorVersion$buildVersion".toInt()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,13 +23,20 @@ android {
         applicationId = "com.neshastyar.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = computedVersionCode
+        versionName = computedVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output?.outputFileName = "neshastyar_${versionName}.apk"
+        }
     }
 
     buildTypes {
