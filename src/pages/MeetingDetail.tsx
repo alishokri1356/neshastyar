@@ -1384,14 +1384,12 @@ const MeetingDetail = () => {
               درخواست پردازش مجدد
             </Button>
             <Button
-              onClick={() =>
-                window.open(`/meeting/${meetingId}/transcription`, '_blank', 'noopener,noreferrer')
-              }
+              onClick={() => navigate(`/meeting/${meetingId}/transcription`)}
               variant="outline"
               className="w-full font-bold tracking-wide"
             >
               <FileText className="h-4 w-4" />
-              مشاهده متن رونویسی
+              مشاهده جزییات صحبت های جلسه
             </Button>
           </div>
         )}
