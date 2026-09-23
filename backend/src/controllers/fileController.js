@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const db = require('../config/database');
 const uploadSessionService = require('../services/uploadSessionService');
+const audioChunkService = require('../services/audioChunkService');
 
 // Configure multer for large file uploads
 const storage = multer.diskStorage({
@@ -719,6 +720,46 @@ class FileController {
       console.error('Error creating audio file:', error);
       res.status(500).json({
         error: 'Failed to create audio file',
+        message: error.message
+      });
+    }
+  }
+
+  // GET /api/audio-chunks/meeting/:meetingId
+  async listMeetingAudioChunks(req, res) {
+    try {
+      const { meetingId } = req.params;
+      if (!/^[0-9a-f-]{36}$/i.test(meetingId)) {
+        return res.status(400).json({
+          error: 'Invalid meeting id',
+          message: 'Meeting id must be a UUID'
+        });
+      }
+
+      const chunks = await audioChunkService.listMeetingChunks(meetingId);
+      return res.json({ meetingId, chunks });
+    } catch (error) {
+      console.error('List audio chunks error:', error);
+      return res.status(error.statusCode || 500).json({
+        error: 'Failed to prepare audio chunks',
+        message: error.message
+      });
+    }
+  }
+
+  // GET /api/audio-chunks/:audioFileId/:chunkIndex
+  async downloadAudioChunk(req, res) {
+    try {
+      const chunk = await audioChunkService.resolveChunk(req.params.audioFileId, req.params.chunkIndex);
+      res.setHeader('Content-Type', chunk.mimeType);
+      res.setHeader('Content-Length', String(chunk.fileSize));
+      res.setHeader('Content-Disposition', `attachment; filename="${chunk.fileName}"`);
+      return res.sendFile(chunk.absolutePath);
+    } catch (error) {
+      console.error('Download audio chunk error:', error);
+      if (res.headersSent) return undefined;
+      return res.status(error.statusCode || 500).json({
+        error: 'Failed to download audio chunk',
         message: error.message
       });
     }

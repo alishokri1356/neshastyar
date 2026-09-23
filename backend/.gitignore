@@ -2,5 +2,6 @@ node_modules/
 .env
 uploads/audio/**
 !uploads/audio/.gitkeep
+uploads/audio-chunks/**
 *.log
 .DS_Store

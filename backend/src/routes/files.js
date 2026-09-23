@@ -14,6 +14,10 @@ router.get('/audio/:audioFileId', FileController.downloadAudioByFileId);
 // Download audio by meeting ID (public access) - NO AUTH MIDDLEWARE
 router.get('/download/audio/:meetingId', FileController.downloadAudioByMeetingId);
 
+// Split long meeting audio into transcription chunks (public, same as audio download)
+router.get('/audio-chunks/meeting/:meetingId', (req, res) => FileController.listMeetingAudioChunks(req, res));
+router.get('/audio-chunks/:audioFileId/:chunkIndex', (req, res) => FileController.downloadAudioChunk(req, res));
+
 // All other routes require authentication and email verification
 router.use(authenticateToken);
 router.use(requireEmailVerification);

@@ -27,7 +27,7 @@
               "id": "03f0784f-24e0-4c32-960e-3c72a558c06f",
               "name": "fileREST",
               "type": "string",
-              "value": "=https://neshastyar.com/api/audio/{{ $('Loop Over Items1').first().json.id }}"
+              "value": "=https://neshastyar.com{{ $('Loop Over Items1').first().json.url }}"
             }
           ]
         },
@@ -305,11 +305,11 @@
             },
             {
               "column": "transcribe",
-              "value": "={{ $('TranscribeAudio').first().json.candidates[0].content.parts[0].text }}"
+              "value": "={{ $('Join Transcripts').first().json.text }}"
             },
             {
               "column": "transcription",
-              "value": "={{ $('TranscribeAudio').first().json.candidates[0].content.parts[0].text }}"
+              "value": "={{ $('Join Transcripts').first().json.text }}"
             }
           ]
         },
@@ -611,7 +611,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const labels = [\n  \"فایل صوتی اول:\",\n  \"فایل صوتی دوم:\",\n  \"فایل صوتی سوم:\",\n  \"فایل صوتی چهارم:\",\n  \"فایل صوتی پنجم:\"\n];\n\nlet output = \"\";\n\nitems.forEach((item, index) => {\n  const file = item.json.file;\n  const label = labels[index] || `فایل صوتی شماره ${index + 1}:`;\n\n  output += `{ \"text\": \"${label}\" },\\n`;\n  output += `{ \"fileData\": { \"mimeType\": \"${file.mimeType}\", \"fileUri\": \"${file.uri}\" } },\\n`;\n});\n\nreturn [\n  {\n    json: {\n      result: output.trim().replace(/,$/, \"\")\n    }\n  }\n];\n"
+        "jsCode": "const uploads = $('Upload').all();\nif (!uploads.length) {\n  throw new Error('No uploaded audio chunks');\n}\n\nreturn uploads.map((item, index) => ({\n  json: {\n    chunkIndex: index,\n    chunkCount: uploads.length,\n    mimeType: item.json.file.mimeType,\n    fileUri: item.json.file.uri\n  }\n}));"
       },
       "id": "219d74e0-9dda-4b88-ad06-3a6f644ca923",
       "name": "Code in JavaScript",
@@ -708,7 +708,7 @@
               "id": "4a5baa35-de87-4815-bc7c-62557eacaadb",
               "name": "CommentText",
               "type": "string",
-              "value": "=# Role\n\nتو یک دستیار حرفه‌ای برای تحلیل جلسات هستی.\n\nوظیفه تو استخراج دقیق اطلاعات از متن پیاده‌سازی شده جلسه (Transcript) و تولید فقط یک JSON معتبر است.\n\nاطلاعاتی تولید نکن که در متن پیاده‌سازی شده جلسه یا ورودی‌های تأییدشده وجود ندارد.\n\nاگر در مورد موضوعی مطمئن نیستی، حدس نزن.\n\n---\n\n# Inputs\n\nممکن است ورودی‌های زیر وجود داشته باشند یا خالی باشند.\n\nComments:\n{{ $('meeting').first().json.CommentText }}\n\nApprovedParticipants:\n{{ $('ApprovedParticipants').first().json.approved_participants }}\n\nApprovedTags:\n{{ $('ApprovedTags').first().json.approved_tags }}\n\nKnownPeople:\n{{ $('ListOfParticipants').first().json.participant_list }}\n\nKnownTags:\n{{ $('ListOfTags').first().json.tag_list }}\n\nTranscript:\n{{ $('TranscribeAudio').first().json.candidates[0].content.parts[0].text }}\n\n---\n\n# Priority Rules\n\nترتیب اهمیت اطلاعات به صورت زیر است:\n\n1. ApprovedParticipants\n2. ApprovedTags\n3. متن جلسه (Transcript)\n4. Comments\n5. KnownPeople\n6. KnownTags\n\nApprovedParticipants و ApprovedTags حقیقت قطعی هستند.\n\nاگر مقدار داشته باشند، حتماً بدون تغییر در خروجی قرار بگیرند؛ حتی اگر در متن جلسه قابل تشخیص نباشند.\n\n---\n\n# Task\n\nاز متن جلسه (Transcript)، اطلاعات زیر را استخراج کن.\n\n---\n\n## Subject\n\nیک عنوان کوتاه برای موضوع اصلی جلسه.\n\nشرایط:\n\n- حداکثر ۱۰ کلمه\n- واضح\n- توصیفی\n\n---\n\n## People in meetings\n\nآرایه‌ای از اسامی افراد حاضر.\n\nقوانین:\n\nابتدا تمام ApprovedParticipants را قرار بده.\n\nسپس سایر افراد حاضر را اضافه کن.\n\nاز KnownPeople فقط برای کمک به تشخیص اسامی استفاده کن.\n\nفقط افرادی را اضافه کن که:\n\n- شخصاً صحبت کرده‌اند\nیا\n- حضورشان در جلسه به وضوح مشخص است.\n\nاگر فقط نام شخص برده شده باشد، او را حاضر در جلسه فرض نکن.\n\nافراد تکراری نباشند.\n\nترتیب:\n\n1. ApprovedParticipants\n2. سایر افراد بر اساس اولین حضور\n\n---\n\n## Summary\n\nخلاصه‌ای کامل از جلسه.\n\nیک متن جامع و طولانی (حدود ۴۰۰ تا ۱۲۰۰ کلمه).\n\nساختار Summary:\n\n- هدف جلسه\n- موضوع اصلی\n- روند بحث\n- نکات مهم\n- استدلال‌های مهم\n- تصمیم‌های گرفته‌شده\n- اختلاف‌نظرها (در صورت وجود)\n- نتیجه نهایی\n- اقدامات بعدی\n\nاگر Comments مقدار داشت:\n\nآن را به عنوان تمرکز اصلی خلاصه در نظر بگیر اما سایر موضوعات جلسه را حذف نکن.\n\n---\n\n## Bolet Points\n\nآرایه‌ای از مهم‌ترین نکات جلسه.\n\nهر آیتم فقط یک موضوع داشته باشد.\n\nدر صورت امکان به صورت زیر بنویس:\n\nتصمیم:\nمسئول:\nزمان انجام:\n\nاگر مسئول یا زمان مشخص نبود، آن بخش را حذف کن.\n\n---\n\n## Tags\n\nحداکثر ۱۰ تگ.\n\nترتیب انتخاب:\n\n1. ApprovedTags\n2. تگ‌های موجود در KnownTags که واقعاً در جلسه مطرح شده‌اند.\n3. تگ‌های جدید استخراج‌شده از جلسه.\n\nقوانین:\n\n- بدون تکرار\n- فقط موضوعات جلسه\n- نام افراد هرگز Tag نیست.\n- از کلی‌ترین به اختصاصی‌ترین مرتب شوند.\n\n---\n\n# General Rules\n\nهمه متن‌ها فارسی باشند.\n\nاسامی اشخاص ترجمه نشوند.\n\nاصطلاحات انگلیسی ترجمه نشوند.\n\nهرگز اطلاعات ساختگی تولید نکن.\n\nاگر مطمئن نیستی، آن مورد را حذف کن.\n\nهیچ آرایه‌ای نباید عضو تکراری داشته باشد.\n\nهیچ کلیدی حذف نشود.\n\n---\n\n# Output Schema\n\nخروجی باید دقیقاً مطابق این ساختار باشد:\n\n{\n  \"Subject\": \"\",\n  \"People in meetings\": [],\n  \"Summary\": \"\",\n  \"Bolet Points\": [],\n  \"Tags\": []\n}\n\n---\n\n# Output Rules\n\nفقط یک JSON معتبر تولید کن.\n\nهیچ متن دیگری ننویس.\n\nاز Markdown استفاده نکن.\n\nاز ```json استفاده نکن.\n\nقبل یا بعد از JSON هیچ توضیحی ننویس.\n\nاگر مقداری قابل استخراج نبود:\n\nSubject = \"\"\n\nPeople in meetings = []\n\nSummary = \"\"\n\nBolet Points = []\n\nTags = []\n\nاما ساختار JSON را همیشه حفظ کن."
+              "value": "=# Role\n\nتو یک دستیار حرفه‌ای برای تحلیل جلسات هستی.\n\nوظیفه تو استخراج دقیق اطلاعات از متن پیاده‌سازی شده جلسه (Transcript) و تولید فقط یک JSON معتبر است.\n\nاطلاعاتی تولید نکن که در متن پیاده‌سازی شده جلسه یا ورودی‌های تأییدشده وجود ندارد.\n\nاگر در مورد موضوعی مطمئن نیستی، حدس نزن.\n\n---\n\n# Inputs\n\nممکن است ورودی‌های زیر وجود داشته باشند یا خالی باشند.\n\nComments:\n{{ $('meeting').first().json.CommentText }}\n\nApprovedParticipants:\n{{ $('ApprovedParticipants').first().json.approved_participants }}\n\nApprovedTags:\n{{ $('ApprovedTags').first().json.approved_tags }}\n\nKnownPeople:\n{{ $('ListOfParticipants').first().json.participant_list }}\n\nKnownTags:\n{{ $('ListOfTags').first().json.tag_list }}\n\nTranscript:\n{{ $('Join Transcripts').first().json.text }}\n\n---\n\n# Priority Rules\n\nترتیب اهمیت اطلاعات به صورت زیر است:\n\n1. ApprovedParticipants\n2. ApprovedTags\n3. متن جلسه (Transcript)\n4. Comments\n5. KnownPeople\n6. KnownTags\n\nApprovedParticipants و ApprovedTags حقیقت قطعی هستند.\n\nاگر مقدار داشته باشند، حتماً بدون تغییر در خروجی قرار بگیرند؛ حتی اگر در متن جلسه قابل تشخیص نباشند.\n\n---\n\n# Task\n\nاز متن جلسه (Transcript)، اطلاعات زیر را استخراج کن.\n\n---\n\n## Subject\n\nیک عنوان کوتاه برای موضوع اصلی جلسه.\n\nشرایط:\n\n- حداکثر ۱۰ کلمه\n- واضح\n- توصیفی\n\n---\n\n## People in meetings\n\nآرایه‌ای از اسامی افراد حاضر.\n\nقوانین:\n\nابتدا تمام ApprovedParticipants را قرار بده.\n\nسپس سایر افراد حاضر را اضافه کن.\n\nاز KnownPeople فقط برای کمک به تشخیص اسامی استفاده کن.\n\nفقط افرادی را اضافه کن که:\n\n- شخصاً صحبت کرده‌اند\nیا\n- حضورشان در جلسه به وضوح مشخص است.\n\nاگر فقط نام شخص برده شده باشد، او را حاضر در جلسه فرض نکن.\n\nافراد تکراری نباشند.\n\nترتیب:\n\n1. ApprovedParticipants\n2. سایر افراد بر اساس اولین حضور\n\n---\n\n## Summary\n\nخلاصه‌ای کامل از جلسه.\n\nیک متن جامع و طولانی (حدود ۴۰۰ تا ۱۲۰۰ کلمه).\n\nساختار Summary:\n\n- هدف جلسه\n- موضوع اصلی\n- روند بحث\n- نکات مهم\n- استدلال‌های مهم\n- تصمیم‌های گرفته‌شده\n- اختلاف‌نظرها (در صورت وجود)\n- نتیجه نهایی\n- اقدامات بعدی\n\nاگر Comments مقدار داشت:\n\nآن را به عنوان تمرکز اصلی خلاصه در نظر بگیر اما سایر موضوعات جلسه را حذف نکن.\n\n---\n\n## Bolet Points\n\nآرایه‌ای از مهم‌ترین نکات جلسه.\n\nهر آیتم فقط یک موضوع داشته باشد.\n\nدر صورت امکان به صورت زیر بنویس:\n\nتصمیم:\nمسئول:\nزمان انجام:\n\nاگر مسئول یا زمان مشخص نبود، آن بخش را حذف کن.\n\n---\n\n## Tags\n\nحداکثر ۱۰ تگ.\n\nترتیب انتخاب:\n\n1. ApprovedTags\n2. تگ‌های موجود در KnownTags که واقعاً در جلسه مطرح شده‌اند.\n3. تگ‌های جدید استخراج‌شده از جلسه.\n\nقوانین:\n\n- بدون تکرار\n- فقط موضوعات جلسه\n- نام افراد هرگز Tag نیست.\n- از کلی‌ترین به اختصاصی‌ترین مرتب شوند.\n\n---\n\n# General Rules\n\nهمه متن‌ها فارسی باشند.\n\nاسامی اشخاص ترجمه نشوند.\n\nاصطلاحات انگلیسی ترجمه نشوند.\n\nهرگز اطلاعات ساختگی تولید نکن.\n\nاگر مطمئن نیستی، آن مورد را حذف کن.\n\nهیچ آرایه‌ای نباید عضو تکراری داشته باشد.\n\nهیچ کلیدی حذف نشود.\n\n---\n\n# Output Schema\n\nخروجی باید دقیقاً مطابق این ساختار باشد:\n\n{\n  \"Subject\": \"\",\n  \"People in meetings\": [],\n  \"Summary\": \"\",\n  \"Bolet Points\": [],\n  \"Tags\": []\n}\n\n---\n\n# Output Rules\n\nفقط یک JSON معتبر تولید کن.\n\nهیچ متن دیگری ننویس.\n\nاز Markdown استفاده نکن.\n\nاز ```json استفاده نکن.\n\nقبل یا بعد از JSON هیچ توضیحی ننویس.\n\nاگر مقداری قابل استخراج نبود:\n\nSubject = \"\"\n\nPeople in meetings = []\n\nSummary = \"\"\n\nBolet Points = []\n\nTags = []\n\nاما ساختار JSON را همیشه حفظ کن."
             }
           ]
         },
@@ -851,7 +851,7 @@
           "values": [
             {
               "column": "status",
-              "value": "=در حال ارسال فایل شماره {{ $itemIndex + 1 }}"
+              "value": "=در حال ارسال فایل {{ Number($('Loop Over Items1').first().json.fileIndex) + 1 }} بخش {{ Number($('Loop Over Items1').first().json.chunkIndex) + 1 }} از {{ $('Loop Over Items1').first().json.chunkCount }}"
             }
           ]
         },
@@ -1046,8 +1046,10 @@
         "nodeCredentialType": "googlePalmApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {{ $('Code in JavaScript').first().json.result }},\n        {\n          \"text\": \"شما یک پیاده‌ساز و رونویس فوق‌العاده دقیق و حرفه‌ای فایل‌های صوتی جلسات هستید.\\nوظیفه شما پیاده‌سازی و رونویسی (Transcription) کامل، دقیق و کلمه به کلمه تمام مکالمات، صحبت‌ها و دیالوگ‌های مطرح شده در فایل(های) صوتی جلسه به زبان فارسی است.\\n\\nقوانین مهم:\\n۱. تمام صحبت‌های گویندگان را با بالاترین دقت و کلمه به کلمه بنویسید.\\n۲. هیچ بخشی از صحبت‌ها را خلاصه نکنید و هیچ جمله‌ای را حذف نکنید.\\n۳. ساختار پاراگراف‌بندی و علائم نگارشی را برای خوانایی بهتر رعایت کنید.\\n۴. در صورتی که گویندگان مختلف صحبت می‌کنند، صحبت‌های هر بخش را تفکیک کنید.\\n۵. فقط و فقط متن پیاده‌سازی شده را خروجی دهید و از نوشتن هرگونه مقدمه، مؤخره یا توضیحات جانبی خودداری کنید.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"text/plain\"\n  }\n}",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ fileData: { mimeType: $json.mimeType, fileUri: $json.fileUri } }, { text: 'این بخش ' + ($json.chunkIndex + 1) + ' از ' + $json.chunkCount + ' از صدای جلسه است.\\nفقط همین بخش را کلمه به کلمه و دقیق به فارسی پیاده‌سازی کن.\\nهیچ بخشی را خلاصه یا حذف نکن.\\nاگر گویندگان مختلف صحبت می‌کنند، صحبت هر نفر را جدا کن.\\nمقدمه، شماره بخش، یا توضیح اضافه ننویس. فقط متن صحبت‌ها را بنویس.' }] }], generationConfig: { responseMimeType: 'text/plain', maxOutputTokens: 65536 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
       },
       "id": "transcribe-audio-node-001",
       "name": "TranscribeAudio",
@@ -1092,11 +1094,11 @@
           "values": [
             {
               "column": "transcribe",
-              "value": "={{ $('TranscribeAudio').first().json.candidates[0].content.parts[0].text }}"
+              "value": "={{ $('Join Transcripts').first().json.text }}"
             },
             {
               "column": "transcription",
-              "value": "={{ $('TranscribeAudio').first().json.candidates[0].content.parts[0].text }}"
+              "value": "={{ $('Join Transcripts').first().json.text }}"
             },
             {
               "column": "status",
@@ -1144,6 +1146,67 @@
       ],
       "id": "bf690828-3dd6-4e6c-8238-41f5be932d98",
       "name": "SetMeetingID"
+    },
+    {
+      "parameters": {
+        "url": "=https://neshastyar.com/api/audio-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "options": {
+          "timeout": 600000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "list-audio-chunks-001",
+      "name": "List Audio Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4304,
+        -480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunks = $input.first().json.chunks || [];\nif (!chunks.length) {\n  throw new Error('No audio chunks to transcribe');\n}\n\nreturn chunks.map((chunk) => ({ json: chunk }));"
+      },
+      "id": "expand-audio-chunks-001",
+      "name": "Expand Audio Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4000,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "transcribe-loop-001",
+      "name": "Transcribe Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -3008,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function stitchTranscripts(parts) {\n  let result = '';\n  for (const part of parts) {\n    const text = String(part || '').trim();\n    if (!text) continue;\n    if (!result) {\n      result = text;\n      continue;\n    }\n    const prevWords = result.split(/\\s+/).slice(-12).join(' ');\n    const windowText = text.slice(0, 1200);\n    const at = prevWords ? windowText.indexOf(prevWords) : -1;\n    if (at >= 0) {\n      const remainder = text.slice(at + prevWords.length).trim();\n      result = remainder ? result.trimEnd() + '\\n\\n' + remainder : result;\n    } else {\n      result = result.trimEnd() + '\\n\\n' + text;\n    }\n  }\n  return result.trim();\n}\n\nconst responses = $('TranscribeAudio').all();\nconst parts = responses.map((item) => {\n  const text = item.json?.candidates?.[0]?.content?.parts?.[0]?.text;\n  if (!text) {\n    throw new Error('A transcription chunk did not return text');\n  }\n  return text;\n});\n\nreturn [{ json: { text: stitchTranscripts(parts) } }];"
+      },
+      "id": "join-transcripts-001",
+      "name": "Join Transcripts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2608,
+        1104
+      ]
     }
   ],
   "connections": {
@@ -1278,7 +1341,7 @@
       "main": [
         [
           {
-            "node": "Loop Over Items1",
+            "node": "List Audio Chunks",
             "type": "main",
             "index": 0
           }
@@ -1373,7 +1436,7 @@
       "main": [
         [
           {
-            "node": "TranscribeAudio",
+            "node": "Transcribe Loop",
             "type": "main",
             "index": 0
           }
@@ -1561,7 +1624,7 @@
       "main": [
         [
           {
-            "node": "Save Transcribe to DB",
+            "node": "Transcribe Loop",
             "type": "main",
             "index": 0
           }
@@ -1598,6 +1661,64 @@
         [
           {
             "node": "meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Audio Chunks": {
+      "main": [
+        [
+          {
+            "node": "Expand Audio Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Audio Chunks": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe Loop": {
+      "main": [
+        [
+          {
+            "node": "Join Transcripts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TranscribeAudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Join Transcripts": {
+      "main": [
+        [
+          {
+            "node": "Save Transcribe to DB",
             "type": "main",
             "index": 0
           }
