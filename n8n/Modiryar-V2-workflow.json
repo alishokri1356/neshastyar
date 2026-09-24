@@ -27,7 +27,7 @@
               "id": "03f0784f-24e0-4c32-960e-3c72a558c06f",
               "name": "fileREST",
               "type": "string",
-              "value": "=https://neshastyar.com{{ $('Loop Over Items1').first().json.url }}"
+              "value": "=https://neshastyar.com{{ $('Loop Over Items1').item.json.url }}"
             }
           ]
         },
@@ -611,7 +611,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const uploads = $('Upload').all();\nif (!uploads.length) {\n  throw new Error('No uploaded audio chunks');\n}\n\nreturn uploads.map((item, index) => ({\n  json: {\n    chunkIndex: index,\n    chunkCount: uploads.length,\n    mimeType: item.json.file.mimeType,\n    fileUri: item.json.file.uri\n  }\n}));"
+        "jsCode": "const uploads = $('Upload').all();\nconst chunkMeta = $('Expand Audio Chunks').all();\nif (!uploads.length) {\n  throw new Error('No uploaded audio chunks');\n}\nif (chunkMeta.length && chunkMeta.length !== uploads.length) {\n  throw new Error(`Chunk/upload count mismatch: ${chunkMeta.length} chunks vs ${uploads.length} uploads`);\n}\n\nreturn uploads.map((item, index) => {\n  const meta = chunkMeta[index] ? chunkMeta[index].json : {};\n  return {\n    json: {\n      // Global order across all files (used for wait/skip-last + stitch order)\n      chunkIndex: index,\n      chunkCount: uploads.length,\n      // Per-file identity from backend listMeetingChunks\n      fileIndex: meta.fileIndex ?? 0,\n      fileCount: meta.fileCount ?? 1,\n      audioFileId: meta.audioFileId || null,\n      fileChunkIndex: meta.chunkIndex ?? index,\n      fileChunkCount: meta.chunkCount ?? uploads.length,\n      mimeType: item.json.file.mimeType,\n      fileUri: item.json.file.uri\n    }\n  };\n});\n"
       },
       "id": "219d74e0-9dda-4b88-ad06-3a6f644ca923",
       "name": "Code in JavaScript",
@@ -851,7 +851,7 @@
           "values": [
             {
               "column": "status",
-              "value": "=در حال ارسال فایل {{ Number($('Loop Over Items1').first().json.fileIndex) + 1 }} بخش {{ Number($('Loop Over Items1').first().json.chunkIndex) + 1 }} از {{ $('Loop Over Items1').first().json.chunkCount }}"
+              "value": "=در حال ارسال فایل {{ Number($('Loop Over Items1').item.json.fileIndex) + 1 }} از {{ $('Loop Over Items1').item.json.fileCount }} بخش {{ Number($('Loop Over Items1').item.json.chunkIndex) + 1 }} از {{ $('Loop Over Items1').item.json.chunkCount }}"
             }
           ]
         },
@@ -1046,7 +1046,7 @@
         "nodeCredentialType": "googlePalmApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ fileData: { mimeType: $json.mimeType, fileUri: $json.fileUri } }, { text: 'این بخش ' + ($json.chunkIndex + 1) + ' از ' + $json.chunkCount + ' از صدای جلسه است.\\nفقط همین بخش را کلمه به کلمه و دقیق به فارسی پیاده‌سازی کن.\\nهیچ بخشی را خلاصه یا حذف نکن.\\nاگر گویندگان مختلف صحبت می‌کنند، صحبت هر نفر را جدا کن.\\nمقدمه، شماره بخش، یا توضیح اضافه ننویس. فقط متن صحبت‌ها را بنویس.' }] }], generationConfig: { responseMimeType: 'text/plain', maxOutputTokens: 65536 } }) }}",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ fileData: { mimeType: $json.mimeType, fileUri: $json.fileUri } }, { text: 'این فایل صوتی شماره ' + ($json.fileIndex + 1) + ' از ' + $json.fileCount + ' در جلسه است.\\nاین برش ' + ($json.fileChunkIndex + 1) + ' از ' + $json.fileChunkCount + ' از همین فایل است (بخش ' + ($json.chunkIndex + 1) + ' از ' + $json.chunkCount + ' از کل جلسه).\\nفقط همین بخش را کلمه به کلمه و دقیق به فارسی پیاده‌سازی کن.\\nهیچ بخشی را خلاصه یا حذف نکن.\\nاگر گویندگان مختلف صحبت می‌کنند، صحبت هر نفر را جدا کن.\\nمقدمه، شماره بخش، یا توضیح اضافه ننویس. فقط متن صحبت‌ها را بنویس.' }] }], generationConfig: { responseMimeType: 'text/plain', maxOutputTokens: 65536 } }) }}",
         "options": {
           "timeout": 300000
         }
@@ -1207,6 +1207,54 @@
         -2608,
         1104
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "last-chunk-check-001",
+              "leftValue": "={{ Number($('Transcribe Loop').item.json.chunkIndex) + 1 }}",
+              "rightValue": "={{ Number($('Transcribe Loop').item.json.chunkCount) }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-last-transcribe-chunk-001",
+      "name": "If Last Transcribe Chunk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2240,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "id": "wait-transcribe-001",
+      "name": "Wait Transcribe",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        -2128,
+        736
+      ],
+      "webhookId": "6b2aee74-deee-47fd-886a-6630651564bf",
+      "typeVersion": 1.1,
+      "notes": "20s pause between TranscribeAudio calls to stay under Gemini RPM"
     }
   ],
   "connections": {
@@ -1624,7 +1672,7 @@
       "main": [
         [
           {
-            "node": "Transcribe Loop",
+            "node": "If Last Transcribe Chunk",
             "type": "main",
             "index": 0
           }
@@ -1719,6 +1767,35 @@
         [
           {
             "node": "Save Transcribe to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Last Transcribe Chunk": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Loop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Loop",
             "type": "main",
             "index": 0
           }

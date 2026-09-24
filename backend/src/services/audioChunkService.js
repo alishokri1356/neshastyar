@@ -2,9 +2,12 @@ const { execFile } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
 
-const CHUNK_SECONDS = 10 * 60;
+// Each audio file longer than 12 minutes is split into ~12 minute slices
+// with a short overlap so transcript stitching can drop duplicated edges.
+const CHUNK_SECONDS = 12 * 60;
 const OVERLAP_SECONDS = 20;
 const SINGLE_FILE_MAX_SECONDS = 12 * 60;
+const PLAN_VERSION = '12m-overlap20-v1';
 const FFMPEG_TIMEOUT_MS = 3 * 60 * 1000;
 
 const inflight = new Map();
@@ -116,7 +119,12 @@ async function buildChunks(audioFile) {
   const outDir = path.join(process.cwd(), 'uploads', 'audio-chunks', String(audioFile.id));
   const manifestPath = path.join(outDir, 'manifest.json');
   const existing = await readManifest(manifestPath);
-  if (existing && existing.sourceMtimeMs === sourceStat.mtimeMs && existing.sourceSize === sourceStat.size) {
+  if (
+    existing &&
+    existing.planVersion === PLAN_VERSION &&
+    existing.sourceMtimeMs === sourceStat.mtimeMs &&
+    existing.sourceSize === sourceStat.size
+  ) {
     return existing;
   }
 
@@ -173,6 +181,7 @@ async function buildChunks(audioFile) {
   }
 
   const manifest = {
+    planVersion: PLAN_VERSION,
     sourceMtimeMs: sourceStat.mtimeMs,
     sourceSize: sourceStat.size,
     duration,
@@ -251,6 +260,7 @@ module.exports = {
   CHUNK_SECONDS,
   OVERLAP_SECONDS,
   SINGLE_FILE_MAX_SECONDS,
+  PLAN_VERSION,
   planChunkWindows,
   listMeetingChunks,
   resolveChunk

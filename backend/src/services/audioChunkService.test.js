@@ -2,19 +2,32 @@ const { planChunkWindows, CHUNK_SECONDS, OVERLAP_SECONDS, SINGLE_FILE_MAX_SECOND
 const { stitchTranscripts } = require('./transcriptStitch');
 
 describe('planChunkWindows', () => {
-  test('keeps a short recording as one chunk', () => {
+  test('keeps a recording up to 12 minutes as one chunk', () => {
     expect(planChunkWindows(SINGLE_FILE_MAX_SECONDS)).toEqual([
       { start: 0, length: SINGLE_FILE_MAX_SECONDS }
     ]);
   });
 
-  test('splits a 90 minute recording into overlapping 10 minute windows', () => {
+  test('splits a 90 minute recording into overlapping 12 minute windows', () => {
     const windows = planChunkWindows(90 * 60);
-    expect(windows).toHaveLength(9);
+    expect(CHUNK_SECONDS).toBe(12 * 60);
+    expect(windows).toHaveLength(8);
     expect(windows[0]).toEqual({ start: 0, length: CHUNK_SECONDS + OVERLAP_SECONDS });
     expect(windows[1].start).toBe(CHUNK_SECONDS);
     expect(windows[1].start).toBeLessThan(windows[0].start + windows[0].length);
     expect(windows[windows.length - 1].start + windows[windows.length - 1].length).toBe(90 * 60);
+  });
+
+  test('plans each long file independently (multi-file meeting model)', () => {
+    const fileA = planChunkWindows(8 * 60);   // short → 1
+    const fileB = planChunkWindows(25 * 60);  // long → several 12m slices
+    const fileC = planChunkWindows(12 * 60);  // exact threshold → 1
+    expect(fileA).toHaveLength(1);
+    expect(fileC).toHaveLength(1);
+    expect(fileB.length).toBeGreaterThan(1);
+    expect(fileB[0].length).toBe(CHUNK_SECONDS + OVERLAP_SECONDS);
+    // Flattened meeting chunk count = sum of per-file chunks
+    expect(fileA.length + fileB.length + fileC.length).toBe(1 + fileB.length + 1);
   });
 
   test('rejects an unreadable duration', () => {
