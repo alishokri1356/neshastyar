@@ -1,0 +1,14 @@
+---
+description: Always fetch latest n8n workflows from the live instance; never trust local JSON exports as source of truth.
+alwaysApply: true
+---
+
+# n8n workflows (Modiryar / Neshastyar)
+
+- **Do not** treat `n8n/*.json` files as the source of truth. Prefer no local Modiryar V2 export; if one exists, it may be stale.
+- **Before any workflow work** (read, debug, edit, deploy): fetch the **latest published / active** version from the live n8n instance first.
+- Preferred sources (in order):
+  1. n8n MCP (`get_workflow_details`, `search_workflows`) when the workflow has MCP access enabled
+  2. n8n DB on this VPS: `/srv/n8n/data/database.sqlite` — use `workflow_entity.activeVersionId` / `workflow_published_version.publishedVersionId` and load that row from `workflow_history` (not only the draft `workflow_entity.nodes` if they differ)
+- Modiryar V2 workflow id: `K0d0hABw8Z18D6aH`
+- After changing a workflow in n8n, **re-fetch** before the next change; do not assume prior chat context matches production.

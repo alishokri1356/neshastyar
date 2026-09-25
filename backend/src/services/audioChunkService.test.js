@@ -2,16 +2,19 @@ const { planChunkWindows, CHUNK_SECONDS, OVERLAP_SECONDS, SINGLE_FILE_MAX_SECOND
 const { stitchTranscripts } = require('./transcriptStitch');
 
 describe('planChunkWindows', () => {
-  test('keeps a recording up to 12 minutes as one chunk', () => {
+  test('keeps a recording up to 75 minutes as one chunk', () => {
     expect(planChunkWindows(SINGLE_FILE_MAX_SECONDS)).toEqual([
       { start: 0, length: SINGLE_FILE_MAX_SECONDS }
     ]);
+    expect(planChunkWindows(45 * 60)).toHaveLength(1);
+    expect(planChunkWindows(74 * 60)).toHaveLength(1);
   });
 
-  test('splits a 90 minute recording into overlapping 12 minute windows', () => {
+  test('splits a 90 minute recording into overlapping 45 minute windows', () => {
     const windows = planChunkWindows(90 * 60);
-    expect(CHUNK_SECONDS).toBe(12 * 60);
-    expect(windows).toHaveLength(8);
+    expect(CHUNK_SECONDS).toBe(45 * 60);
+    expect(SINGLE_FILE_MAX_SECONDS).toBe(75 * 60);
+    expect(windows).toHaveLength(2);
     expect(windows[0]).toEqual({ start: 0, length: CHUNK_SECONDS + OVERLAP_SECONDS });
     expect(windows[1].start).toBe(CHUNK_SECONDS);
     expect(windows[1].start).toBeLessThan(windows[0].start + windows[0].length);
@@ -20,13 +23,12 @@ describe('planChunkWindows', () => {
 
   test('plans each long file independently (multi-file meeting model)', () => {
     const fileA = planChunkWindows(8 * 60);   // short → 1
-    const fileB = planChunkWindows(25 * 60);  // long → several 12m slices
-    const fileC = planChunkWindows(12 * 60);  // exact threshold → 1
+    const fileB = planChunkWindows(90 * 60);  // >75 → 45m slices
+    const fileC = planChunkWindows(75 * 60);  // exact threshold → 1
     expect(fileA).toHaveLength(1);
     expect(fileC).toHaveLength(1);
     expect(fileB.length).toBeGreaterThan(1);
     expect(fileB[0].length).toBe(CHUNK_SECONDS + OVERLAP_SECONDS);
-    // Flattened meeting chunk count = sum of per-file chunks
     expect(fileA.length + fileB.length + fileC.length).toBe(1 + fileB.length + 1);
   });
 

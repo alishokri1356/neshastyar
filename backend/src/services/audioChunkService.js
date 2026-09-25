@@ -2,12 +2,12 @@ const { execFile } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
 
-// Each audio file longer than 12 minutes is split into ~12 minute slices
+// Files longer than 75 minutes are split into ~45 minute slices
 // with a short overlap so transcript stitching can drop duplicated edges.
-const CHUNK_SECONDS = 12 * 60;
+const CHUNK_SECONDS = 45 * 60;
 const OVERLAP_SECONDS = 20;
-const SINGLE_FILE_MAX_SECONDS = 12 * 60;
-const PLAN_VERSION = '12m-overlap20-v1';
+const SINGLE_FILE_MAX_SECONDS = 75 * 60;
+const PLAN_VERSION = '45m-keep75-overlap20-v1';
 const FFMPEG_TIMEOUT_MS = 3 * 60 * 1000;
 
 const inflight = new Map();
