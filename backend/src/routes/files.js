@@ -16,6 +16,7 @@ router.get('/download/audio/:meetingId', FileController.downloadAudioByMeetingId
 
 // Split long meeting audio into transcription chunks (public, same as audio download)
 router.get('/audio-chunks/meeting/:meetingId', (req, res) => FileController.listMeetingAudioChunks(req, res));
+router.delete('/audio-chunks/meeting/:meetingId', (req, res) => FileController.flushMeetingAudioChunks(req, res));
 router.get('/audio-chunks/:audioFileId/:chunkIndex', (req, res) => FileController.downloadAudioChunk(req, res));
 
 // All other routes require authentication and email verification

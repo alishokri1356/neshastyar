@@ -256,6 +256,52 @@ async function resolveChunk(audioFileId, chunkIndex) {
   };
 }
 
+/**
+ * Delete generated transcription chunk files for a meeting.
+ * Original uploaded audio under uploads/audio is never removed.
+ */
+async function flushMeetingChunks(meetingId) {
+  const db = require('../config/database');
+  const audioFiles = await db.query(
+    'SELECT id FROM audio_files WHERE meeting_id = ? ORDER BY upload_order ASC, created_at ASC',
+    [meetingId]
+  );
+
+  const flushed = [];
+  for (const audioFile of audioFiles) {
+    const audioFileId = String(audioFile.id);
+    inflight.delete(audioFileId);
+
+    const outDir = path.join(process.cwd(), 'uploads', 'audio-chunks', audioFileId);
+    let removed = false;
+    let bytesFreed = 0;
+    try {
+      const entries = await fs.readdir(outDir);
+      for (const name of entries) {
+        try {
+          const st = await fs.stat(path.join(outDir, name));
+          if (st.isFile()) bytesFreed += st.size;
+        } catch (_) {
+          /* ignore per-file stat errors */
+        }
+      }
+      await fs.rm(outDir, { recursive: true, force: true });
+      removed = true;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+
+    flushed.push({ audioFileId, removed, bytesFreed });
+  }
+
+  return {
+    meetingId,
+    audioFileCount: audioFiles.length,
+    flushed,
+    bytesFreed: flushed.reduce((sum, item) => sum + item.bytesFreed, 0)
+  };
+}
+
 module.exports = {
   CHUNK_SECONDS,
   OVERLAP_SECONDS,
@@ -263,5 +309,6 @@ module.exports = {
   PLAN_VERSION,
   planChunkWindows,
   listMeetingChunks,
-  resolveChunk
+  resolveChunk,
+  flushMeetingChunks
 };

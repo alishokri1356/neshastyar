@@ -764,6 +764,31 @@ class FileController {
       });
     }
   }
+
+  // DELETE /api/audio-chunks/meeting/:meetingId
+  async flushMeetingAudioChunks(req, res) {
+    try {
+      const { meetingId } = req.params;
+      if (!/^[0-9a-f-]{36}$/i.test(meetingId)) {
+        return res.status(400).json({
+          error: 'Invalid meeting id',
+          message: 'Meeting id must be a UUID'
+        });
+      }
+
+      const result = await audioChunkService.flushMeetingChunks(meetingId);
+      return res.json({
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      console.error('Flush audio chunks error:', error);
+      return res.status(error.statusCode || 500).json({
+        error: 'Failed to flush audio chunks',
+        message: error.message
+      });
+    }
+  }
 }
 
 module.exports = { FileController: new FileController(), upload };
