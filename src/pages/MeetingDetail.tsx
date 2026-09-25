@@ -134,6 +134,7 @@ const MeetingDetail = () => {
           title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
           date: new Date(meetingData.meeting_date),
           summary: meetingData.summary || '',
+          transcription: meetingData.transcription || '',
           status: meetingData.status,
           tags: tags,
           userId: meetingData.user_id,
@@ -160,7 +161,7 @@ const MeetingDetail = () => {
 
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
-        .select('status, summary')
+        .select('status, summary, transcription')
         .eq('id', meetingId)
         .eq('user_id', user.id)
         .single();
@@ -169,7 +170,8 @@ const MeetingDetail = () => {
       
       return {
         status: meetingData.status,
-        summary: meetingData.summary || ''
+        summary: meetingData.summary || '',
+        transcription: meetingData.transcription || '',
       };
     },
     refetchInterval: 30000, // Reduce to 30 seconds
@@ -1266,6 +1268,11 @@ const MeetingDetail = () => {
 
   const currentStatus = statusData?.status || meeting?.status || '';
   const isProcessed = currentStatus === 'پردازش شده';
+  const transcriptionText =
+    (typeof statusData?.transcription === 'string' ? statusData.transcription : null) ??
+    (typeof meeting?.transcription === 'string' ? meeting.transcription : '') ??
+    '';
+  const hasTranscription = Boolean(transcriptionText.trim());
 
   const headerActions = (
     <DropdownMenu>
@@ -1374,23 +1381,27 @@ const MeetingDetail = () => {
           </CardHeader>
         </Card>
 
-        {isProcessed && (
+        {(isProcessed || hasTranscription) && (
           <div className="space-y-2">
-            <Button
-              onClick={handleAutoGenerateSummary}
-              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
-            >
-              <Sparkles className="h-4 w-4" />
-              درخواست پردازش مجدد
-            </Button>
-            <Button
-              onClick={() => navigate(`/meeting/${meetingId}/transcription`)}
-              variant="outline"
-              className="w-full font-bold tracking-wide"
-            >
-              <FileText className="h-4 w-4" />
-              مشاهده جزییات صحبت های جلسه
-            </Button>
+            {isProcessed && (
+              <Button
+                onClick={handleAutoGenerateSummary}
+                className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
+              >
+                <Sparkles className="h-4 w-4" />
+                درخواست پردازش مجدد
+              </Button>
+            )}
+            {hasTranscription && (
+              <Button
+                onClick={() => navigate(`/meeting/${meetingId}/transcription`)}
+                variant="outline"
+                className="w-full font-bold tracking-wide"
+              >
+                <FileText className="h-4 w-4" />
+                مشاهده جزییات صحبت های جلسه
+              </Button>
+            )}
           </div>
         )}
 
