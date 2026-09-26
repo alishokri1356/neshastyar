@@ -58,6 +58,7 @@ import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.components.StatusChip
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
+import com.neshastyar.app.util.MeetingSummaryParser
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -233,14 +234,23 @@ fun MeetingDetailScreen(
 
                     if (state.summary.people.isNotEmpty() || state.participants.isNotEmpty()) {
                         item {
+                            val approvedNames = state.participants.map {
+                                MeetingSummaryParser.normalizePersonName(it.name).ifBlank { it.name ?: it.id }
+                            }
+                            val suggestions = state.summary.people
+                                .map { MeetingSummaryParser.normalizePersonName(it) }
+                                .filter { it.isNotEmpty() }
+                                .distinct()
+                                .filter { name -> approvedNames.none { it == name } }
                             NeshastyarCard {
                                 SectionHeader(
                                     title = "حاضرین در جلسه",
-                                    subtitle = "${state.participants.size.coerceAtLeast(state.summary.people.size)} نفر",
+                                    subtitle = "${approvedNames.size + suggestions.size} نفر",
                                     icon = Icons.Default.People,
                                 )
                                 Spacer(Modifier.height(10.dp))
-                                state.participants.forEach { p ->
+                                state.participants.forEachIndexed { index, p ->
+                                    val displayName = approvedNames.getOrElse(index) { p.name ?: p.id }
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -257,13 +267,13 @@ fun MeetingDetailScreen(
                                             contentAlignment = Alignment.Center,
                                         ) {
                                             Text(
-                                                text = (p.name ?: "?").take(1),
+                                                text = displayName.take(1).ifBlank { "?" },
                                                 color = NeshastyarColors.PrimaryBright,
                                                 fontWeight = FontWeight.Bold,
                                             )
                                         }
                                         Text(
-                                            p.name ?: p.id,
+                                            displayName,
                                             color = NeshastyarColors.TextPrimary,
                                             modifier = Modifier
                                                 .weight(1f)
@@ -274,9 +284,7 @@ fun MeetingDetailScreen(
                                         }
                                     }
                                 }
-                                state.summary.people.filter { name ->
-                                    state.participants.none { it.name == name }
-                                }.forEach { name ->
+                                suggestions.forEach { name ->
                                     Text("• $name", color = NeshastyarColors.TextSecondary, modifier = Modifier.padding(vertical = 2.dp))
                                 }
                                 Spacer(Modifier.height(8.dp))

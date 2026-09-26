@@ -83,6 +83,7 @@ data class TagListState(val loading: Boolean = true, val items: List<TagListItem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TagListScreen(
+    onBack: () -> Unit,
     onOpenTag: (String) -> Unit,
     onManage: () -> Unit,
     vm: TagListViewModel = hiltViewModel(),
@@ -93,16 +94,18 @@ fun TagListScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onManage) {
-                Icon(Icons.Default.Settings, contentDescription = "مدیریت", tint = NeshastyarColors.PrimaryBright)
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت", tint = NeshastyarColors.Primary)
             }
             Text(
-                "برچسب‌ها",
-                style = MaterialTheme.typography.headlineMedium,
+                "لیست جلسات بر حسب برچسب",
+                style = MaterialTheme.typography.titleLarge,
                 color = NeshastyarColors.TextPrimary,
                 modifier = Modifier.weight(1f),
             )
-            Text("نشست یار", color = NeshastyarColors.TextSecondary)
+            IconButton(onClick = onManage) {
+                Icon(Icons.Default.Settings, contentDescription = "مدیریت", tint = NeshastyarColors.PrimaryBright)
+            }
         }
         if (state.loading) {
             CircularProgressIndicator(

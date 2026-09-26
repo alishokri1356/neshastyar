@@ -75,6 +75,7 @@ class ParticipantsListViewModel @Inject constructor(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParticipantsListScreen(
+    onBack: () -> Unit,
     onOpen: (String) -> Unit,
     onManage: () -> Unit,
     vm: ParticipantsListViewModel = hiltViewModel(),
@@ -85,15 +86,18 @@ fun ParticipantsListScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onManage) {
-                Icon(Icons.Default.Settings, null, tint = NeshastyarColors.PrimaryBright)
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت", tint = NeshastyarColors.Primary)
             }
             Text(
-                "افراد",
-                style = MaterialTheme.typography.headlineMedium,
+                "لیست جلسات بر اساس شرکت‌کنندگان",
+                style = MaterialTheme.typography.titleLarge,
                 color = NeshastyarColors.TextPrimary,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = onManage) {
+                Icon(Icons.Default.Settings, contentDescription = "مدیریت", tint = NeshastyarColors.PrimaryBright)
+            }
         }
         if (state.loading) {
             CircularProgressIndicator(

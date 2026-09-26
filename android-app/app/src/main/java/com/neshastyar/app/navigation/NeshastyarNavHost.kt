@@ -23,6 +23,8 @@ import com.neshastyar.app.ui.screens.auth.ForgotPasswordScreen
 import com.neshastyar.app.ui.screens.auth.LoginScreen
 import com.neshastyar.app.ui.screens.auth.SignUpScreen
 import com.neshastyar.app.ui.screens.home.HomeScreen
+import com.neshastyar.app.ui.screens.home.MeetingsByDateScreen
+import com.neshastyar.app.ui.screens.search.SearchScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingOptionsScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantDetailScreen
@@ -71,7 +73,7 @@ fun NeshastyarNavHost(
     }
 
     val showBottomBar = route in setOf(
-        Routes.Home.route, Routes.Tags.route, Routes.Participants.route, Routes.Account.route,
+        Routes.Home.route, Routes.Search.route, Routes.Account.route,
     )
 
     Scaffold(
@@ -112,13 +114,26 @@ fun NeshastyarNavHost(
             }
             composable(Routes.Home.route) {
                 HomeScreen(
-                    onLoggedOut = { goLoginClear() },
-                    onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
                     onRecord = { navController.navigate(Routes.Record.route) },
+                    onMeetingsByDate = { navController.navigate(Routes.MeetingsByDate.route) },
+                    onMeetingsByTag = { navController.navigate(Routes.Tags.route) },
+                    onMeetingsByParticipant = { navController.navigate(Routes.Participants.route) },
+                )
+            }
+            composable(Routes.Search.route) {
+                SearchScreen(
+                    onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
+                )
+            }
+            composable(Routes.MeetingsByDate.route) {
+                MeetingsByDateScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
                 )
             }
             composable(Routes.Tags.route) {
                 TagListScreen(
+                    onBack = { navController.popBackStack() },
                     onOpenTag = { navController.navigate(Routes.TagDetail.create(it)) },
                     onManage = { navController.navigate(Routes.TagManage.route) },
                 )
@@ -137,6 +152,7 @@ fun NeshastyarNavHost(
             }
             composable(Routes.Participants.route) {
                 ParticipantsListScreen(
+                    onBack = { navController.popBackStack() },
                     onOpen = { navController.navigate(Routes.ParticipantDetail.create(it)) },
                     onManage = { navController.navigate(Routes.ParticipantsManage.route) },
                 )

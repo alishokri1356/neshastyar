@@ -5,270 +5,196 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.neshastyar.app.data.api.MeetingDto
-import com.neshastyar.app.ui.components.NeshastyarCard
-import com.neshastyar.app.ui.components.StatusChip
-import com.neshastyar.app.ui.components.UserAvatarChip
 import com.neshastyar.app.ui.theme.NeshastyarColors
-import com.neshastyar.app.util.JalaliDates
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onLoggedOut: () -> Unit,
-    onOpenMeeting: (String) -> Unit,
     onRecord: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel(),
+    onMeetingsByDate: () -> Unit,
+    onMeetingsByTag: () -> Unit,
+    onMeetingsByParticipant: () -> Unit,
 ) {
-    val state by viewModel.ui.collectAsStateWithLifecycle()
-
-    LaunchedEffect(state.loggedOut) {
-        if (state.loggedOut) onLoggedOut()
-    }
-
-    Scaffold(
-        containerColor = NeshastyarColors.Background,
-    ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = state.refreshing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            when {
-                state.loading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NeshastyarColors.Primary)
-                    }
-                }
-                state.error != null && state.groups.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(state.error!!, color = NeshastyarColors.Error)
-                            TextButton(onClick = viewModel::refresh) {
-                                Text("تلاش مجدد", color = NeshastyarColors.PrimaryBright)
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        item {
-                            HomeHeader(name = state.name)
-                        }
-                        item {
-                            RecordBanner(onClick = onRecord)
-                        }
-                        if (state.groups.isEmpty()) {
-                            item {
-                                EmptyMeetingsCard()
-                            }
-                        } else {
-                            state.groups.forEach { group ->
-                                item(key = "header-${group.label}") {
-                                    Text(
-                                        text = group.label,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = NeshastyarColors.TextSecondary,
-                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                    )
-                                }
-                                items(group.meetings, key = { it.id }) { meeting ->
-                                    MeetingCard(
-                                        meeting = meeting,
-                                        onClick = { onOpenMeeting(meeting.id) },
-                                    )
-                                }
-                            }
-                        }
-                        item { Spacer(Modifier.height(72.dp)) }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeHeader(name: String?) {
-    val greetingName = name?.takeIf { it.isNotBlank() } ?: "کاربر"
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "نشست یار",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = NeshastyarColors.Primary,
-            )
-            UserAvatarChip(label = greetingName)
-        }
-        Text(
-            text = "سلام، وقت بخیر",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = NeshastyarColors.TextPrimary,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        Text(
-            text = "جلسات اخیر، خلاصه‌ها و وضعیت تحلیل",
-            color = NeshastyarColors.TextMuted,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(top = 2.dp),
-        )
-    }
-}
-
-@Composable
-private fun RecordBanner(onClick: () -> Unit) {
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(Color(0xFFB91C1C), Color(0xFFE11D48)),
-                ),
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(top = 8.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        HomeTopBar()
         Box(
             modifier = Modifier
-                .size(52.dp)
-                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                .padding(top = 28.dp)
+                .size(132.dp)
+                .shadow(
+                    elevation = 18.dp,
+                    shape = CircleShape,
+                    clip = false,
+                    ambientColor = NeshastyarColors.Primary.copy(alpha = 0.16f),
+                    spotColor = NeshastyarColors.Primary.copy(alpha = 0.22f),
+                )
+                .clip(CircleShape)
+                .background(Color.White)
+                .clickable(onClick = onRecord),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Default.Mic,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(28.dp),
+                Icons.Outlined.Mic,
+                contentDescription = "ضبط صدا",
+                tint = NeshastyarColors.Primary,
+                modifier = Modifier.size(56.dp),
             )
         }
         Text(
-            text = "ضبط و خلاصه سازی جلسه",
-            color = Color.White,
+            text = "ضبط صدا",
+            color = NeshastyarColors.TextPrimary,
             fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
+            fontSize = 22.sp,
+            modifier = Modifier.padding(top = 18.dp),
         )
-    }
-}
-
-@Composable
-private fun MeetingCard(meeting: MeetingDto, onClick: () -> Unit) {
-    val date = JalaliDates.parseApiDate(meeting.meeting_date)
-        ?: JalaliDates.parseApiDate(meeting.created_at)
-    val whenText = date?.let { JalaliDates.formatDateTime(it) }.orEmpty()
-    val analyzing = meeting.status == "On Process" ||
-        meeting.status == "ارسال درخواست پردازش" ||
-        meeting.status == "آماده پردازش" ||
-        meeting.status == "در حال پردازش"
-
-    NeshastyarCard(
-        modifier = Modifier.clickable(onClick = onClick),
-        accentBar = analyzing,
-        contentPadding = PaddingValues(14.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = meeting.title?.ifBlank { null } ?: "جلسه",
-                fontWeight = FontWeight.SemiBold,
-                color = NeshastyarColors.TextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            StatusChip(meeting.status)
-        }
-        if (whenText.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AccessTime, null, tint = NeshastyarColors.TextMuted, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(whenText, color = NeshastyarColors.TextMuted, fontSize = 12.sp, maxLines = 1)
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyMeetingsCard() {
-    NeshastyarCard {
+        Text(
+            text = "برای ثبت دقیق‌تر جلسات",
+            color = NeshastyarColors.TextMuted,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Default.Mic, null, tint = NeshastyarColors.Primary, modifier = Modifier.size(40.dp))
-            Text(
-                "هنوز جلسه‌ای ندارید",
-                fontWeight = FontWeight.SemiBold,
-                color = NeshastyarColors.TextPrimary,
-                modifier = Modifier.padding(top = 12.dp),
+            HomeActionCard(
+                icon = Icons.Outlined.CalendarMonth,
+                title = "لیست جلسات بر حسب تاریخ",
+                subtitle = "مرتب‌شده بر اساس روز",
+                onClick = onMeetingsByDate,
             )
-            Text(
-                "برای شروع، «ضبط و خلاصه سازی جلسه» را بزنید",
-                color = NeshastyarColors.TextMuted,
-                modifier = Modifier.padding(top = 4.dp),
+            HomeActionCard(
+                icon = Icons.Outlined.Label,
+                title = "لیست جلسات بر حسب برچسب",
+                subtitle = "موضوعات و دسته‌ها",
+                onClick = onMeetingsByTag,
+            )
+            HomeActionCard(
+                icon = Icons.Outlined.People,
+                title = "لیست جلسات بر اساس شرکت‌کنندگان",
+                subtitle = "جلسات هر فرد",
+                onClick = onMeetingsByParticipant,
             )
         }
     }
 }
 
-private fun toPersianDigits(n: Int): String {
-    val persian = charArrayOf('۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹')
-    return n.toString().map { if (it.isDigit()) persian[it - '0'] else it }.joinToString("")
+@Composable
+private fun HomeTopBar() {
+    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Icon(
+            Icons.Default.Menu,
+            contentDescription = null,
+            tint = NeshastyarColors.Primary,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .size(26.dp),
+        )
+        Text(
+            text = "نشست یار",
+            color = NeshastyarColors.Primary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.align(Alignment.Center),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(NeshastyarColors.Primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Default.Edit,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeActionCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = Color.Black.copy(alpha = 0.06f),
+                spotColor = Color.Black.copy(alpha = 0.08f),
+            )
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = NeshastyarColors.Primary,
+            modifier = Modifier.size(28.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = NeshastyarColors.TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+            )
+            Text(
+                text = subtitle,
+                color = NeshastyarColors.TextMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
 }

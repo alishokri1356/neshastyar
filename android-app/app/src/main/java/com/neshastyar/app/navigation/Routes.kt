@@ -7,6 +7,8 @@ sealed class Routes(val route: String) {
     data object SignUp : Routes("signup")
     data object ForgotPassword : Routes("forgot_password")
     data object Home : Routes("home")
+    data object Search : Routes("search")
+    data object MeetingsByDate : Routes("meetings_by_date")
     data object Record : Routes("record")
     data object TagSelection : Routes("tag_selection/{draftId}") {
         fun create(draftId: String) = "tag_selection/$draftId"

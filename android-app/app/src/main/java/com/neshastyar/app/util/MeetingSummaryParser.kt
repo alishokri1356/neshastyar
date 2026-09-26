@@ -2,6 +2,7 @@ package com.neshastyar.app.util
 
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 
 data class ParsedMeetingSummary(
     val subject: String = "",
@@ -36,7 +37,7 @@ object MeetingSummaryParser {
         return ParsedMeetingSummary(
             subject = obj.optString("Subject").ifBlank { obj.optString("subject") },
             summaryText = obj.optString("Summary").ifBlank { obj.optString("summary") },
-            people = (fromSummary + fromPeopleColumn).distinct(),
+            people = mergePeople(fromSummary, fromPeopleColumn),
             bulletPoints = firstBulletList(obj, bulletKeys),
             tags = firstStringList(obj, tagKeys),
             rawText = raw,
@@ -44,21 +45,105 @@ object MeetingSummaryParser {
         )
     }
 
+    /** One display name. Unwraps JSON quotes/backslashes left by double-encoded people values. */
+    fun normalizePersonName(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val trimmed = raw.trim()
+        if (!looksEncoded(trimmed)) return cleanPersonName(trimmed)
+        val decoded = decodeNameList(trimmed)
+        return if (decoded.size == 1) decoded[0] else cleanPersonName(trimmed)
+    }
+
     private fun parsePeopleField(peopleField: String?): List<String> {
         if (peopleField.isNullOrBlank()) return emptyList()
-        val trimmed = peopleField.trim()
-        tryParseObject(trimmed)?.let { obj ->
-            val nested = normalizeStringList(obj.opt("people"))
-            if (nested.isNotEmpty()) return nested
+        return decodeNameList(peopleField.trim())
+    }
+
+    private fun mergePeople(primary: List<String>, extra: List<String>): List<String> {
+        return (primary + extra)
+            .map { cleanPersonName(it) }
+            .filter { it.isNotEmpty() }
+            .distinct()
+    }
+
+    /**
+     * People may be a JSON array, a JSON object, or the same array encoded again as a string
+     * (`"[\"Name\"]"`). A second encoding must be unwrapped before names are split, otherwise
+     * each person is listed twice and the copy keeps quote and backslash characters.
+     */
+    private fun decodeNameList(raw: String, depth: Int = 0): List<String> {
+        if (raw.isBlank() || depth > 6) return emptyList()
+        val trimmed = raw.trim()
+
+        if (trimmed.startsWith("[") || trimmed.startsWith("{") || trimmed.startsWith("\"")) {
+            val parsed = try {
+                JSONTokener(trimmed).nextValue()
+            } catch (_: Exception) {
+                null
+            }
+            when (parsed) {
+                is JSONArray -> return finalizeNames(normalizeStringList(parsed, depth + 1))
+                is JSONObject -> {
+                    val fromObject = namesFromObject(parsed, depth + 1)
+                    if (fromObject.isNotEmpty()) return fromObject
+                }
+                is String -> if (parsed != trimmed) {
+                    val nested = decodeNameList(parsed, depth + 1)
+                    if (nested.isNotEmpty()) return nested
+                }
+            }
         }
-        try {
-            val arr = JSONArray(trimmed)
-            val values = normalizeStringList(arr)
-            if (values.isNotEmpty()) return values
-        } catch (_: Exception) {
-            // fall through to comma-separated
+
+        if (trimmed.contains("\\\"")) {
+            val restored = trimmed.replace("\\\"", "\"")
+            if (restored != trimmed) {
+                val nested = decodeNameList(restored, depth + 1)
+                if (nested.isNotEmpty()) return nested
+            }
         }
-        return trimmed.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+
+        return finalizeNames(trimmed.split(',', '\n').map { cleanPersonName(it) })
+    }
+
+    private fun namesFromObject(obj: JSONObject, depth: Int): List<String> {
+        val nested = normalizeStringList(obj.opt("people"), depth)
+        if (nested.isNotEmpty()) return finalizeNames(nested)
+        return finalizeNames(firstStringList(obj, peopleKeys, depth))
+    }
+
+    private fun looksEncoded(text: String): Boolean {
+        val trimmed = text.trim()
+        return trimmed.startsWith("[") ||
+            trimmed.startsWith("{") ||
+            trimmed.startsWith("\"") ||
+            trimmed.contains("\\\"")
+    }
+
+    private fun finalizeNames(names: List<String>): List<String> {
+        return names.map { cleanPersonName(it) }.filter { it.isNotEmpty() }.distinct()
+    }
+
+    private fun cleanPersonName(raw: String): String {
+        var name = raw.trim()
+        if (name.isEmpty() || name.equals("null", ignoreCase = true)) return ""
+        for (i in 0 until 4) {
+            if (name.startsWith("\"") || name.startsWith("[")) {
+                val decoded = try {
+                    val value = JSONTokener(name).nextValue()
+                    if (value is String && value != name) value.trim() else null
+                } catch (_: Exception) {
+                    null
+                }
+                if (decoded != null) {
+                    name = decoded
+                    continue
+                }
+            }
+            val next = name.replace("\\\"", "").trim().trim('"', '[', ']', '\\')
+            if (next == name) return name
+            name = next
+        }
+        return name.trim()
     }
 
     private fun parseSummaryObject(summaryText: String): JSONObject? {
@@ -160,10 +245,10 @@ object MeetingSummaryParser {
         return result.toString()
     }
 
-    private fun firstStringList(obj: JSONObject, keys: List<String>): List<String> {
+    private fun firstStringList(obj: JSONObject, keys: List<String>, depth: Int = 0): List<String> {
         for (key in keys) {
             if (!obj.has(key) || obj.isNull(key)) continue
-            val values = normalizeStringList(obj.opt(key))
+            val values = normalizeStringList(obj.opt(key), depth)
             if (values.isNotEmpty()) return values
         }
         return emptyList()
@@ -178,26 +263,44 @@ object MeetingSummaryParser {
         return emptyList()
     }
 
-    private fun normalizeStringList(value: Any?): List<String> {
+    private fun normalizeStringList(value: Any?, depth: Int = 0): List<String> {
+        if (depth > 6) return emptyList()
         return when (value) {
             null, JSONObject.NULL -> emptyList()
             is JSONArray -> buildList {
                 for (i in 0 until value.length()) {
                     val item = value.opt(i) ?: continue
-                    val text = when (item) {
-                        is String -> item.trim()
-                        is Number, is Boolean -> item.toString()
-                        is JSONObject -> item.optString("name").ifBlank {
-                            item.optString("Name").ifBlank { item.toString() }
-                        }.trim()
-                        else -> item.toString().trim()
+                    when (item) {
+                        is String -> {
+                            val text = item.trim()
+                            if (text.isEmpty() || text == "null") continue
+                            if (looksEncoded(text)) {
+                                addAll(decodeNameList(text, depth + 1))
+                            } else {
+                                val cleaned = cleanPersonName(text)
+                                if (cleaned.isNotEmpty()) add(cleaned)
+                            }
+                        }
+                        is Number, is Boolean -> {
+                            val text = item.toString().trim()
+                            if (text.isNotEmpty() && text != "null") add(text)
+                        }
+                        is JSONObject -> {
+                            val text = item.optString("name").ifBlank {
+                                item.optString("Name").ifBlank { item.toString() }
+                            }.trim()
+                            val cleaned = cleanPersonName(text)
+                            if (cleaned.isNotEmpty() && cleaned != "null") add(cleaned)
+                        }
+                        is JSONArray -> addAll(normalizeStringList(item, depth + 1))
+                        else -> {
+                            val cleaned = cleanPersonName(item.toString())
+                            if (cleaned.isNotEmpty() && cleaned != "null") add(cleaned)
+                        }
                     }
-                    if (text.isNotEmpty() && text != "null") add(text)
                 }
             }
-            is String -> value.split(',', '\n')
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
+            is String -> decodeNameList(value, depth + 1)
             else -> emptyList()
         }
     }
