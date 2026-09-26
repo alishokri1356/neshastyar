@@ -19,6 +19,11 @@ router.get('/audio-chunks/meeting/:meetingId', (req, res) => FileController.list
 router.delete('/audio-chunks/meeting/:meetingId', (req, res) => FileController.flushMeetingAudioChunks(req, res));
 router.get('/audio-chunks/:audioFileId/:chunkIndex', (req, res) => FileController.downloadAudioChunk(req, res));
 
+// Per-chunk transcription checkpoints (resume without re-calling Gemini)
+router.get('/transcript-chunks/meeting/:meetingId', (req, res) => FileController.listMeetingTranscriptChunks(req, res));
+router.put('/transcript-chunks/meeting/:meetingId', (req, res) => FileController.saveMeetingTranscriptChunk(req, res));
+router.delete('/transcript-chunks/meeting/:meetingId', (req, res) => FileController.flushMeetingTranscriptChunks(req, res));
+
 // All other routes require authentication and email verification
 router.use(authenticateToken);
 router.use(requireEmailVerification);

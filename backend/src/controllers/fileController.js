@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const db = require('../config/database');
 const uploadSessionService = require('../services/uploadSessionService');
 const audioChunkService = require('../services/audioChunkService');
+const transcriptChunkService = require('../services/transcriptChunkService');
 
 // Configure multer for large file uploads
 const storage = multer.diskStorage({
@@ -777,14 +778,86 @@ class FileController {
       }
 
       const result = await audioChunkService.flushMeetingChunks(meetingId);
+      const transcriptChunks = await transcriptChunkService.flushMeetingTranscriptChunks(meetingId);
       return res.json({
         ok: true,
-        ...result
+        ...result,
+        transcriptChunks
       });
     } catch (error) {
       console.error('Flush audio chunks error:', error);
       return res.status(error.statusCode || 500).json({
         error: 'Failed to flush audio chunks',
+        message: error.message
+      });
+    }
+  }
+
+  // GET /api/transcript-chunks/meeting/:meetingId
+  async listMeetingTranscriptChunks(req, res) {
+    try {
+      const { meetingId } = req.params;
+      if (!/^[0-9a-f-]{36}$/i.test(meetingId)) {
+        return res.status(400).json({
+          error: 'Invalid meeting id',
+          message: 'Meeting id must be a UUID'
+        });
+      }
+
+      const result = await transcriptChunkService.listMeetingTranscriptChunks(meetingId);
+      return res.json(result);
+    } catch (error) {
+      console.error('List transcript chunks error:', error);
+      return res.status(error.statusCode || 500).json({
+        error: 'Failed to list transcript chunks',
+        message: error.message
+      });
+    }
+  }
+
+  // PUT /api/transcript-chunks/meeting/:meetingId
+  async saveMeetingTranscriptChunk(req, res) {
+    try {
+      const { meetingId } = req.params;
+      if (!/^[0-9a-f-]{36}$/i.test(meetingId)) {
+        return res.status(400).json({
+          error: 'Invalid meeting id',
+          message: 'Meeting id must be a UUID'
+        });
+      }
+
+      const saved = await transcriptChunkService.saveMeetingTranscriptChunk(meetingId, {
+        chunkIndex: req.body?.chunkIndex,
+        fileSize: req.body?.fileSize,
+        text: req.body?.text
+      });
+      return res.json({ ok: true, chunk: saved });
+    } catch (error) {
+      console.error('Save transcript chunk error:', error);
+      return res.status(error.statusCode || 500).json({
+        error: 'Failed to save transcript chunk',
+        message: error.message
+      });
+    }
+  }
+
+  // DELETE /api/transcript-chunks/meeting/:meetingId
+  async flushMeetingTranscriptChunks(req, res) {
+    try {
+      const { meetingId } = req.params;
+      if (!/^[0-9a-f-]{36}$/i.test(meetingId)) {
+        return res.status(400).json({
+          error: 'Invalid meeting id',
+          message: 'Meeting id must be a UUID'
+        });
+      }
+
+      const result = await transcriptChunkService.flushMeetingTranscriptChunks(meetingId);
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      console.error('Flush transcript chunks error:', error);
+      return res.status(error.statusCode || 500).json({
+        error: 'Failed to flush transcript chunks',
         message: error.message
       });
     }
