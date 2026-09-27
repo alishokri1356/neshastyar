@@ -8,6 +8,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import com.neshastyar.app.data.api.CreateAudioFileRequest
 import com.neshastyar.app.data.api.CreateMeetingRequest
 import com.neshastyar.app.data.api.CreateMeetingTagRequest
+import com.neshastyar.app.data.api.CreateMeetingParticipantRequest
 import com.neshastyar.app.data.api.CreateUploadSessionRequest
 import com.neshastyar.app.data.api.NeshastyarApi
 import com.neshastyar.app.data.local.DraftAudioFileEntity
@@ -47,6 +48,7 @@ class UploadMeetingRepository @Inject constructor(
     suspend fun uploadDraft(
         draftId: String,
         selectedTagIds: List<String>,
+        selectedParticipantIds: List<String> = emptyList(),
         onProgress: suspend (UploadProgress) -> Unit = {},
     ): Result<String> = runCatching {
         val draft = draftDao.getDraft(draftId) ?: error("پیش‌نویس پیدا نشد")
@@ -89,9 +91,24 @@ class UploadMeetingRepository @Inject constructor(
         }
 
         if (selectedTagIds.isNotEmpty()) {
-            emit(onProgress, 94, "اتصال برچسب‌ها…", fileCount, fileCount)
+            emit(onProgress, 93, "اتصال برچسب‌ها…", fileCount, fileCount)
             selectedTagIds.forEach { tagId ->
                 api.createMeetingTag(CreateMeetingTagRequest(meetingId, tagId))
+            }
+        }
+
+        if (selectedParticipantIds.isNotEmpty()) {
+            emit(onProgress, 96, "اتصال شرکت‌کنندگان…", fileCount, fileCount)
+            selectedParticipantIds.forEach { participantId ->
+                val linked = api.addMeetingParticipant(
+                    CreateMeetingParticipantRequest(
+                        meeting_id = meetingId,
+                        participant_id = participantId,
+                    ),
+                )
+                if (!linked.isSuccessful && linked.code() != 409) {
+                    error("اتصال شرکت‌کننده ناموفق (${linked.code()})")
+                }
             }
         }
 

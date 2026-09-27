@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +43,9 @@ import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.StatusChip
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
+import kotlinx.coroutines.delay
+
+private const val StatusSyncIntervalMs = 15_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +55,12 @@ fun MeetingsByDateScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(StatusSyncIntervalMs)
+            viewModel.syncFromServer()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ListScreenHeader(title = "لیست جلسات بر حسب تاریخ", onBack = onBack)

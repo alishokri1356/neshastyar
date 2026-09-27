@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,11 +49,19 @@ class HomeViewModel @Inject constructor(
     )
     val ui: StateFlow<HomeUiState> = _ui.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
         load(initial = true)
     }
 
     fun refresh() = load(initial = false)
+
+    /** Reloads meeting status from the server without the pull-to-refresh indicator. */
+    fun syncFromServer() {
+        if (loadJob?.isActive == true) return
+        load(initial = false, quiet = true)
+    }
 
     fun toggleGroup(label: String) {
         _ui.update { state ->
@@ -69,14 +78,16 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun load(initial: Boolean) {
-        viewModelScope.launch {
-            _ui.update {
-                it.copy(
-                    loading = initial && it.groups.isEmpty(),
-                    refreshing = !initial || it.groups.isNotEmpty(),
-                    error = null,
-                )
+    private fun load(initial: Boolean, quiet: Boolean = false) {
+        loadJob = viewModelScope.launch {
+            if (!quiet) {
+                _ui.update {
+                    it.copy(
+                        loading = initial && it.groups.isEmpty(),
+                        refreshing = !initial || it.groups.isNotEmpty(),
+                        error = null,
+                    )
+                }
             }
             when (val result = meetingsRepository.listRecent(50)) {
                 is MeetingsResult.Ok -> {
@@ -113,7 +124,11 @@ class HomeViewModel @Inject constructor(
                 }
                 is MeetingsResult.Err -> {
                     _ui.update {
-                        it.copy(loading = false, refreshing = false, error = result.message)
+                        it.copy(
+                            loading = false,
+                            refreshing = false,
+                            error = if (quiet && it.groups.isNotEmpty()) null else result.message,
+                        )
                     }
                 }
             }

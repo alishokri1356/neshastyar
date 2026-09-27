@@ -27,6 +27,8 @@ object StatusStyle {
         status == "پردازش شده" -> "تکمیل شده"
         else -> status
     }
+
+    fun isProcessedStatus(status: String?): Boolean = status.isProcessed()
 }
 
 private fun String?.isProcessed(): Boolean =

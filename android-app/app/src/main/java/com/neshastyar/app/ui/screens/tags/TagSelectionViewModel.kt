@@ -22,13 +22,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.TagDto
+import com.neshastyar.app.data.repository.ParticipantsRepository
 import com.neshastyar.app.data.repository.TagsRepository
 import com.neshastyar.app.upload.CreateMeetingWorker
 
 data class TagSelectionUiState(
     val tags: List<TagDto> = emptyList(),
+    val participants: List<ParticipantDto> = emptyList(),
     val selected: Set<String> = emptySet(),
+    val selectedParticipants: Set<String> = emptySet(),
     val loading: Boolean = true,
     val uploading: Boolean = false,
     val progress: Int = 0,
@@ -43,6 +47,7 @@ data class TagSelectionUiState(
 class TagSelectionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val tagsRepository: TagsRepository,
+    private val participantsRepository: ParticipantsRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     val draftId: String = checkNotNull(savedStateHandle["draftId"])
@@ -129,22 +134,61 @@ class TagSelectionViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _ui.update { it.copy(loading = true, error = null) }
-            tagsRepository.list().fold(
-                onSuccess = { list -> _ui.update { it.copy(loading = false, tags = list) } },
-                onFailure = { e -> _ui.update { it.copy(loading = false, error = e.message) } },
-            )
+            val tagsResult = tagsRepository.list()
+            val peopleResult = participantsRepository.list()
+            _ui.update {
+                it.copy(
+                    loading = false,
+                    tags = tagsResult.getOrDefault(emptyList()),
+                    participants = peopleResult.getOrNull()?.participants.orEmpty(),
+                    error = tagsResult.exceptionOrNull()?.message
+                        ?: peopleResult.exceptionOrNull()?.message,
+                )
+            }
         }
     }
 
-    fun toggle(tagId: String) {
-        _ui.update { state ->
-            val next = state.selected.toMutableSet()
-            if (!next.add(tagId)) next.remove(tagId)
-            state.copy(selected = next)
-        }
+    fun selectTag(tagId: String) {
+        _ui.update { it.copy(selected = it.selected + tagId) }
+    }
+
+    fun selectParticipant(participantId: String) {
+        _ui.update { it.copy(selectedParticipants = it.selectedParticipants + participantId) }
+    }
+
+    fun removeTag(tagId: String) {
+        _ui.update { it.copy(selected = it.selected - tagId) }
+    }
+
+    fun removeParticipant(participantId: String) {
+        _ui.update { it.copy(selectedParticipants = it.selectedParticipants - participantId) }
     }
 
     fun onNewTagName(v: String) = _ui.update { it.copy(newTagName = v) }
+
+    fun addFromQuery() {
+        val name = _ui.value.newTagName.trim()
+        if (name.isEmpty() || _ui.value.uploading) return
+        val query = normalizeCatalogQuery(name)
+        val tag = _ui.value.tags.find { normalizeCatalogQuery(it.name?.takeIf { n -> n.isNotBlank() } ?: it.id) == query }
+        val person = _ui.value.participants.find {
+            normalizeCatalogQuery(it.name?.takeIf { n -> n.isNotBlank() } ?: it.id) == query
+        }
+        when {
+            tag != null && person != null -> _ui.update {
+                it.copy(
+                    selected = it.selected + tag.id,
+                    selectedParticipants = it.selectedParticipants + person.id,
+                    newTagName = "",
+                )
+            }
+            tag != null -> _ui.update { it.copy(selected = it.selected + tag.id, newTagName = "") }
+            person != null -> _ui.update {
+                it.copy(selectedParticipants = it.selectedParticipants + person.id, newTagName = "")
+            }
+            else -> createTag()
+        }
+    }
 
     fun createTag() {
         val name = _ui.value.newTagName.trim()
@@ -169,9 +213,11 @@ class TagSelectionViewModel @Inject constructor(
         if (_ui.value.uploading) return
         uploadRequested = true
         val selected = _ui.value.selected.toTypedArray()
+        val participants = _ui.value.selectedParticipants.toTypedArray()
         val input = Data.Builder()
             .putString(CreateMeetingWorker.KEY_DRAFT_ID, draftId)
             .putStringArray(CreateMeetingWorker.KEY_TAG_IDS, selected as Array<String?>)
+            .putStringArray(CreateMeetingWorker.KEY_PARTICIPANT_IDS, participants as Array<String?>)
             .build()
         val request = OneTimeWorkRequestBuilder<CreateMeetingWorker>()
             .setInputData(input)
@@ -196,4 +242,12 @@ class TagSelectionViewModel @Inject constructor(
             )
         }
     }
+}
+
+internal fun normalizeCatalogQuery(value: String): String {
+    return value.trim()
+        .replace('ي', 'ی')
+        .replace('ك', 'ک')
+        .replace("\u200c", "")
+        .lowercase()
 }

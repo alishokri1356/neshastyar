@@ -18,11 +18,16 @@ class MeetingsRepository @Inject constructor(
 ) {
     suspend fun listRecent(limit: Int = 50): MeetingsResult<List<MeetingDto>> {
         return try {
-            val response = api.getMeetings(limit = limit, orderBy = "created_at", orderDirection = "DESC")
+            val response = api.getMeetings(
+                limit = limit,
+                orderBy = "created_at",
+                orderDirection = "DESC",
+                compact = "1",
+            )
             if (response.isSuccessful) MeetingsResult.Ok(response.body().orEmpty())
             else MeetingsResult.Err(errorMessage(response.code()))
         } catch (e: Exception) {
-            MeetingsResult.Err(e.message ?: "خطا در بارگذاری جلسات")
+            MeetingsResult.Err(friendlyError(e))
         }
     }
 
@@ -79,6 +84,17 @@ class MeetingsRepository @Inject constructor(
         val r = api.getUntaggedMeetings()
         if (!r.isSuccessful) error("خطا (${r.code()})")
         r.body().orEmpty()
+    }
+
+    private fun friendlyError(error: Exception): String {
+        val raw = error.message.orEmpty()
+        if (raw.contains("connection closed", ignoreCase = true) ||
+            raw.contains("unexpected end of stream", ignoreCase = true) ||
+            raw.contains("stream was reset", ignoreCase = true)
+        ) {
+            return "ارتباط با سرور قطع شد. دوباره تلاش کنید"
+        }
+        return raw.ifBlank { "خطا در بارگذاری جلسات" }
     }
 
     private fun errorMessage(code: Int): String = when (code) {

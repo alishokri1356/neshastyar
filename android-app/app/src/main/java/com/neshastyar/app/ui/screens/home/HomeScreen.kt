@@ -15,8 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Mic
@@ -31,7 +29,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neshastyar.app.ui.theme.NeshastyarColors
@@ -51,7 +48,6 @@ fun HomeScreen(
             .padding(top = 8.dp, bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        HomeTopBar()
         Box(
             modifier = Modifier
                 .padding(top = 28.dp)
@@ -111,43 +107,6 @@ fun HomeScreen(
                 title = "لیست جلسات بر اساس شرکت‌کنندگان",
                 subtitle = "جلسات هر فرد",
                 onClick = onMeetingsByParticipant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun HomeTopBar() {
-    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Icon(
-            Icons.Default.Menu,
-            contentDescription = null,
-            tint = NeshastyarColors.Primary,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(26.dp),
-        )
-        Text(
-            text = "نشست یار",
-            color = NeshastyarColors.Primary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.Center),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(NeshastyarColors.Primary),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Default.Edit,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp),
             )
         }
     }

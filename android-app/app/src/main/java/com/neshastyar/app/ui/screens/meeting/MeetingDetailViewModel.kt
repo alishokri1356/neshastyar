@@ -12,9 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import com.neshastyar.app.data.api.AudioFileDto
 import com.neshastyar.app.data.api.MeetingDto
 import com.neshastyar.app.data.api.ParticipantDto
+import com.neshastyar.app.data.api.ParticipantsListResponse
 import com.neshastyar.app.data.api.TagDto
 import com.neshastyar.app.data.api.UpdateMeetingRequest
 import com.neshastyar.app.data.repository.MeetingsRepository
@@ -32,15 +32,14 @@ data class MeetingDetailUiState(
     val message: String? = null,
     val meeting: MeetingDto? = null,
     val summary: ParsedMeetingSummary = ParsedMeetingSummary(),
-    val audioFiles: List<AudioFileDto> = emptyList(),
     val tags: List<TagDto> = emptyList(),
     val allTags: List<TagDto> = emptyList(),
     val participants: List<ParticipantDto> = emptyList(),
+    val allParticipants: List<ParticipantDto> = emptyList(),
     val editTitle: String = "",
     val editSubject: String = "",
     val editSummaryText: String = "",
-    val newParticipantName: String = "",
-    val deleted: Boolean = false,
+    val editing: Boolean = false,
 )
 
 @HiltViewModel
@@ -65,44 +64,50 @@ class MeetingDetailViewModel @Inject constructor(
     fun onTitle(v: String) = _ui.update { it.copy(editTitle = v) }
     fun onSubject(v: String) = _ui.update { it.copy(editSubject = v) }
     fun onSummaryText(v: String) = _ui.update { it.copy(editSummaryText = v) }
-    fun onNewParticipant(v: String) = _ui.update { it.copy(newParticipantName = v) }
 
-    fun saveTitle() = viewModelScope.launch {
-        meetingsRepository.update(meetingId, UpdateMeetingRequest(title = _ui.value.editTitle)).fold(
-            onSuccess = { m -> _ui.update { it.copy(meeting = m, message = "عنوان ذخیره شد") } },
-            onFailure = { e -> _ui.update { it.copy(error = e.message) } },
+    fun startEditing() = _ui.update {
+        it.copy(
+            editing = true,
+            editTitle = it.meeting?.title.orEmpty(),
+            editSubject = it.summary.subject,
+            editSummaryText = it.summary.summaryText,
+            error = null,
         )
     }
 
-    fun saveSummary() = viewModelScope.launch {
-        val json = JSONObject().apply {
-            put("Subject", _ui.value.editSubject)
-            put("Summary", _ui.value.editSummaryText)
-            put("People in meetings", JSONArray(_ui.value.summary.people))
-            put("Bolet Points", JSONArray(_ui.value.summary.bulletPoints))
-            put("Tags", JSONArray(_ui.value.summary.tags))
-        }.toString()
-        meetingsRepository.update(meetingId, UpdateMeetingRequest(summary = json)).fold(
-            onSuccess = { m ->
-                _ui.update {
-                    it.copy(
-                        meeting = m,
-                        summary = MeetingSummaryParser.parse(m.summary, m.people),
-                        message = "خلاصه ذخیره شد",
-                    )
-                }
+    fun saveEditing() = viewModelScope.launch {
+        if (!_ui.value.editing) return@launch
+        val snapshot = _ui.value
+        meetingsRepository.update(meetingId, UpdateMeetingRequest(title = snapshot.editTitle)).fold(
+            onSuccess = { meeting ->
+                _ui.update { it.copy(meeting = meeting, editTitle = meeting.title.orEmpty()) }
+                saveSummaryAndFinish()
             },
             onFailure = { e -> _ui.update { it.copy(error = e.message) } },
         )
     }
 
-    fun analyze() = viewModelScope.launch {
-        meetingsRepository.analyze(meetingId).fold(
-            onSuccess = {
+    private suspend fun saveSummaryAndFinish() {
+        val snapshot = _ui.value
+        val json = JSONObject().apply {
+            put("Subject", snapshot.editSubject)
+            put("Summary", snapshot.editSummaryText)
+            put("People in meetings", JSONArray(snapshot.summary.people))
+            put("Bolet Points", JSONArray(snapshot.summary.bulletPoints))
+            put("Tags", JSONArray(snapshot.summary.tags))
+        }.toString()
+        meetingsRepository.update(meetingId, UpdateMeetingRequest(summary = json)).fold(
+            onSuccess = { meeting ->
+                val parsed = MeetingSummaryParser.parse(meeting.summary, meeting.people)
                 _ui.update {
                     it.copy(
-                        message = "درخواست پردازش ارسال شد",
-                        meeting = it.meeting?.copy(status = "ارسال درخواست پردازش"),
+                        meeting = meeting,
+                        summary = parsed,
+                        editing = false,
+                        editSubject = parsed.subject,
+                        editSummaryText = parsed.summaryText,
+                        message = "ذخیره شد",
+                        error = null,
                     )
                 }
             },
@@ -112,39 +117,101 @@ class MeetingDetailViewModel @Inject constructor(
 
     fun sendEmail() = viewModelScope.launch {
         meetingsRepository.sendMail(meetingId).fold(
-            onSuccess = { msg -> _ui.update { it.copy(message = msg) } },
+            onSuccess = { msg -> _ui.update { it.copy(message = msg, error = null) } },
             onFailure = { e -> _ui.update { it.copy(error = e.message) } },
         )
     }
+
+    /** Subject, summary, and key points, in the same plain-text shape as the web app. */
+    fun summaryClipboardText(): String? {
+        val state = _ui.value
+        val parts = buildList {
+            val subject = state.editSubject.trim()
+            if (subject.isNotEmpty()) add("موضوع:\n$subject")
+            val summary = state.editSummaryText.trim()
+            if (summary.isNotEmpty()) add("خلاصه:\n$summary")
+            if (state.summary.bulletPoints.isNotEmpty()) {
+                add("نکات کلیدی:\n" + state.summary.bulletPoints.joinToString("\n") { "• $it" })
+            }
+        }
+        return parts.joinToString("\n\n").ifBlank { null }
+    }
+
+    fun noteCopied() = _ui.update {
+        it.copy(message = "موضوع، خلاصه و نکات کلیدی کپی شد", error = null)
+    }
+
+    fun noteCopyEmpty() = _ui.update { it.copy(error = "خلاصه‌ای برای کپی وجود ندارد") }
 
     fun linkTag(tagId: String) = viewModelScope.launch {
         tagsRepository.link(meetingId, tagId).onSuccess { reloadMeta() }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
     }
 
     fun unlinkTag(tagId: String) = viewModelScope.launch {
-        tagsRepository.unlink(meetingId, tagId).onSuccess { reloadMeta() }
+        tagsRepository.unlink(meetingId, tagId)
+            .onSuccess {
+                _ui.update { it.copy(message = "برچسب از جلسه حذف شد", error = null) }
+                reloadMeta()
+            }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
     }
 
-    fun addParticipant() = viewModelScope.launch {
-        val name = _ui.value.newParticipantName.trim()
-        if (name.isEmpty()) return@launch
-        participantsRepository.addToMeeting(meetingId, null, name).onSuccess {
-            _ui.update { it.copy(newParticipantName = "") }
-            reloadMeta()
-        }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
+    fun renameTag(tagId: String, name: String) = viewModelScope.launch {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            _ui.update { it.copy(error = "نام برچسب را وارد کنید") }
+            return@launch
+        }
+        tagsRepository.rename(tagId, trimmed)
+            .onSuccess {
+                _ui.update { it.copy(message = "نام برچسب ذخیره شد", error = null) }
+                reloadMeta()
+            }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
+    }
+
+    fun linkParticipant(participantId: String) = viewModelScope.launch {
+        participantsRepository.addToMeeting(meetingId, participantId, null)
+            .onSuccess {
+                _ui.update { it.copy(message = "فرد به جلسه اضافه شد", error = null) }
+                reloadMeta()
+            }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
+    }
+
+    fun addParticipantByName(name: String) = viewModelScope.launch {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@launch
+        participantsRepository.addToMeeting(meetingId, null, trimmed)
+            .onSuccess {
+                _ui.update { it.copy(message = "فرد به جلسه اضافه شد", error = null) }
+                reloadMeta()
+            }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
+    }
+
+    fun renameParticipant(id: String, name: String) = viewModelScope.launch {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            _ui.update { it.copy(error = "نام را وارد کنید") }
+            return@launch
+        }
+        participantsRepository.rename(id, trimmed)
+            .onSuccess {
+                reloadMeta()
+                refreshMeetingContent("نام در خلاصه و متن اسکن‌شده هم اصلاح شد")
+            }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
     }
 
     fun removeParticipant(id: String) = viewModelScope.launch {
-        participantsRepository.removeFromMeeting(meetingId, id).onSuccess { reloadMeta() }
-    }
-
-    fun deleteMeeting() = viewModelScope.launch {
-        val tags = _ui.value.tags
-        tags.forEach { tagsRepository.unlink(meetingId, it.id) }
-        meetingsRepository.delete(meetingId).fold(
-            onSuccess = { _ui.update { it.copy(deleted = true) } },
-            onFailure = { e -> _ui.update { it.copy(error = e.message) } },
-        )
+        participantsRepository.removeFromMeeting(meetingId, id)
+            .onSuccess {
+                _ui.update { it.copy(message = "فرد از جلسه حذف شد", error = null) }
+                reloadMeta()
+            }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
     }
 
     private fun startPolling() {
@@ -162,20 +229,18 @@ class MeetingDetailViewModel @Inject constructor(
             if (initial) _ui.update { it.copy(loading = true, error = null) }
             when (val result = meetingsRepository.getById(meetingId)) {
                 is MeetingsResult.Ok -> {
-                    val audio = meetingsRepository.getAudioFiles(meetingId)
                     val parsed = MeetingSummaryParser.parse(
                         summary = result.data.summary,
                         peopleField = result.data.people,
                     )
-                    _ui.update {
-                        it.copy(
+                    _ui.update { current ->
+                        current.copy(
                             loading = false,
                             meeting = result.data,
                             summary = parsed,
-                            audioFiles = audio,
-                            editTitle = result.data.title.orEmpty(),
-                            editSubject = parsed.subject,
-                            editSummaryText = parsed.summaryText,
+                            editTitle = if (current.editing) current.editTitle else result.data.title.orEmpty(),
+                            editSubject = if (current.editing) current.editSubject else parsed.subject,
+                            editSummaryText = if (current.editing) current.editSummaryText else parsed.summaryText,
                         )
                     }
                     reloadMeta()
@@ -187,10 +252,34 @@ class MeetingDetailViewModel @Inject constructor(
         }
     }
 
+    private suspend fun refreshMeetingContent(message: String) {
+        when (val result = meetingsRepository.getById(meetingId)) {
+            is MeetingsResult.Ok -> {
+                val parsed = MeetingSummaryParser.parse(
+                    summary = result.data.summary,
+                    peopleField = result.data.people,
+                )
+                _ui.update { current ->
+                    current.copy(
+                        meeting = result.data,
+                        summary = parsed,
+                        editTitle = if (current.editing) current.editTitle else result.data.title.orEmpty(),
+                        editSubject = if (current.editing) current.editSubject else parsed.subject,
+                        editSummaryText = if (current.editing) current.editSummaryText else parsed.summaryText,
+                        message = message,
+                        error = null,
+                    )
+                }
+            }
+            is MeetingsResult.Err -> _ui.update { it.copy(error = result.message) }
+        }
+    }
+
     private suspend fun reloadMeta() {
         val tags = tagsRepository.tagsForMeeting(meetingId).getOrElse { emptyList() }
         val allTags = tagsRepository.list().getOrElse { emptyList() }
         val people = participantsRepository.forMeeting(meetingId).getOrElse { emptyList() }
-        _ui.update { it.copy(tags = tags, allTags = allTags, participants = people) }
+        val allPeople = participantsRepository.list().getOrElse { ParticipantsListResponse() }.participants
+        _ui.update { it.copy(tags = tags, allTags = allTags, participants = people, allParticipants = allPeople) }
     }
 }

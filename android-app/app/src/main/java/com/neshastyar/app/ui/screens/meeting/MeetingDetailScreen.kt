@@ -1,76 +1,71 @@
 package com.neshastyar.app.ui.screens.meeting
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.PlaylistAddCheck
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.neshastyar.app.ui.components.NeshastyarCard
-import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.components.StatusChip
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
-import com.neshastyar.app.util.MeetingSummaryParser
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MeetingDetailScreen(
     onBack: () -> Unit,
-    onDeleted: () -> Unit,
-    onOptions: (String) -> Unit,
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
-    var menu by remember { mutableStateOf(false) }
-    LaunchedEffect(state.deleted) { if (state.deleted) onDeleted() }
+    val clipboard = LocalClipboardManager.current
+    val copySummary = {
+        val text = viewModel.summaryClipboardText()
+        if (text == null) {
+            viewModel.noteCopyEmpty()
+        } else {
+            clipboard.setText(AnnotatedString(text))
+            viewModel.noteCopied()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -82,32 +77,18 @@ fun MeetingDetailScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = NeshastyarColors.TextPrimary)
             }
-            Text(
-                "نشست یار",
-                color = NeshastyarColors.PrimaryBright,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-            Box {
-                IconButton(onClick = { menu = true }) {
-                    Icon(Icons.Default.MoreVert, null, tint = NeshastyarColors.TextPrimary)
-                }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("گزینه‌ها / صوت") },
-                        onClick = {
-                            menu = false
-                            state.meeting?.id?.let(onOptions)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("حذف جلسه") },
-                        onClick = {
-                            menu = false
-                            viewModel.deleteMeeting()
-                        },
-                    )
-                }
+            Spacer(Modifier.weight(1f))
+            IconButton(
+                onClick = {
+                    if (state.editing) viewModel.saveEditing() else viewModel.startEditing()
+                },
+                enabled = state.meeting != null,
+            ) {
+                Icon(
+                    imageVector = if (state.editing) Icons.Default.Save else Icons.Default.Edit,
+                    contentDescription = if (state.editing) "ذخیره" else "ویرایش",
+                    tint = NeshastyarColors.Primary,
+                )
             }
         }
 
@@ -126,19 +107,27 @@ fun MeetingDetailScreen(
             state.meeting != null -> {
                 val meeting = state.meeting!!
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
                         Text("جزئیات جلسه ضبط شده", color = NeshastyarColors.TextMuted, fontSize = 13.sp)
-                        Text(
-                            text = meeting.title?.ifBlank { null } ?: "جلسه",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeshastyarColors.TextPrimary,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
+                        Spacer(Modifier.height(4.dp))
+                        if (state.editing) {
+                            NeshastyarTextField(
+                                value = state.editTitle,
+                                onValueChange = viewModel::onTitle,
+                                label = "عنوان جلسه",
+                            )
+                        } else {
+                            Text(
+                                text = meeting.title?.ifBlank { null } ?: "جلسه",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeshastyarColors.TextPrimary,
+                            )
+                        }
                         Row(
                             modifier = Modifier.padding(top = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -155,195 +144,37 @@ fun MeetingDetailScreen(
 
                     item {
                         NeshastyarCard {
-                            NeshastyarTextField(
-                                value = state.editTitle,
-                                onValueChange = viewModel::onTitle,
-                                label = "عنوان جلسه",
-                                trailingIcon = {
-                                    IconButton(onClick = viewModel::saveTitle) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "ذخیره عنوان",
-                                            tint = NeshastyarColors.PrimaryBright,
-                                        )
-                                    }
-                                },
-                            )
-                        }
-                    }
-
-                    item {
-                        NeshastyarCard {
                             SectionHeader(
                                 title = "خلاصه اجرایی هوش مصنوعی",
                                 icon = Icons.Default.AutoAwesome,
                                 iconTint = NeshastyarColors.Secondary,
                             )
                             Spacer(Modifier.height(10.dp))
-                            NeshastyarTextField(
-                                value = state.editSubject,
-                                onValueChange = viewModel::onSubject,
+                            DetailTextPart(
                                 label = "موضوع",
+                                value = state.summary.subject,
+                                draft = state.editSubject,
+                                editing = state.editing,
+                                onValueChange = viewModel::onSubject,
                             )
-                            Spacer(Modifier.height(8.dp))
-                            NeshastyarTextField(
-                                value = state.editSummaryText,
-                                onValueChange = viewModel::onSummaryText,
+                            Spacer(Modifier.height(12.dp))
+                            DetailTextPart(
                                 label = "خلاصه",
+                                value = state.summary.summaryText,
+                                draft = state.editSummaryText,
+                                editing = state.editing,
+                                onValueChange = viewModel::onSummaryText,
                                 singleLine = false,
                                 minLines = 4,
                             )
-                            Spacer(Modifier.height(8.dp))
-                            NeshastyarPrimaryButton(text = "ذخیره خلاصه", onClick = viewModel::saveSummary)
-
-                            if (state.tags.isNotEmpty()) {
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(top = 12.dp),
-                                ) {
-                                    state.tags.forEach { tag ->
-                                        FilterChip(
-                                            selected = true,
-                                            onClick = { viewModel.unlinkTag(tag.id) },
-                                            label = { Text(tag.name ?: tag.id) },
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = NeshastyarColors.PrimaryContainer,
-                                                selectedLabelColor = NeshastyarColors.PrimaryBright,
-                                            ),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (state.summary.bulletPoints.isNotEmpty()) {
-                        item {
-                            NeshastyarCard {
-                                SectionHeader(
-                                    title = "نکات / نقاط تصمیم‌گیری",
-                                    icon = Icons.Default.CheckCircle,
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                state.summary.bulletPoints.forEach { point ->
-                                    Text("• $point", color = NeshastyarColors.TextPrimary, modifier = Modifier.padding(vertical = 3.dp))
-                                }
-                            }
-                        }
-                    }
-
-                    if (state.summary.people.isNotEmpty() || state.participants.isNotEmpty()) {
-                        item {
-                            val approvedNames = state.participants.map {
-                                MeetingSummaryParser.normalizePersonName(it.name).ifBlank { it.name ?: it.id }
-                            }
-                            val suggestions = state.summary.people
-                                .map { MeetingSummaryParser.normalizePersonName(it) }
-                                .filter { it.isNotEmpty() }
-                                .distinct()
-                                .filter { name -> approvedNames.none { it == name } }
-                            NeshastyarCard {
-                                SectionHeader(
-                                    title = "حاضرین در جلسه",
-                                    subtitle = "${approvedNames.size + suggestions.size} نفر",
-                                    icon = Icons.Default.People,
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                state.participants.forEachIndexed { index, p ->
-                                    val displayName = approvedNames.getOrElse(index) { p.name ?: p.id }
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .clip(CircleShape)
-                                                .then(
-                                                    Modifier.background(NeshastyarColors.PrimaryContainer),
-                                                ),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Text(
-                                                text = displayName.take(1).ifBlank { "?" },
-                                                color = NeshastyarColors.PrimaryBright,
-                                                fontWeight = FontWeight.Bold,
-                                            )
-                                        }
-                                        Text(
-                                            displayName,
-                                            color = NeshastyarColors.TextPrimary,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(horizontal = 10.dp),
-                                        )
-                                        TextButton(onClick = { viewModel.removeParticipant(p.id) }) {
-                                            Text("حذف", color = NeshastyarColors.Error)
-                                        }
-                                    }
-                                }
-                                suggestions.forEach { name ->
-                                    Text("• $name", color = NeshastyarColors.TextSecondary, modifier = Modifier.padding(vertical = 2.dp))
-                                }
-                                Spacer(Modifier.height(8.dp))
-                                NeshastyarTextField(
-                                    value = state.newParticipantName,
-                                    onValueChange = viewModel::onNewParticipant,
-                                    label = "نام فرد جدید",
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                NeshastyarSecondaryButton(text = "افزودن فرد", onClick = viewModel::addParticipant)
-                            }
-                        }
-                    }
-
-                    item {
-                        NeshastyarCard {
-                            SectionHeader(title = "برچسب‌ها", icon = Icons.Default.PlaylistAddCheck)
-                            Spacer(Modifier.height(8.dp))
-                            Text("افزودن برچسب:", color = NeshastyarColors.TextMuted, fontSize = 12.sp)
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(top = 6.dp),
-                            ) {
-                                state.allTags.filter { t -> state.tags.none { it.id == t.id } }.take(12).forEach { tag ->
-                                    FilterChip(
-                                        selected = false,
-                                        onClick = { viewModel.linkTag(tag.id) },
-                                        label = { Text(tag.name ?: tag.id) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            containerColor = NeshastyarColors.SurfaceElevated,
-                                            labelColor = NeshastyarColors.TextSecondary,
-                                        ),
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (state.audioFiles.isNotEmpty()) {
-                        item {
-                            NeshastyarCard {
-                                SectionHeader(title = "فایل‌های صوتی")
-                                Spacer(Modifier.height(8.dp))
-                                state.audioFiles.forEach {
-                                    Text(
-                                        "• ${it.file_name ?: it.file_path ?: it.id.orEmpty()}",
-                                        color = NeshastyarColors.TextSecondary,
-                                        modifier = Modifier.padding(vertical = 2.dp),
-                                    )
-                                }
-                            }
                         }
                     }
 
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NeshastyarPrimaryButton(
-                                text = "پردازش",
-                                onClick = viewModel::analyze,
+                            NeshastyarSecondaryButton(
+                                text = "کپی",
+                                onClick = copySummary,
                                 modifier = Modifier.weight(1f),
                             )
                             NeshastyarSecondaryButton(
@@ -358,10 +189,104 @@ fun MeetingDetailScreen(
                         if (state.error != null) {
                             Text(state.error!!, color = NeshastyarColors.Error, modifier = Modifier.padding(top = 8.dp))
                         }
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DetailTextPart(
+    label: String,
+    value: String,
+    draft: String,
+    editing: Boolean,
+    onValueChange: (String) -> Unit,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+) {
+    if (editing) {
+        NeshastyarTextField(
+            value = draft,
+            onValueChange = onValueChange,
+            label = label,
+            singleLine = singleLine,
+            minLines = minLines,
+        )
+    } else {
+        Text(
+            text = label,
+            color = NeshastyarColors.TextSecondary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+        )
+        Text(
+            text = value.ifBlank { "—" },
+            color = if (value.isBlank()) NeshastyarColors.TextMuted else NeshastyarColors.TextPrimary,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+fun MeetingDetailBottomBar(
+    onParticipants: () -> Unit,
+    onTags: () -> Unit,
+    onBulletPoints: () -> Unit,
+    onMenu: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .navigationBarsPadding(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(NeshastyarColors.Outline.copy(alpha = 0.35f)),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MeetingDetailBarAction(Icons.Default.People, "حاضرین", onParticipants)
+            MeetingDetailBarAction(Icons.Default.Label, "برچسب‌ها", onTags)
+            MeetingDetailBarAction(Icons.AutoMirrored.Filled.FormatListBulleted, "نکات", onBulletPoints)
+            MeetingDetailBarAction(Icons.Default.Menu, "گزینه‌ها", onMenu)
+        }
+    }
+}
+
+@Composable
+private fun RowScope.MeetingDetailBarAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = NeshastyarColors.Primary,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = label,
+            color = NeshastyarColors.TextSecondary,
+            fontSize = 11.sp,
+            lineHeight = 13.sp,
+        )
     }
 }

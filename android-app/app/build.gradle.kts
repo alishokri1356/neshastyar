@@ -107,6 +107,8 @@ dependencies {
     implementation(libs.retrofit.moshi)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.okhttp)
     implementation(libs.moshi)
     ksp(libs.moshi.codegen)
 

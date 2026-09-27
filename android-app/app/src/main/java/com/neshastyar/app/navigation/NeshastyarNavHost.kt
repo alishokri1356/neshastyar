@@ -3,19 +3,20 @@ package com.neshastyar.app.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import com.neshastyar.app.ui.components.LocalGoHome
+import com.neshastyar.app.ui.components.NeshastyarTopBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.neshastyar.app.ui.components.BottomTab
 import com.neshastyar.app.ui.components.NeshastyarBottomBar
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.ui.screens.account.AccountScreen
@@ -25,8 +26,15 @@ import com.neshastyar.app.ui.screens.auth.SignUpScreen
 import com.neshastyar.app.ui.screens.home.HomeScreen
 import com.neshastyar.app.ui.screens.home.MeetingsByDateScreen
 import com.neshastyar.app.ui.screens.search.SearchScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingAddParticipantsScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingAddTagsScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingBulletPointsScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingConversationScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingDetailBottomBar
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingOptionsScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingParticipantsScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingTagsScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantDetailScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantsListScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantsManageScreen
@@ -64,23 +72,61 @@ fun NeshastyarNavHost(
             launchSingleTop = true
         }
     }
-    fun tabNavigate(tab: BottomTab) {
-        navController.navigate(tab.route) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+    fun openSearch() {
+        navController.navigate(Routes.Search.route) {
             launchSingleTop = true
-            restoreState = true
         }
     }
 
+    val meetingSectionRoutes = setOf(
+        Routes.MeetingDetail.route,
+        Routes.MeetingParticipants.route,
+        Routes.MeetingAddParticipants.route,
+        Routes.MeetingTags.route,
+        Routes.MeetingAddTags.route,
+        Routes.MeetingBulletPoints.route,
+        Routes.MeetingOptions.route,
+        Routes.MeetingConversation.route,
+    )
+    val meetingId = backStack?.arguments?.getString("meetingId")
+    val showMeetingBar = route in meetingSectionRoutes && !meetingId.isNullOrBlank()
+    fun openMeetingSection(destination: String) {
+        val id = meetingId ?: return
+        navController.navigate(destination) {
+            popUpTo(Routes.MeetingDetail.create(id)) { inclusive = false }
+            launchSingleTop = true
+        }
+    }
+
+    val showChrome = route != null && route !in setOf(
+        Routes.Splash.route,
+        Routes.Login.route,
+        Routes.SignUp.route,
+        Routes.ForgotPassword.route,
+    )
     val showBottomBar = route in setOf(
-        Routes.Home.route, Routes.Search.route, Routes.Account.route,
+        Routes.Home.route, Routes.Search.route,
     )
 
+    CompositionLocalProvider(LocalGoHome provides { goHomeClear() }) {
     Scaffold(
         containerColor = NeshastyarColors.Background,
+        topBar = {
+            if (showChrome) {
+                NeshastyarTopBar(onSearch = ::openSearch)
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
-                NeshastyarBottomBar(currentRoute = route, onTab = ::tabNavigate)
+                NeshastyarBottomBar(onSettings = { navController.navigate(Routes.Account.route) })
+            } else if (showMeetingBar) {
+                val id = meetingId.orEmpty()
+                MeetingDetailBottomBar(
+                    onParticipants = { openMeetingSection(Routes.MeetingParticipants.create(id)) },
+                    onTags = { openMeetingSection(Routes.MeetingTags.create(id)) },
+                    onBulletPoints = { openMeetingSection(Routes.MeetingBulletPoints.create(id)) },
+                    onMenu = { openMeetingSection(Routes.MeetingOptions.create(id)) },
+                )
             }
         },
     ) { padding ->
@@ -170,7 +216,10 @@ fun NeshastyarNavHost(
                 ParticipantsManageScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.Account.route) {
-                AccountScreen(onLoggedOut = { goLoginClear() })
+                AccountScreen(
+                    onBack = { navController.popBackStack() },
+                    onLoggedOut = { goLoginClear() },
+                )
             }
             composable(Routes.Record.route) {
                 RecordScreen(
@@ -200,19 +249,68 @@ fun NeshastyarNavHost(
             ) {
                 MeetingDetailScreen(
                     onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                Routes.MeetingParticipants.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
+            ) { entry ->
+                val meetingId = entry.arguments?.getString("meetingId").orEmpty()
+                MeetingParticipantsScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddParticipants = { navController.navigate(Routes.MeetingAddParticipants.create(meetingId)) },
+                )
+            }
+            composable(
+                Routes.MeetingAddParticipants.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
+            ) {
+                MeetingAddParticipantsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                Routes.MeetingTags.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
+            ) { entry ->
+                val meetingId = entry.arguments?.getString("meetingId").orEmpty()
+                MeetingTagsScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddTags = { navController.navigate(Routes.MeetingAddTags.create(meetingId)) },
+                )
+            }
+            composable(
+                Routes.MeetingAddTags.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
+            ) {
+                MeetingAddTagsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                Routes.MeetingBulletPoints.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
+            ) {
+                MeetingBulletPointsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                Routes.MeetingOptions.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
+            ) { entry ->
+                val meetingId = entry.arguments?.getString("meetingId").orEmpty()
+                MeetingOptionsScreen(
+                    onBack = { navController.popBackStack() },
+                    onShowConversation = {
+                        navController.navigate(Routes.MeetingConversation.create(meetingId))
+                    },
                     onDeleted = {
                         navController.navigate(Routes.Home.route) {
                             popUpTo(Routes.Home.route) { inclusive = true }
                         }
                     },
-                    onOptions = { id -> navController.navigate(Routes.MeetingOptions.create(id)) },
                 )
             }
             composable(
-                Routes.MeetingOptions.route,
+                Routes.MeetingConversation.route,
                 arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
             ) {
-                MeetingOptionsScreen(onBack = { navController.popBackStack() })
+                MeetingConversationScreen(onBack = { navController.popBackStack() })
             }
         }
     }
@@ -222,5 +320,6 @@ fun NeshastyarNavHost(
             update = update,
             onDismiss = updateViewModel::dismiss,
         )
+    }
     }
 }

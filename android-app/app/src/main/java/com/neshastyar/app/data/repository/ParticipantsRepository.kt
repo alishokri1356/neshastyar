@@ -40,10 +40,9 @@ class ParticipantsRepository @Inject constructor(
         r.body() ?: error("پاسخ خالی")
     }
 
-    suspend fun rename(id: String, name: String): Result<ParticipantDto> = runCatching {
+    suspend fun rename(id: String, name: String): Result<Unit> = runCatching {
         val r = api.updateParticipant(id, UpdateParticipantRequest(name = name.trim()))
         if (!r.isSuccessful) error("تغییر نام ناموفق")
-        r.body() ?: error("پاسخ خالی")
     }
 
     suspend fun delete(id: String): Result<Unit> = runCatching {

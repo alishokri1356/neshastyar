@@ -56,6 +56,7 @@ interface NeshastyarApi {
         @Query("limit") limit: Int? = null,
         @Query("orderBy") orderBy: String? = null,
         @Query("orderDirection") orderDirection: String? = null,
+        @Query("compact") compact: String? = null,
     ): Response<List<MeetingDto>>
 
     @GET("meetings/untagged")
@@ -170,7 +171,10 @@ interface NeshastyarApi {
     suspend fun getParticipantMeetings(@Path("id") id: String): Response<ParticipantMeetingsResponse>
 
     @PUT("participants/{id}")
-    suspend fun updateParticipant(@Path("id") id: String, @Body body: UpdateParticipantRequest): Response<ParticipantDto>
+    suspend fun updateParticipant(
+        @Path("id") id: String,
+        @Body body: UpdateParticipantRequest,
+    ): Response<RenameParticipantResponse>
 
     @POST("participants/merge")
     suspend fun mergeParticipants(@Body body: MergeParticipantsRequest): Response<Map<String, Any?>>

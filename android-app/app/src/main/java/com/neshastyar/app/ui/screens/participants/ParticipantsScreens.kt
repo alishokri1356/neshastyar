@@ -364,9 +364,12 @@ class ParticipantsManageViewModel @Inject constructor(private val repo: Particip
 fun ParticipantsManageScreen(onBack: () -> Unit, vm: ParticipantsManageViewModel = hiltViewModel()) {
     val state by vm.ui.collectAsStateWithLifecycle()
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مدیریت افراد") }, navigationIcon = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-        })
+        TopAppBar(
+            title = { Text("مدیریت افراد") },
+            navigationIcon = {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
+            },
+        )
     }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             LazyColumn(modifier = Modifier.weight(1f)) {

@@ -154,6 +154,11 @@ data class UpdateParticipantRequest(
     val newName: String? = null,
 )
 
+data class RenameParticipantResponse(
+    val updatedMeetings: Int? = null,
+    val participant: ParticipantDto? = null,
+)
+
 data class MergeParticipantsRequest(
     val sourceIds: List<String>? = null,
     val sourceNames: List<String>? = null,

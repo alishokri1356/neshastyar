@@ -22,6 +22,36 @@ function toMySQLDateTime(date) {
 }
 
 const updateMeetingParticipantFields = async (userId, oldName, newName, mode, sourceNamesSet) => {
+  if (mode === 'rename') {
+    const meetings = await db.query(
+      'SELECT id, summary, people, transcription FROM meetings WHERE user_id = ?',
+      [userId]
+    );
+
+    let updatedCount = 0;
+
+    for (const meeting of meetings) {
+      const {
+        changed,
+        updatedSummary,
+        updatedPeople,
+        updatedTranscription,
+      } = renameParticipantInMeetingRecord(meeting, oldName, newName);
+
+      if (!changed) {
+        continue;
+      }
+
+      await db.query(
+        'UPDATE meetings SET people = ?, summary = ?, transcription = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+        [updatedPeople, updatedSummary, updatedTranscription, meeting.id, userId]
+      );
+      updatedCount += 1;
+    }
+
+    return updatedCount;
+  }
+
   const meetings = await db.query(
     'SELECT id, summary, people FROM meetings WHERE user_id = ?',
     [userId]
@@ -145,7 +175,12 @@ const updateMeetingParticipantFields = async (userId, oldName, newName, mode, so
 
 class MeetingService {
   async getMeetings(userId, options = {}) {
-    let sql = 'SELECT * FROM meetings WHERE user_id = ?';
+    // List screens only need titles and dates. Transcription and HTML are LONGTEXT
+    // and can close the connection when many meetings are returned together.
+    const columns = options.compact
+      ? 'id, user_id, title, meeting_date, status, created_at, updated_at, lastTimeEmailSent'
+      : '*';
+    let sql = `SELECT ${columns} FROM meetings WHERE user_id = ?`;
     const params = [userId];
 
     if (options.status) {

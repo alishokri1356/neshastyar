@@ -14,13 +14,14 @@ class MeetingController {
         });
       }
 
-      const { status, limit, orderBy, orderDirection } = req.query;
+      const { status, limit, orderBy, orderDirection, compact } = req.query;
 
       const options = {};
       if (status) options.status = status;
       if (limit) options.limit = parseInt(limit);
       if (orderBy) options.orderBy = orderBy;
       if (orderDirection) options.orderDirection = orderDirection;
+      if (compact === '1' || compact === 'true') options.compact = true;
 
       const meetings = await meetingService.getMeetings(userId, options);
 

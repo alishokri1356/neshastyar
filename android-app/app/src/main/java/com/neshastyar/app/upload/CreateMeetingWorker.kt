@@ -21,6 +21,7 @@ class CreateMeetingWorker @AssistedInject constructor(
             workDataOf(KEY_ERROR to "شناسه پیش‌نویس نامعتبر"),
         )
         val tagIds = inputData.getStringArray(KEY_TAG_IDS)?.toList().orEmpty()
+        val participantIds = inputData.getStringArray(KEY_PARTICIPANT_IDS)?.toList().orEmpty()
 
         setProgress(
             workDataOf(
@@ -29,7 +30,7 @@ class CreateMeetingWorker @AssistedInject constructor(
             ),
         )
 
-        return uploadMeetingRepository.uploadDraft(draftId, tagIds) { progress ->
+        return uploadMeetingRepository.uploadDraft(draftId, tagIds, participantIds) { progress ->
             setProgress(
                 workDataOf(
                     KEY_PROGRESS to progress.percent,
@@ -59,6 +60,7 @@ class CreateMeetingWorker @AssistedInject constructor(
         const val UNIQUE_PREFIX = "create_meeting_"
         const val KEY_DRAFT_ID = "draft_id"
         const val KEY_TAG_IDS = "tag_ids"
+        const val KEY_PARTICIPANT_IDS = "participant_ids"
         const val KEY_MEETING_ID = "meeting_id"
         const val KEY_ERROR = "error"
         const val KEY_PROGRESS = "progress"

@@ -372,9 +372,12 @@ data class TagManageState(val loading: Boolean = true, val tags: List<TagDto> = 
 fun TagManageScreen(onBack: () -> Unit, vm: TagManageViewModel = hiltViewModel()) {
     val state by vm.ui.collectAsStateWithLifecycle()
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مدیریت برچسب‌ها") }, navigationIcon = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-        })
+        TopAppBar(
+            title = { Text("مدیریت برچسب‌ها") },
+            navigationIcon = {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
+            },
+        )
     }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             Text("بدون برچسب: ")
