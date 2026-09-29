@@ -17,6 +17,9 @@ type LatestApk = {
 const Landing = () => {
   const navigate = useNavigate();
   const [latestApk, setLatestApk] = useState<LatestApk | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [homeScreenAdded, setHomeScreenAdded] = useState(false);
+  const [homeScreenHint, setHomeScreenHint] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +45,53 @@ const Landing = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (isHomeScreenApp()) setHomeScreenAdded(true);
+
+    const onPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setHomeScreenAdded(true);
+      setInstallPrompt(null);
+      setHomeScreenHint(null);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  async function addWebAppToHomeScreen() {
+    if (homeScreenAdded) return;
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      setInstallPrompt(null);
+      if (choice.outcome === "accepted") setHomeScreenAdded(true);
+      return;
+    }
+    if (isIos() && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "نشست یار", url: `${window.location.origin}/` });
+        setHomeScreenHint("در برگه اشتراک‌گذاری، «افزودن به صفحه اصلی» را انتخاب کنید.");
+      } catch (error) {
+        if (!(error instanceof DOMException) || error.name !== "AbortError") {
+          setHomeScreenHint("در Safari دکمه اشتراک‌گذاری را بزنید و «افزودن به صفحه اصلی» را انتخاب کنید.");
+        }
+      }
+      return;
+    }
+    setHomeScreenHint(
+      isIos()
+        ? "در Safari دکمه اشتراک‌گذاری را بزنید و «افزودن به صفحه اصلی» را انتخاب کنید."
+        : "از منوی مرورگر، نصب برنامه یا افزودن به صفحه اصلی را انتخاب کنید.",
+    );
+  }
 
   const apkDownloadHref = latestApk?.downloadUrl || `${API_BASE_URL}/android/latest/download`;
 
@@ -125,14 +175,18 @@ const Landing = () => {
                 <AndroidMark />
                 <span className="text-sm font-semibold sm:text-base">اپلیکیشن اندروید</span>
               </a>
-              <div
-                className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-800/70 px-4 py-7 text-zinc-300"
-                aria-disabled="true"
+              <button
+                type="button"
+                onClick={addWebAppToHomeScreen}
+                className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-800/70 px-4 py-7 text-zinc-100 transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+                aria-label="افزودن نشست یار به صفحه اصلی"
               >
                 <AppleMark />
                 <span className="text-sm font-semibold sm:text-base">اپلیکیشن iOS</span>
-                <span className="text-xs text-zinc-500">به‌زودی</span>
-              </div>
+                <span className="text-xs leading-5 text-zinc-300">
+                  {homeScreenAdded ? "به صفحه اصلی اضافه شد" : "افزودن به صفحه اصلی"}
+                </span>
+              </button>
             </div>
 
             <div className="mt-4 flex items-center gap-4 rounded-2xl bg-black/35 p-4 sm:gap-6 sm:p-5">
@@ -153,6 +207,9 @@ const Landing = () => {
             <p className="mt-3 text-center text-xs text-zinc-400">
               {`دانلود مستقیم برای اندروید • نسخه ${ANDROID_VERSION}`}
             </p>
+            {homeScreenHint ? (
+              <p className="mt-2 text-center text-xs leading-6 text-zinc-300">{homeScreenHint}</p>
+            ) : null}
           </div>
         </div>
       </section>
@@ -237,6 +294,23 @@ const Landing = () => {
 };
 
 export default Landing;
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
+function isIos() {
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isHomeScreenApp() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
 
 function AndroidMark() {
   return (
