@@ -3,7 +3,10 @@ package com.neshastyar.app.data.repository
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlin.math.roundToInt
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import com.neshastyar.app.data.api.CreateAudioFileRequest
 import com.neshastyar.app.data.api.CreateMeetingRequest
@@ -21,7 +24,6 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
-import kotlinx.coroutines.runBlocking
 import javax.inject.Singleton
 import retrofit2.Response
 
@@ -29,6 +31,7 @@ import retrofit2.Response
 class UploadMeetingRepository @Inject constructor(
     private val api: NeshastyarApi,
     private val draftDao: DraftDao,
+    private val draftRepository: DraftRepository,
     @ApplicationContext private val context: Context,
 ) {
     data class UploadedFile(
@@ -52,7 +55,8 @@ class UploadMeetingRepository @Inject constructor(
         onProgress: suspend (UploadProgress) -> Unit = {},
     ): Result<String> = runCatching {
         val draft = draftDao.getDraft(draftId) ?: error("پیش‌نویس پیدا نشد")
-        val files = draftDao.listFiles(draftId)
+        draftRepository.pruneDraftFiles(draftId)
+        val files = draftDao.listFiles(draftId).map { draftRepository.healStoredPath(it) }
         if (files.isEmpty()) error("فایلی برای آپلود نیست")
 
         val fileCount = files.size
@@ -143,13 +147,13 @@ class UploadMeetingRepository @Inject constructor(
         index: Int,
         fileCount: Int,
         onProgress: suspend (UploadProgress) -> Unit,
-    ): UploadedFile {
+    ): UploadedFile = coroutineScope {
         val savedPath = file.remoteRelativePath?.replace('\\', '/')
         if ((file.uploadState == STATE_UPLOADED || file.uploadState == STATE_LINKED) && !savedPath.isNullOrBlank()) {
             val donePercent = (((index + 1).toDouble() / fileCount.toDouble()) * 80.0).roundToInt()
             emit(onProgress, donePercent, "فایل ${index + 1} از قبل آپلود شده", index + 1, fileCount)
             val local = File(file.localPath)
-            return UploadedFile(
+            return@coroutineScope UploadedFile(
                 local = file,
                 relativePath = savedPath,
                 size = if (local.exists()) local.length() else 0L,
@@ -157,8 +161,8 @@ class UploadMeetingRepository @Inject constructor(
             )
         }
 
-        val local = File(file.localPath)
-        if (!local.exists()) error("فایل محلی موجود نیست: ${file.displayName}")
+        val local = draftRepository.resolveFile(file)
+            ?: error("فایل روی گوشی پیدا نشد: ${file.displayName}. آن را حذف کنید و دوباره ضبط کنید")
         val total = local.length()
         if (total <= 0L) error("فایل خالی است: ${file.displayName}")
 
@@ -176,59 +180,73 @@ class UploadMeetingRepository @Inject constructor(
         }
 
         if (session.complete == true && !session.relativePath.isNullOrBlank()) {
-            return rememberUploaded(file, session.relativePath, session.size ?: total, session.format, index, fileCount, onProgress)
+            return@coroutineScope rememberUploaded(file, session.relativePath, session.size ?: total, session.format, index, fileCount, onProgress)
         }
 
         var offset = session.bytesReceived ?: 0L
         val mediaType = "application/octet-stream".toMediaTypeOrNull()
-        val lastEmitMs = AtomicLong(0L)
+
         while (offset < total) {
             val length = minOf(CHUNK_BYTES, total - offset)
             val startOffset = offset
-            val response = retrying {
-                val body = FileSliceRequestBody(local, startOffset, length, mediaType) { written ->
-                    val now = System.currentTimeMillis()
-                    val done = written >= length
-                    if (!done && now - lastEmitMs.get() < 150L) return@FileSliceRequestBody
-                    lastEmitMs.set(now)
+            val currentWritten = AtomicLong(0L)
+
+            val progressJob = launch {
+                var lastPercent = -1
+                while (isActive) {
+                    val written = currentWritten.get()
                     val fileFraction = (startOffset + written).toDouble() / total.toDouble()
-                    val overall = ((index + fileFraction) / fileCount.toDouble()) * 80.0
-                    val message = if (startOffset > 0L) {
-                        "ادامه آپلود فایل ${index + 1} از $fileCount"
-                    } else {
-                        "آپلود فایل ${index + 1} از $fileCount"
+                    val overall = (((index + fileFraction) / fileCount.toDouble()) * 80.0).roundToInt().coerceIn(0, 80)
+                    if (overall != lastPercent) {
+                        lastPercent = overall
+                        val message = if (startOffset > 0L) {
+                            "ادامه آپلود فایل ${index + 1} از $fileCount"
+                        } else {
+                            "آپلود فایل ${index + 1} از $fileCount"
+                        }
+                        emit(onProgress, overall, message, index + 1, fileCount)
                     }
-                    runBlocking {
-                        emit(
-                            onProgress,
-                            overall.roundToInt().coerceIn(0, 80),
-                            message,
-                            index + 1,
-                            fileCount,
-                        )
-                    }
+                    delay(400L)
                 }
-                val chunkResponse = api.appendUploadChunk(file.id, startOffset, body)
-                if (!chunkResponse.isSuccessful && chunkResponse.code() != 409) {
-                    error("آپلود ${file.displayName} ناموفق (${chunkResponse.code()})")
-                }
-                chunkResponse
             }
+
+            val response = try {
+                retrying {
+                    val body = FileSliceRequestBody(local, startOffset, length, mediaType) { written ->
+                        currentWritten.set(written)
+                    }
+                    val chunkResponse = api.appendUploadChunk(file.id, startOffset, body)
+                    if (!chunkResponse.isSuccessful && chunkResponse.code() != 409) {
+                        error("آپلود ${file.displayName} ناموفق (${chunkResponse.code()})")
+                    }
+                    chunkResponse
+                }
+            } finally {
+                progressJob.cancel()
+            }
+
             val conflictOffset = conflictBytes(response)
             if (conflictOffset != null) {
+                if (conflictOffset <= offset) {
+                    error("خطای همزمانی آپلود: offset جلو نرفت ($conflictOffset <= $offset)")
+                }
                 offset = conflictOffset
                 continue
             }
             if (!response.isSuccessful) error("آپلود ${file.displayName} ناموفق (${response.code()})")
-            offset = response.body()?.data?.bytesReceived ?: (startOffset + length)
+            val nextOffset = response.body()?.data?.bytesReceived ?: (startOffset + length)
+            if (nextOffset <= offset) {
+                error("خطای پیشرفت آپلود: offset جلو نرفت ($nextOffset <= $offset)")
+            }
+            offset = nextOffset
             val fileFraction = offset.toDouble() / total.toDouble()
-            val overall = ((index + fileFraction) / fileCount.toDouble()) * 80.0
+            val overall = (((index + fileFraction) / fileCount.toDouble()) * 80.0).roundToInt().coerceIn(0, 80)
             val message = if (startOffset > 0L) {
                 "ادامه آپلود فایل ${index + 1} از $fileCount"
             } else {
                 "آپلود فایل ${index + 1} از $fileCount"
             }
-            emit(onProgress, overall.roundToInt().coerceIn(0, 80), message, index + 1, fileCount)
+            emit(onProgress, overall, message, index + 1, fileCount)
         }
 
         val completed = retrying {
@@ -237,7 +255,7 @@ class UploadMeetingRepository @Inject constructor(
             response.body()?.data ?: error("پاسخ پایان آپلود خالی")
         }
         val relative = completed.relativePath ?: error("relativePath خالی")
-        return rememberUploaded(file, relative, completed.size ?: total, completed.format, index, fileCount, onProgress)
+        rememberUploaded(file, relative, completed.size ?: total, completed.format, index, fileCount, onProgress)
     }
 
     private suspend fun rememberUploaded(

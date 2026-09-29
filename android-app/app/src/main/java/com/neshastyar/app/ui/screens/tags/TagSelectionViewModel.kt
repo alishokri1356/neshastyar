@@ -4,28 +4,22 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.TagDto
 import com.neshastyar.app.data.repository.ParticipantsRepository
 import com.neshastyar.app.data.repository.TagsRepository
+import com.neshastyar.app.data.repository.UploadMeetingRepository
 import com.neshastyar.app.upload.CreateMeetingWorker
 
 data class TagSelectionUiState(
@@ -48,6 +42,7 @@ class TagSelectionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val tagsRepository: TagsRepository,
     private val participantsRepository: ParticipantsRepository,
+    private val uploadMeetingRepository: UploadMeetingRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     val draftId: String = checkNotNull(savedStateHandle["draftId"])
@@ -55,80 +50,9 @@ class TagSelectionViewModel @Inject constructor(
     private val _ui = MutableStateFlow(TagSelectionUiState())
     val ui: StateFlow<TagSelectionUiState> = _ui.asStateFlow()
 
-    /** Only react to WorkManager terminal states after this screen enqueues an upload. */
-    private var uploadRequested = false
-
     init {
         refresh()
-        viewModelScope.launch {
-            WorkManager.getInstance(context)
-                .getWorkInfosForUniqueWorkFlow(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
-                .collect { infos ->
-                    val info = infos.firstOrNull() ?: return@collect
-                    val progress = info.progress.getInt(CreateMeetingWorker.KEY_PROGRESS, 0)
-                    val message = info.progress.getString(CreateMeetingWorker.KEY_PROGRESS_MESSAGE).orEmpty()
-                    when (info.state) {
-                        WorkInfo.State.ENQUEUED -> {
-                            if (!uploadRequested && !_ui.value.uploading) return@collect
-                            _ui.update {
-                                it.copy(
-                                    uploading = true,
-                                    error = null,
-                                    progress = progress.coerceAtLeast(it.progress),
-                                    progressMessage = message.ifBlank { "در انتظار شبکه…" },
-                                )
-                            }
-                        }
-                        WorkInfo.State.RUNNING -> {
-                            if (!uploadRequested && !_ui.value.uploading) return@collect
-                            _ui.update {
-                                it.copy(
-                                    uploading = true,
-                                    error = null,
-                                    progress = progress.coerceAtLeast(0),
-                                    progressMessage = message.ifBlank { "در حال آپلود…" },
-                                )
-                            }
-                        }
-                        WorkInfo.State.SUCCEEDED -> {
-                            // Ignore leftover success from a previous session for this reused draft id.
-                            if (!uploadRequested) return@collect
-                            val meetingId = info.outputData.getString(CreateMeetingWorker.KEY_MEETING_ID)
-                            _ui.update {
-                                it.copy(
-                                    uploading = false,
-                                    done = true,
-                                    meetingId = meetingId,
-                                    progress = 100,
-                                    progressMessage = "آپلود کامل شد",
-                                )
-                            }
-                        }
-                        WorkInfo.State.FAILED -> {
-                            if (!uploadRequested) return@collect
-                            val err = info.outputData.getString(CreateMeetingWorker.KEY_ERROR) ?: "آپلود ناموفق"
-                            _ui.update {
-                                it.copy(
-                                    uploading = false,
-                                    error = err,
-                                    progressMessage = "",
-                                )
-                            }
-                        }
-                        WorkInfo.State.CANCELLED -> {
-                            if (!uploadRequested) return@collect
-                            _ui.update {
-                                it.copy(
-                                    uploading = false,
-                                    error = "آپلود لغو شد",
-                                    progressMessage = "",
-                                )
-                            }
-                        }
-                        else -> Unit
-                    }
-                }
-        }
+        WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
     }
 
     fun refresh() {
@@ -211,27 +135,8 @@ class TagSelectionViewModel @Inject constructor(
 
     fun upload() {
         if (_ui.value.uploading) return
-        uploadRequested = true
-        val selected = _ui.value.selected.toTypedArray()
-        val participants = _ui.value.selectedParticipants.toTypedArray()
-        val input = Data.Builder()
-            .putString(CreateMeetingWorker.KEY_DRAFT_ID, draftId)
-            .putStringArray(CreateMeetingWorker.KEY_TAG_IDS, selected as Array<String?>)
-            .putStringArray(CreateMeetingWorker.KEY_PARTICIPANT_IDS, participants as Array<String?>)
-            .build()
-        val request = OneTimeWorkRequestBuilder<CreateMeetingWorker>()
-            .setInputData(input)
-            .setConstraints(
-                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
-            )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            CreateMeetingWorker.UNIQUE_PREFIX + draftId,
-            ExistingWorkPolicy.KEEP,
-            request,
-        )
+        val tagIds = _ui.value.selected.toList()
+        val participantIds = _ui.value.selectedParticipants.toList()
         _ui.update {
             it.copy(
                 uploading = true,
@@ -239,6 +144,41 @@ class TagSelectionViewModel @Inject constructor(
                 progress = 0,
                 progressMessage = "شروع آپلود…",
                 done = false,
+            )
+        }
+        viewModelScope.launch {
+            WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
+            val result = withContext(Dispatchers.IO) {
+                uploadMeetingRepository.uploadDraft(draftId, tagIds, participantIds) { progress ->
+                    _ui.update {
+                        it.copy(
+                            progress = progress.percent.coerceIn(0, 100),
+                            progressMessage = progress.message,
+                        )
+                    }
+                }
+            }
+            result.fold(
+                onSuccess = { meetingId ->
+                    _ui.update {
+                        it.copy(
+                            uploading = false,
+                            done = true,
+                            meetingId = meetingId,
+                            progress = 100,
+                            progressMessage = "آپلود کامل شد",
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _ui.update {
+                        it.copy(
+                            uploading = false,
+                            error = error.message ?: "آپلود ناموفق",
+                            progressMessage = "",
+                        )
+                    }
+                },
             )
         }
     }

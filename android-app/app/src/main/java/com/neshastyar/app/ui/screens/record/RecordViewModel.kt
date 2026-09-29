@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.neshastyar.app.data.local.DraftAudioFileEntity
 import com.neshastyar.app.data.repository.DraftRepository
 import com.neshastyar.app.recording.LiveRecordingState
@@ -49,13 +50,13 @@ class RecordViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private var watchJob: Job? = null
     private var lastPhase: RecorderPhase = RecorderPhase.Idle
 
     init {
         viewModelScope.launch {
             val draft = draftRepository.ensureActiveDraft()
             draftIdFlow.value = draft.id
+            draftRepository.pruneDraftFiles(draft.id)
             _ui.update {
                 it.copy(
                     draftId = draft.id,
@@ -64,22 +65,20 @@ class RecordViewModel @Inject constructor(
                 )
             }
         }
-        watchJob = viewModelScope.launch {
+        viewModelScope.launch {
             recordingController.state.collect { state ->
                 val prev = lastPhase
                 lastPhase = state.phase
-                if (prev != RecorderPhase.Idle && state.phase == RecorderPhase.Idle) {
-                    val path = state.outputPath
-                    val draftId = draftIdFlow.value
-                    if (!path.isNullOrBlank() && draftId != null && state.error == null) {
-                        val sec = ((state.elapsedMs + 500) / 1000L).toInt()
-                        draftRepository.addRecordingFile(draftId, path, sec)
-                        _ui.update { it.copy(message = "ضبط ذخیره شد") }
-                    }
-                    if (state.error != null) {
-                        _ui.update { it.copy(error = state.error) }
-                    }
-                    recordingController.clearTerminalState()
+                if (prev != RecorderPhase.Idle && state.phase == RecorderPhase.Idle && state.error != null) {
+                    _ui.update { it.copy(error = state.error) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            files.collect { list ->
+                val draftId = list.firstOrNull()?.draftId ?: draftIdFlow.value ?: return@collect
+                withContext(Dispatchers.IO) {
+                    draftRepository.pruneDraftFiles(draftId)
                 }
             }
         }

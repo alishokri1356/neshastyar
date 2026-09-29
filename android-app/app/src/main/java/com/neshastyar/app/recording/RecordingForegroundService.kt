@@ -15,7 +15,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.os.SystemClock
+import android.system.Os
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,8 +33,11 @@ class RecordingForegroundService : Service() {
 
     private var recorder: MediaRecorder? = null
     private var outputFile: File? = null
+    private var outputPfd: ParcelFileDescriptor? = null
     private var recording = false
     private var paused = false
+    private var stopInProgress = false
+    private var destroyed = false
     private var segmentStartedElapsed: Long = 0L
     private var accumulatedMs: Long = 0L
 
@@ -74,19 +79,34 @@ class RecordingForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        if (destroyed) return
+        destroyed = true
         handler.removeCallbacks(tickRunnable)
+        if (recording && !stopInProgress) {
+            stopRecording(error = null)
+        }
         releaseRecorderQuietly()
+        closeOutput()
         abandonFocus()
         super.onDestroy()
     }
 
     private fun startRecording() {
         if (recording) return
+        stopInProgress = false
         ensureChannel()
         val file = File(filesDir, "recordings").apply { mkdirs() }.let { dir ->
             File(dir, "rec-${System.currentTimeMillis()}.m4a")
         }
         outputFile = file
+        file.createNewFile()
+        val pfd = ParcelFileDescriptor.open(
+            file,
+            ParcelFileDescriptor.MODE_READ_WRITE or
+                ParcelFileDescriptor.MODE_CREATE or
+                ParcelFileDescriptor.MODE_TRUNCATE,
+        )
+        outputPfd = pfd
 
         try {
             requestFocus()
@@ -101,7 +121,10 @@ class RecordingForegroundService : Service() {
             mr.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             mr.setAudioEncodingBitRate(128_000)
             mr.setAudioSamplingRate(44_100)
-            mr.setOutputFile(file.absolutePath)
+            // FileDescriptor works from Android 8 upward. A plain path string is dropped
+            // by some devices after the recorder is released, so the draft row remains
+            // and the bytes are gone.
+            mr.setOutputFile(pfd.fileDescriptor)
             mr.prepare()
             mr.start()
             recorder = mr
@@ -115,7 +138,9 @@ class RecordingForegroundService : Service() {
             handler.post(tickRunnable)
         } catch (e: Exception) {
             releaseRecorderQuietly()
+            closeOutput()
             recording = false
+            outputFile?.delete()
             controller.onStopped(null, 0L, e.message ?: "شروع ضبط ناموفق بود")
             stopSelf()
         }
@@ -153,28 +178,34 @@ class RecordingForegroundService : Service() {
     }
 
     private fun stopRecording(error: String?) {
+        if (stopInProgress) return
+        stopInProgress = true
         handler.removeCallbacks(tickRunnable)
         var duration = accumulatedMs
         if (recording && !paused) {
             duration += SystemClock.elapsedRealtime() - segmentStartedElapsed
         }
-        try {
-            recorder?.apply {
-                stop()
-                release()
+        // Some devices throw from stop() while paused and then delete the file on release.
+        if (paused) {
+            try {
+                recorder?.resume()
+            } catch (_: Exception) {
             }
-        } catch (_: Exception) {
-        } finally {
-            recorder = null
+            paused = false
         }
+        try {
+            recorder?.stop()
+        } catch (_: Exception) {
+        }
+        releaseRecorderQuietly()
+        closeOutput()
         recording = false
         paused = false
         abandonFocus()
         val path = outputFile?.absolutePath
-        // Drop tiny/failed files
         val file = outputFile
-        if (file != null && (!file.exists() || file.length() < 256L)) {
-            file.delete()
+        if (file == null || !file.exists() || file.length() < 256L) {
+            file?.delete()
             controller.onStopped(null, 0L, error ?: "فایل ضبط خالی بود")
         } else {
             controller.onStopped(path, duration.coerceAtLeast(0L), error)
@@ -311,6 +342,19 @@ class RecordingForegroundService : Service() {
         } catch (_: Exception) {
         }
         recorder = null
+    }
+
+    private fun closeOutput() {
+        val pfd = outputPfd ?: return
+        outputPfd = null
+        try {
+            Os.fsync(pfd.fileDescriptor)
+        } catch (_: Exception) {
+        }
+        try {
+            pfd.close()
+        } catch (_: Exception) {
+        }
     }
 
     private fun formatElapsed(ms: Long): String {

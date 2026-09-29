@@ -1,11 +1,8 @@
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-
-val majorVersion = 1
-val minorVersion = 1
-val buildVersion = LocalDate.now().format(DateTimeFormatter.ofPattern("MMdd"))
-val computedVersionName = "$majorVersion.$minorVersion.$buildVersion"
-val computedVersionCode = "$majorVersion$minorVersion$buildVersion".toInt()
+// Manual version. Edit android-app/versioning.txt (major.minor.build, for example 1.1.0929).
+val computedVersionName = rootProject.file("versioning.txt").readText().trim()
+val versionMatch = Regex("""^(\d+)\.(\d+)\.(\d+)$""").matchEntire(computedVersionName)
+    ?: error("android-app/versioning.txt must be major.minor.build, for example 1.1.0929")
+val computedVersionCode = versionMatch.groupValues.drop(1).joinToString("").toInt()
 
 plugins {
     alias(libs.plugins.android.application)

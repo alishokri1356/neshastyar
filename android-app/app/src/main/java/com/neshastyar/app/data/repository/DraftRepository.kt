@@ -11,6 +11,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.neshastyar.app.data.local.DraftAudioFileEntity
 import com.neshastyar.app.data.local.DraftDao
@@ -21,6 +23,7 @@ class DraftRepository @Inject constructor(
     private val draftDao: DraftDao,
     @ApplicationContext private val context: Context,
 ) {
+    private val fileLock = Mutex()
     suspend fun ensureActiveDraft(): RecordingDraftEntity {
         val existing = draftDao.latestDraft()
         if (existing != null) return existing
@@ -41,13 +44,17 @@ class DraftRepository @Inject constructor(
         draftId: String,
         localPath: String,
         durationSec: Int,
-    ): DraftAudioFileEntity {
-        val count = draftDao.fileCount(draftId)
+    ): DraftAudioFileEntity? = fileLock.withLock {
         val file = File(localPath)
+        if (!isUsableAudio(file)) return@withLock null
+        val path = file.absolutePath
+        val existing = draftDao.listFiles(draftId).firstOrNull { sameFile(it.localPath, path) }
+        if (existing != null) return@withLock existing
+        val count = draftDao.fileCount(draftId)
         val entity = DraftAudioFileEntity(
             id = UUID.randomUUID().toString(),
             draftId = draftId,
-            localPath = localPath,
+            localPath = path,
             displayName = file.name,
             durationSec = durationSec.coerceAtLeast(0),
             mimeType = "audio/mp4",
@@ -55,7 +62,30 @@ class DraftRepository @Inject constructor(
             sortOrder = count + 1,
         )
         draftDao.upsertFile(entity)
-        return entity
+        entity
+    }
+
+    /**
+     * Drop rows whose audio is gone, and extra rows that point at the same file.
+     * The list must match what is actually on the phone.
+     */
+    suspend fun pruneDraftFiles(draftId: String) = fileLock.withLock {
+        val seen = mutableSetOf<String>()
+        for (file in draftDao.listFiles(draftId)) {
+            val resolved = resolveFile(file)
+            if (resolved == null) {
+                draftDao.deleteFile(file.id)
+                continue
+            }
+            val path = resolved.absolutePath
+            if (!seen.add(path)) {
+                draftDao.deleteFile(file.id)
+                continue
+            }
+            if (file.localPath != path) {
+                draftDao.upsertFile(file.copy(localPath = path))
+            }
+        }
     }
 
     suspend fun importUri(draftId: String, uri: Uri): Result<DraftAudioFileEntity> =
@@ -94,9 +124,75 @@ class DraftRepository @Inject constructor(
             }
         }
 
-    suspend fun deleteFile(file: DraftAudioFileEntity) {
+    /**
+     * The row can outlive the original absolute path (recorder release, reinstall
+     * of a debug build, or a path that was only the file name). Look up the bytes
+     * by the stored path, then by file name under the app's own storage.
+     */
+    fun resolveFile(entity: DraftAudioFileEntity): File? {
+        val direct = File(entity.localPath)
+        if (isUsableAudio(direct)) return direct
+        if (!entity.localPath.startsWith("/")) {
+            val relative = File(context.filesDir, entity.localPath)
+            if (isUsableAudio(relative)) return relative
+        }
+        val names = listOf(entity.displayName, direct.name)
+            .map { it.substringAfterLast('/').substringAfterLast('\\').trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        for (root in searchRoots()) {
+            if (!root.isDirectory) continue
+            for (name in names) {
+                val exact = File(root, name)
+                if (isUsableAudio(exact)) return exact
+            }
+            val children = root.listFiles() ?: continue
+            val match = children.firstOrNull { child ->
+                child.isFile && isUsableAudio(child) && names.any { name ->
+                    child.name == name || child.name.endsWith("-$name")
+                }
+            }
+            if (match != null) return match
+        }
+        return null
+    }
+
+    suspend fun healStoredPath(entity: DraftAudioFileEntity): DraftAudioFileEntity {
+        val resolved = resolveFile(entity) ?: return entity
+        if (resolved.absolutePath == entity.localPath) return entity
+        val updated = entity.copy(localPath = resolved.absolutePath)
+        draftDao.upsertFile(updated)
+        return updated
+    }
+
+    suspend fun deleteFile(file: DraftAudioFileEntity) = fileLock.withLock {
+        val path = File(file.localPath).absolutePath
         draftDao.deleteFile(file.id)
-        runCatching { File(file.localPath).delete() }
+        val stillUsed = draftDao.listFiles(file.draftId).any { sameFile(it.localPath, path) }
+        if (!stillUsed) {
+            runCatching { File(path).delete() }
+        }
+    }
+
+    private fun sameFile(storedPath: String, absolutePath: String): Boolean =
+        storedPath == absolutePath || File(storedPath).absolutePath == absolutePath
+
+    private fun isUsableAudio(file: File): Boolean =
+        file.exists() && file.isFile && file.length() > 0L
+
+    private fun searchRoots(): List<File> {
+        val external = context.getExternalFilesDir(null)
+        return listOfNotNull(
+            File(context.filesDir, "recordings"),
+            File(context.filesDir, "imports"),
+            external?.let { File(it, "recordings") },
+            external?.let { File(it, "imports") },
+            context.filesDir,
+            external,
+            context.noBackupFilesDir,
+            context.cacheDir,
+            context.externalCacheDir,
+        ).distinctBy { it.absolutePath }
     }
 
     suspend fun getDraft(draftId: String) = draftDao.getDraft(draftId)

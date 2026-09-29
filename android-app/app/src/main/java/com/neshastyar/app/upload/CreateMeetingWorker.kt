@@ -1,12 +1,19 @@
 package com.neshastyar.app.upload
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import com.neshastyar.app.R
 import com.neshastyar.app.data.repository.UploadMeetingRepository
 
 @HiltWorker
@@ -16,12 +23,18 @@ class CreateMeetingWorker @AssistedInject constructor(
     private val uploadMeetingRepository: UploadMeetingRepository,
 ) : CoroutineWorker(appContext, params) {
 
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        return createForegroundInfo("در حال آپلود جلسه…")
+    }
+
     override suspend fun doWork(): Result {
         val draftId = inputData.getString(KEY_DRAFT_ID) ?: return Result.failure(
             workDataOf(KEY_ERROR to "شناسه پیش‌نویس نامعتبر"),
         )
         val tagIds = inputData.getStringArray(KEY_TAG_IDS)?.toList().orEmpty()
         val participantIds = inputData.getStringArray(KEY_PARTICIPANT_IDS)?.toList().orEmpty()
+
+        runCatching { setForeground(getForegroundInfo()) }
 
         setProgress(
             workDataOf(
@@ -31,6 +44,9 @@ class CreateMeetingWorker @AssistedInject constructor(
         )
 
         return uploadMeetingRepository.uploadDraft(draftId, tagIds, participantIds) { progress ->
+            runCatching {
+                setForeground(createForegroundInfo(progress.message))
+            }
             setProgress(
                 workDataOf(
                     KEY_PROGRESS to progress.percent,
@@ -56,7 +72,41 @@ class CreateMeetingWorker @AssistedInject constructor(
         )
     }
 
+    private fun createForegroundInfo(message: String): ForegroundInfo {
+        val channelId = "upload_channel"
+        val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            channelId,
+            "آپلود جلسه",
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = "نمایش وضعیت آپلود جلسه صوتی"
+            setShowBadge(false)
+        }
+        nm.createNotificationChannel(channel)
+
+        val notification = NotificationCompat.Builder(applicationContext, channelId)
+            .setContentTitle("نشست‌یار")
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        } else {
+            ForegroundInfo(NOTIFICATION_ID, notification)
+        }
+    }
+
     companion object {
+        private const val NOTIFICATION_ID = 2001
         const val UNIQUE_PREFIX = "create_meeting_"
         const val KEY_DRAFT_ID = "draft_id"
         const val KEY_TAG_IDS = "tag_ids"

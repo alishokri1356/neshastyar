@@ -160,7 +160,11 @@ fun NeshastyarNavHost(
             }
             composable(Routes.Home.route) {
                 HomeScreen(
-                    onRecord = { navController.navigate(Routes.Record.route) },
+                    onRecord = {
+                        navController.navigate(Routes.Record.route) {
+                            launchSingleTop = true
+                        }
+                    },
                     onMeetingsByDate = { navController.navigate(Routes.MeetingsByDate.route) },
                     onMeetingsByTag = { navController.navigate(Routes.Tags.route) },
                     onMeetingsByParticipant = { navController.navigate(Routes.Participants.route) },

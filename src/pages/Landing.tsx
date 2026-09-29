@@ -4,11 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Mic, Sparkles, Users, Search } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import androidVersionFile from "../../android-app/versioning.txt?raw";
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://neshastyar.com/api").replace(/\/$/, "");
+const ANDROID_VERSION = androidVersionFile.trim();
 
 type LatestApk = {
-  version: string;
   filename: string;
   downloadUrl: string;
 };
@@ -150,9 +151,7 @@ const Landing = () => {
               </p>
             </div>
             <p className="mt-3 text-center text-xs text-zinc-400">
-              {latestApk
-                ? `دانلود مستقیم برای اندروید • نسخه ${latestApk.version}`
-                : "دانلود مستقیم برای اندروید"}
+              {`دانلود مستقیم برای اندروید • نسخه ${ANDROID_VERSION}`}
             </p>
           </div>
         </div>
