@@ -8,4 +8,10 @@
     <string name="recording_action_pause">توقف موقت</string>
     <string name="recording_action_resume">ادامه</string>
     <string name="recording_action_stop">پایان</string>
+    <string name="upload_channel_name">آپلود جلسه</string>
+    <string name="upload_channel_desc">ادامه آپلود وقتی صفحه خاموش است</string>
+    <string name="upload_notification_title">در حال آپلود جلسه</string>
+    <string name="upload_file_progress">فایل %1$d از %2$d</string>
+    <string name="upload_notification_starting">شروع آپلود…</string>
+    <string name="upload_failed">آپلود ناموفق</string>
 </resources>

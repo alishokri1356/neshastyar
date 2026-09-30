@@ -349,23 +349,125 @@ class TagManageViewModel @Inject constructor(private val tagsRepository: TagsRep
     init { refresh() }
     fun refresh() = viewModelScope.launch {
         tagsRepository.management().fold(
-            onSuccess = { data -> _ui.update { it.copy(tags = data.tags, untagged = data.untaggedMeetingsCount, loading = false) } },
+            onSuccess = { data ->
+                val similar = similarTagGroups(data.tags)
+                val ids = similar.map { it.id }.toSet()
+                _ui.update {
+                    it.copy(
+                        tags = similar,
+                        loading = false,
+                        selected = it.selected.intersect(ids),
+                    )
+                }
+            },
             onFailure = { e -> _ui.update { it.copy(loading = false, error = e.message) } },
         )
     }
     fun toggle(id: String) = _ui.update {
-        val s = it.selected.toMutableSet(); if (!s.add(id)) s.remove(id); it.copy(selected = s)
+        val s = it.selected.toMutableSet()
+        if (!s.add(id)) s.remove(id)
+        it.copy(selected = s)
     }
+    fun openMerge() {
+        if (_ui.value.selected.size < 2) return
+        val suggested = _ui.value.tags.firstOrNull { it.id in _ui.value.selected }?.name.orEmpty()
+        _ui.update { it.copy(mergeOpen = true, targetName = suggested, error = null) }
+    }
+    fun cancelMerge() = _ui.update { it.copy(mergeOpen = false) }
     fun onTarget(v: String) = _ui.update { it.copy(targetName = v) }
     fun merge() = viewModelScope.launch {
-        val names = _ui.value.tags.filter { it.id in _ui.value.selected }.mapNotNull { it.name }
-        if (names.size < 2) { _ui.update { it.copy(error = "حداقل دو برچسب انتخاب کنید") }; return@launch }
-        val target = _ui.value.targetName.ifBlank { names.first() }
-        tagsRepository.merge(names, target).onSuccess { refresh(); _ui.update { it.copy(selected = emptySet(), message = "ادغام شد") } }
+        val names = _ui.value.tags.filter { it.id in _ui.value.selected }.mapNotNull { it.name?.trim() }.filter { it.isNotEmpty() }
+        if (names.size < 2) {
+            _ui.update { it.copy(error = "حداقل دو برچسب انتخاب کنید") }
+            return@launch
+        }
+        val target = _ui.value.targetName.trim()
+        if (target.isEmpty()) {
+            _ui.update { it.copy(error = "نام برچسب را وارد کنید") }
+            return@launch
+        }
+        tagsRepository.merge(names, target)
+            .onSuccess {
+                _ui.update { it.copy(selected = emptySet(), mergeOpen = false, targetName = "", message = "ادغام شد", error = null) }
+                refresh()
+            }
             .onFailure { e -> _ui.update { it.copy(error = e.message) } }
     }
 }
-data class TagManageState(val loading: Boolean = true, val tags: List<TagDto> = emptyList(), val untagged: Int = 0, val selected: Set<String> = emptySet(), val targetName: String = "", val error: String? = null, val message: String? = null)
+
+data class TagManageState(
+    val loading: Boolean = true,
+    val tags: List<TagDto> = emptyList(),
+    val selected: Set<String> = emptySet(),
+    val mergeOpen: Boolean = false,
+    val targetName: String = "",
+    val error: String? = null,
+    val message: String? = null,
+)
+
+/** Tags that resemble at least one other tag, kept next to their matches. */
+private fun similarTagGroups(tags: List<TagDto>): List<TagDto> {
+    val named = tags.filter { !it.name.isNullOrBlank() }
+    if (named.size < 2) return emptyList()
+    val parent = IntArray(named.size) { it }
+    fun find(i: Int): Int {
+        var x = i
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        }
+        return x
+    }
+    for (i in named.indices) {
+        for (j in i + 1 until named.size) {
+            if (tagNamesSimilar(named[i].name.orEmpty(), named[j].name.orEmpty())) {
+                parent[find(i)] = find(j)
+            }
+        }
+    }
+    return named.indices
+        .groupBy { find(it) }
+        .values
+        .filter { it.size >= 2 }
+        .sortedBy { named[it.first()].name.orEmpty() }
+        .flatMap { group -> group.map { named[it] }.sortedBy { it.name.orEmpty() } }
+}
+
+private fun tagNamesSimilar(left: String, right: String): Boolean {
+    val a = normalizeTagName(left)
+    val b = normalizeTagName(right)
+    if (a.isEmpty() || b.isEmpty()) return false
+    if (a == b) return true
+    val shorter = if (a.length <= b.length) a else b
+    val longer = if (a.length <= b.length) b else a
+    if (shorter.length >= 2 && longer.contains(shorter)) return true
+    val distance = levenshtein(a, b)
+    val limit = if (maxOf(a.length, b.length) <= 6) 1 else 2
+    return distance in 1..limit
+}
+
+private fun normalizeTagName(value: String): String =
+    value.trim()
+        .lowercase()
+        .replace('ي', 'ی')
+        .replace('ك', 'ک')
+        .replace('ة', 'ه')
+        .replace(Regex("[\\u064B-\\u0652]"), "")
+        .replace(Regex("[^\\p{L}\\p{N}]+"), "")
+
+private fun levenshtein(left: String, right: String): Int {
+    val prev = IntArray(right.length + 1) { it }
+    val curr = IntArray(right.length + 1)
+    for (i in left.indices) {
+        curr[0] = i + 1
+        for (j in right.indices) {
+            val cost = if (left[i] == right[j]) 0 else 1
+            curr[j + 1] = minOf(curr[j] + 1, prev[j + 1] + 1, prev[j] + cost)
+        }
+        for (j in prev.indices) prev[j] = curr[j]
+    }
+    return prev[right.length]
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -380,19 +482,77 @@ fun TagManageScreen(onBack: () -> Unit, vm: TagManageViewModel = hiltViewModel()
         )
     }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            Text("بدون برچسب: ")
-            LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-                items(state.tags, key = { it.id }) { tag ->
-                    Row(modifier = Modifier.fillMaxWidth().clickable { vm.toggle(tag.id) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = tag.id in state.selected, onCheckedChange = { vm.toggle(tag.id) })
-                        Text(" ()")
+            when {
+                state.loading -> CircularProgressIndicator(color = NeshastyarColors.Primary)
+                state.tags.isEmpty() -> Text(
+                    "برچسب مشابهی برای ادغام نیست",
+                    color = NeshastyarColors.TextSecondary,
+                )
+                else -> LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(state.tags, key = { it.id }) { tag ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { vm.toggle(tag.id) }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = tag.id in state.selected,
+                                onCheckedChange = { vm.toggle(tag.id) },
+                            )
+                            Text(
+                                text = "${tag.name.orEmpty()} (${tag.meeting_count ?: 0})",
+                                color = NeshastyarColors.TextPrimary,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }
-            OutlinedTextField(value = state.targetName, onValueChange = vm::onTarget, label = { Text("نام برچسب مقصد") }, modifier = Modifier.fillMaxWidth())
-            if (state.error != null) Text(state.error!!, color = MaterialTheme.colorScheme.error)
-            if (state.message != null) Text(state.message!!, color = MaterialTheme.colorScheme.primary)
-            Button(onClick = vm::merge, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("ادغام انتخاب‌شده‌ها") }
+            if (state.error != null && !state.mergeOpen) {
+                Text(state.error!!, color = MaterialTheme.colorScheme.error)
+            }
+            if (state.message != null) {
+                Text(state.message!!, color = MaterialTheme.colorScheme.primary)
+            }
+            if (state.selected.size >= 2) {
+                Button(
+                    onClick = vm::openMerge,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                ) { Text("ادغام") }
+            }
         }
+    }
+    if (state.mergeOpen) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = vm::cancelMerge,
+            title = { Text("نام برچسب") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = state.targetName,
+                        onValueChange = vm::onTarget,
+                        label = { Text("نام برچسب") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (state.error != null) {
+                        Text(
+                            state.error!!,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = vm::merge) { Text("تأیید") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = vm::cancelMerge) { Text("انصراف") }
+            },
+            containerColor = NeshastyarColors.Surface,
+        )
     }
 }

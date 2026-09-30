@@ -8,19 +8,18 @@ import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.TagDto
 import com.neshastyar.app.data.repository.ParticipantsRepository
 import com.neshastyar.app.data.repository.TagsRepository
-import com.neshastyar.app.data.repository.UploadMeetingRepository
 import com.neshastyar.app.upload.CreateMeetingWorker
+import com.neshastyar.app.upload.UploadForegroundService
+import com.neshastyar.app.upload.UploadProgressHub
 
 data class TagSelectionUiState(
     val tags: List<TagDto> = emptyList(),
@@ -31,6 +30,8 @@ data class TagSelectionUiState(
     val uploading: Boolean = false,
     val progress: Int = 0,
     val progressMessage: String = "",
+    val fileIndex: Int = 0,
+    val fileCount: Int = 0,
     val error: String? = null,
     val newTagName: String = "",
     val meetingId: String? = null,
@@ -42,7 +43,7 @@ class TagSelectionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val tagsRepository: TagsRepository,
     private val participantsRepository: ParticipantsRepository,
-    private val uploadMeetingRepository: UploadMeetingRepository,
+    private val uploadProgressHub: UploadProgressHub,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     val draftId: String = checkNotNull(savedStateHandle["draftId"])
@@ -53,6 +54,23 @@ class TagSelectionViewModel @Inject constructor(
     init {
         refresh()
         WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
+        viewModelScope.launch {
+            uploadProgressHub.session.collect { session ->
+                if (session == null || session.draftId != draftId) return@collect
+                _ui.update {
+                    it.copy(
+                        uploading = session.uploading,
+                        progress = session.progress,
+                        progressMessage = session.message,
+                        fileIndex = session.fileIndex,
+                        fileCount = session.fileCount,
+                        error = session.error,
+                        meetingId = session.meetingId ?: it.meetingId,
+                        done = session.done,
+                    )
+                }
+            }
+        }
     }
 
     fun refresh() {
@@ -146,40 +164,17 @@ class TagSelectionViewModel @Inject constructor(
                 done = false,
             )
         }
-        viewModelScope.launch {
-            WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
-            val result = withContext(Dispatchers.IO) {
-                uploadMeetingRepository.uploadDraft(draftId, tagIds, participantIds) { progress ->
-                    _ui.update {
-                        it.copy(
-                            progress = progress.percent.coerceIn(0, 100),
-                            progressMessage = progress.message,
-                        )
-                    }
-                }
+        WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
+        try {
+            UploadForegroundService.start(context, draftId, tagIds, participantIds)
+        } catch (error: Exception) {
+            _ui.update {
+                it.copy(
+                    uploading = false,
+                    error = error.message ?: "آپلود ناموفق",
+                    progressMessage = "",
+                )
             }
-            result.fold(
-                onSuccess = { meetingId ->
-                    _ui.update {
-                        it.copy(
-                            uploading = false,
-                            done = true,
-                            meetingId = meetingId,
-                            progress = 100,
-                            progressMessage = "آپلود کامل شد",
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _ui.update {
-                        it.copy(
-                            uploading = false,
-                            error = error.message ?: "آپلود ناموفق",
-                            progressMessage = "",
-                        )
-                    }
-                },
-            )
         }
     }
 }

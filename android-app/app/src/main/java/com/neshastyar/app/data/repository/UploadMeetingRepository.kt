@@ -18,6 +18,9 @@ import com.neshastyar.app.data.local.DraftAudioFileEntity
 import com.neshastyar.app.data.local.DraftDao
 import com.neshastyar.app.upload.FileSliceRequestBody
 import java.io.File
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -166,6 +169,10 @@ class UploadMeetingRepository @Inject constructor(
         val total = local.length()
         if (total <= 0L) error("فایل خالی است: ${file.displayName}")
 
+        val fileLabel = "آپلود فایل ${index + 1} از $fileCount"
+        val startPercent = ((index.toDouble() / fileCount.toDouble()) * 80.0).roundToInt().coerceIn(0, 80)
+        emit(onProgress, startPercent, fileLabel, index + 1, fileCount)
+
         val session = retrying {
             val response = api.createUploadSession(
                 CreateUploadSessionRequest(
@@ -286,17 +293,40 @@ class UploadMeetingRepository @Inject constructor(
         return Regex("\"bytesReceived\"\\s*:\\s*(\\d+)").find(raw)?.groupValues?.getOrNull(1)?.toLongOrNull()
     }
 
-    private suspend fun <T> retrying(times: Int = 4, block: suspend () -> T): T {
+    private suspend fun <T> retrying(block: suspend () -> T): T {
         var last: Exception? = null
-        repeat(times) { attempt ->
+        var attempt = 0
+        while (attempt < 8) {
             try {
                 return block()
             } catch (e: Exception) {
                 last = e
-                if (attempt < times - 1) delay(500L * (attempt + 1))
+                val transient = isTransientNetwork(e)
+                val limit = if (transient) 8 else 4
+                if (attempt >= limit - 1) break
+                val wait = if (transient) minOf(8_000L, 1_000L * (attempt + 1)) else 500L * (attempt + 1)
+                delay(wait)
+                attempt++
             }
         }
         throw last ?: IllegalStateException("آپلود ناموفق بود")
+    }
+
+    private fun isTransientNetwork(error: Throwable): Boolean {
+        var current: Throwable? = error
+        while (current != null) {
+            if (current is UnknownHostException || current is SocketTimeoutException || current is ConnectException) {
+                return true
+            }
+            val message = current.message.orEmpty()
+            if (message.contains("Unable to resolve host", ignoreCase = true) ||
+                message.contains("No address associated with hostname", ignoreCase = true)
+            ) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
     }
 
     private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

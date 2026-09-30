@@ -224,7 +224,7 @@ fun TagSelectionScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        state.progressMessage.ifBlank { "در حال آپلود فایل…" },
+                        uploadStatusLabel(state),
                         color = NeshastyarColors.TextSecondary,
                         modifier = Modifier.weight(1f),
                     )
@@ -248,6 +248,16 @@ fun TagSelectionScreen(
             modifier = Modifier.padding(bottom = 8.dp),
         )
     }
+}
+
+private fun uploadStatusLabel(state: TagSelectionUiState): String {
+    val counter = if (state.fileCount > 0 && state.fileIndex > 0) {
+        "فایل ${state.fileIndex} از ${state.fileCount}"
+    } else {
+        ""
+    }
+    val detail = state.progressMessage.ifBlank { "در حال آپلود فایل…" }
+    return if (counter.isBlank() || detail.contains(counter)) detail else "$counter — $detail"
 }
 
 @Composable
