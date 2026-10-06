@@ -7,14 +7,14 @@ object StatusStyle {
     fun labelColor(status: String?): Color = when {
         status.isProcessed() -> NeshastyarColors.Success
         status.isAnalyzing() -> NeshastyarColors.Analyzing
-        status.isNeedReview() -> NeshastyarColors.Error
+        status.isNeedReview() || status.isError() -> NeshastyarColors.Error
         else -> NeshastyarColors.TextMuted
     }
 
     fun background(status: String?): Color = when {
         status.isProcessed() -> NeshastyarColors.SuccessContainer
         status.isAnalyzing() -> NeshastyarColors.AnalyzingContainer
-        status.isNeedReview() -> NeshastyarColors.ErrorContainer
+        status.isNeedReview() || status.isError() -> NeshastyarColors.ErrorContainer
         else -> NeshastyarColors.SurfaceVariant
     }
 
@@ -29,6 +29,8 @@ object StatusStyle {
     }
 
     fun isProcessedStatus(status: String?): Boolean = status.isProcessed()
+
+    fun isErrorStatus(status: String?): Boolean = status.isError()
 }
 
 private fun String?.isProcessed(): Boolean =
@@ -42,3 +44,11 @@ private fun String?.isAnalyzing(): Boolean =
         this == "در حال تحلیل"
 
 private fun String?.isNeedReview(): Boolean = this == "Need Review"
+
+private fun String?.isError(): Boolean {
+    val value = this?.trim().orEmpty()
+    if (value.isEmpty()) return false
+    return value.startsWith("Error", ignoreCase = true) ||
+        value.startsWith("Failed", ignoreCase = true) ||
+        value.contains("خطا")
+}

@@ -32,6 +32,8 @@ import com.neshastyar.app.ui.screens.meeting.MeetingBulletPointsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingConversationScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailBottomBar
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailScreen
+import com.neshastyar.app.ui.screens.meeting.MeetingDetailViewModel
+import com.neshastyar.app.util.StatusStyle
 import com.neshastyar.app.ui.screens.meeting.MeetingOptionsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingParticipantsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingTagsScreen
@@ -121,11 +123,17 @@ fun NeshastyarNavHost(
                 NeshastyarBottomBar(onSettings = { navController.navigate(Routes.Account.route) })
             } else if (showMeetingBar) {
                 val id = meetingId.orEmpty()
+                val detailEntry = navController.getBackStackEntry(Routes.MeetingDetail.route)
+                val detailVm: MeetingDetailViewModel = hiltViewModel(detailEntry)
+                val detailState by detailVm.ui.collectAsStateWithLifecycle()
+                val showProcessedSections = !StatusStyle.isErrorStatus(detailState.meeting?.status) &&
+                    !detailState.summarySuppressed
                 MeetingDetailBottomBar(
                     onParticipants = { openMeetingSection(Routes.MeetingParticipants.create(id)) },
                     onTags = { openMeetingSection(Routes.MeetingTags.create(id)) },
                     onBulletPoints = { openMeetingSection(Routes.MeetingBulletPoints.create(id)) },
                     onMenu = { openMeetingSection(Routes.MeetingOptions.create(id)) },
+                    showProcessedSections = showProcessedSections,
                 )
             }
         },

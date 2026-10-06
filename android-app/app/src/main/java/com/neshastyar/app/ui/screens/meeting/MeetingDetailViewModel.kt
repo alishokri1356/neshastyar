@@ -23,6 +23,7 @@ import com.neshastyar.app.data.repository.ParticipantsRepository
 import com.neshastyar.app.data.repository.TagsRepository
 import com.neshastyar.app.util.MeetingSummaryParser
 import com.neshastyar.app.util.ParsedMeetingSummary
+import com.neshastyar.app.util.StatusStyle
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -40,6 +41,9 @@ data class MeetingDetailUiState(
     val editSubject: String = "",
     val editSummaryText: String = "",
     val editing: Boolean = false,
+    val reprocessing: Boolean = false,
+    /** Hides leftover summary text after a reprocess request, until processing finishes. */
+    val summarySuppressed: Boolean = false,
 )
 
 @HiltViewModel
@@ -112,6 +116,36 @@ class MeetingDetailViewModel @Inject constructor(
                 }
             },
             onFailure = { e -> _ui.update { it.copy(error = e.message) } },
+        )
+    }
+
+    fun requestReprocess() = viewModelScope.launch {
+        if (_ui.value.reprocessing) return@launch
+        _ui.update { it.copy(reprocessing = true, error = null, message = null) }
+        meetingsRepository.analyze(meetingId).fold(
+            onSuccess = {
+                _ui.update { current ->
+                    current.copy(
+                        reprocessing = false,
+                        summarySuppressed = true,
+                        message = "درخواست پردازش ارسال شد",
+                        error = null,
+                        summary = ParsedMeetingSummary(),
+                        editSubject = "",
+                        editSummaryText = "",
+                        editing = false,
+                        meeting = current.meeting?.copy(status = "ارسال درخواست پردازش"),
+                    )
+                }
+            },
+            onFailure = { e ->
+                _ui.update {
+                    it.copy(
+                        reprocessing = false,
+                        error = e.message ?: "درخواست پردازش ناموفق بود",
+                    )
+                }
+            },
         )
     }
 
@@ -233,14 +267,26 @@ class MeetingDetailViewModel @Inject constructor(
                         summary = result.data.summary,
                         peopleField = result.data.people,
                     )
+                    val processed = StatusStyle.isProcessedStatus(result.data.status)
+                    val failed = StatusStyle.isErrorStatus(result.data.status)
                     _ui.update { current ->
+                        val suppress = current.summarySuppressed && !processed && !failed
                         current.copy(
                             loading = false,
                             meeting = result.data,
-                            summary = parsed,
+                            summary = if (suppress) ParsedMeetingSummary() else parsed,
+                            summarySuppressed = current.summarySuppressed && !processed && !failed,
                             editTitle = if (current.editing) current.editTitle else result.data.title.orEmpty(),
-                            editSubject = if (current.editing) current.editSubject else parsed.subject,
-                            editSummaryText = if (current.editing) current.editSummaryText else parsed.summaryText,
+                            editSubject = when {
+                                current.editing -> current.editSubject
+                                suppress -> ""
+                                else -> parsed.subject
+                            },
+                            editSummaryText = when {
+                                current.editing -> current.editSummaryText
+                                suppress -> ""
+                                else -> parsed.summaryText
+                            },
                         )
                     }
                     reloadMeta()

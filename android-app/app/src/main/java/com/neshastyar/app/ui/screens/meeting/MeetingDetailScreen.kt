@@ -2,6 +2,7 @@ package com.neshastyar.app.ui.screens.meeting
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -43,12 +45,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.neshastyar.app.ui.components.NeshastyarCard
+import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.components.StatusChip
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
+import com.neshastyar.app.util.StatusStyle
 
 @Composable
 fun MeetingDetailScreen(
@@ -106,6 +110,8 @@ fun MeetingDetailScreen(
             }
             state.meeting != null -> {
                 val meeting = state.meeting!!
+                val processingFailed = StatusStyle.isErrorStatus(meeting.status)
+                val showProcessed = !processingFailed && !state.summarySuppressed
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
@@ -142,46 +148,77 @@ fun MeetingDetailScreen(
                         }
                     }
 
-                    item {
-                        NeshastyarCard {
-                            SectionHeader(
-                                title = "خلاصه اجرایی هوش مصنوعی",
-                                icon = Icons.Default.AutoAwesome,
-                                iconTint = NeshastyarColors.Secondary,
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            DetailTextPart(
-                                label = "موضوع",
-                                value = state.summary.subject,
-                                draft = state.editSubject,
-                                editing = state.editing,
-                                onValueChange = viewModel::onSubject,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            DetailTextPart(
-                                label = "خلاصه",
-                                value = state.summary.summaryText,
-                                draft = state.editSummaryText,
-                                editing = state.editing,
-                                onValueChange = viewModel::onSummaryText,
-                                singleLine = false,
-                                minLines = 4,
-                            )
+                    if (processingFailed) {
+                        val errorDetail = state.summary.summaryText
+                            .ifBlank { state.summary.rawText }
+                            .ifBlank { meeting.summary.orEmpty() }
+                            .trim()
+                        if (errorDetail.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = errorDetail,
+                                    color = NeshastyarColors.Error,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(NeshastyarColors.ErrorContainer)
+                                        .padding(14.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    if (showProcessed) {
+                        item {
+                            NeshastyarCard {
+                                SectionHeader(
+                                    title = "خلاصه اجرایی هوش مصنوعی",
+                                    icon = Icons.Default.AutoAwesome,
+                                    iconTint = NeshastyarColors.Secondary,
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                DetailTextPart(
+                                    label = "موضوع",
+                                    value = state.summary.subject,
+                                    draft = state.editSubject,
+                                    editing = state.editing,
+                                    onValueChange = viewModel::onSubject,
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                DetailTextPart(
+                                    label = "خلاصه",
+                                    value = state.summary.summaryText,
+                                    draft = state.editSummaryText,
+                                    editing = state.editing,
+                                    onValueChange = viewModel::onSummaryText,
+                                    singleLine = false,
+                                    minLines = 4,
+                                )
+                            }
                         }
                     }
 
                     item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NeshastyarSecondaryButton(
-                                text = "کپی",
-                                onClick = copySummary,
-                                modifier = Modifier.weight(1f),
+                        if (processingFailed) {
+                            NeshastyarPrimaryButton(
+                                text = "درخواست پردازش مجدد",
+                                onClick = viewModel::requestReprocess,
+                                loading = state.reprocessing,
                             )
-                            NeshastyarSecondaryButton(
-                                text = "ایمیل",
-                                onClick = viewModel::sendEmail,
-                                modifier = Modifier.weight(1f),
-                            )
+                        } else if (showProcessed) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                NeshastyarSecondaryButton(
+                                    text = "کپی",
+                                    onClick = copySummary,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                NeshastyarSecondaryButton(
+                                    text = "ایمیل",
+                                    onClick = viewModel::sendEmail,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
                         if (state.message != null) {
                             Text(state.message!!, color = NeshastyarColors.PrimaryBright, modifier = Modifier.padding(top = 8.dp))
@@ -236,6 +273,7 @@ fun MeetingDetailBottomBar(
     onTags: () -> Unit,
     onBulletPoints: () -> Unit,
     onMenu: () -> Unit,
+    showProcessedSections: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -255,9 +293,13 @@ fun MeetingDetailBottomBar(
                 .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MeetingDetailBarAction(Icons.Default.People, "حاضرین", onParticipants)
+            if (showProcessedSections) {
+                MeetingDetailBarAction(Icons.Default.People, "حاضرین", onParticipants)
+            }
             MeetingDetailBarAction(Icons.Default.Label, "برچسب‌ها", onTags)
-            MeetingDetailBarAction(Icons.AutoMirrored.Filled.FormatListBulleted, "نکات", onBulletPoints)
+            if (showProcessedSections) {
+                MeetingDetailBarAction(Icons.AutoMirrored.Filled.FormatListBulleted, "نکات", onBulletPoints)
+            }
             MeetingDetailBarAction(Icons.Default.Menu, "گزینه‌ها", onMenu)
         }
     }
