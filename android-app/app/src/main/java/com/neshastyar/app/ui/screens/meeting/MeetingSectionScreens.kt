@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.neshastyar.app.data.api.ParticipantDto
+import com.neshastyar.app.data.api.TagDto
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
@@ -62,7 +64,7 @@ fun MeetingParticipantsScreen(
     MeetingSectionScaffold(
         title = "حاضرین در جلسه",
         onBack = onBack,
-        loading = state.loading && state.meeting == null,
+        loading = !state.tagsReady && state.error == null,
         error = if (state.meeting == null) state.error else null,
         onRetry = viewModel::retry,
     ) {
@@ -98,6 +100,37 @@ fun MeetingParticipantsScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = NeshastyarColors.PrimaryContainer,
                                 selectedLabelColor = NeshastyarColors.PrimaryBright,
+                            ),
+                        )
+                    }
+                }
+            }
+            val suggestions = suggestedParticipantNames(state)
+            if (suggestions.isNotEmpty()) {
+                Text(
+                    "شرکت‌کنندگان پیشنهادی:",
+                    color = NeshastyarColors.TextMuted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestions.forEach { name ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { viewModel.addParticipantByName(name) },
+                            label = { Text(name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = NeshastyarColors.WarningContainer,
+                                labelColor = NeshastyarColors.Warning,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = false,
+                                borderColor = NeshastyarColors.Secondary,
                             ),
                         )
                     }
@@ -170,32 +203,22 @@ fun MeetingAddParticipantsScreen(
     val state by viewModel.ui.collectAsStateWithLifecycle()
     var personSearch by remember { mutableStateOf("") }
     val query = personSearch.trim()
-    val meetingNames = state.participants.map {
-        MeetingSummaryParser.normalizePersonName(it.name).ifBlank { it.name ?: it.id }
-    }.toSet()
-    val suggestions = state.summary.people
-        .map { MeetingSummaryParser.normalizePersonName(it) }
-        .filter { it.isNotEmpty() }
-        .distinct()
-        .filter { name -> meetingNames.none { it == name } }
-        .filter { name ->
-            state.allParticipants.none {
-                MeetingSummaryParser.normalizePersonName(it.name).ifBlank { it.name ?: it.id } == name
-            }
-        }
+    val suggestions = suggestedParticipantNames(state)
     val visiblePeople = state.allParticipants.filter { person ->
-        val name = MeetingSummaryParser.normalizePersonName(person.name).ifBlank { person.name ?: person.id }
-        query.isEmpty() || name.contains(query, ignoreCase = true)
+        val name = participantDisplayName(person)
+        val shownAsSuggestion = suggestions.any { it.equals(name, ignoreCase = true) }
+        !shownAsSuggestion && (query.isEmpty() || name.contains(query, ignoreCase = true))
     }
     val visibleSuggestions = suggestions.filter { name ->
         query.isEmpty() || name.contains(query, ignoreCase = true)
     }
     val canAddTypedName = query.isNotEmpty() &&
         visiblePeople.none {
-            MeetingSummaryParser.normalizePersonName(it.name).ifBlank { it.name ?: it.id } == query
+            MeetingSummaryParser.normalizePersonName(it.name).ifBlank { it.name ?: it.id }
+                .equals(query, ignoreCase = true)
         } &&
-        visibleSuggestions.none { it == query } &&
-        meetingNames.none { it == query }
+        visibleSuggestions.none { it.equals(query, ignoreCase = true) } &&
+        state.participants.none { participantDisplayName(it).equals(query, ignoreCase = true) }
 
     Column(
         modifier = Modifier
@@ -219,7 +242,7 @@ fun MeetingAddParticipantsScreen(
             )
         }
         when {
-            state.loading && state.meeting == null -> Box(
+            !state.tagsReady && state.error == null -> Box(
                 Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
@@ -282,8 +305,13 @@ fun MeetingAddParticipantsScreen(
                                         onClick = { viewModel.addParticipantByName(name) },
                                         label = { Text(name) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            containerColor = NeshastyarColors.SurfaceElevated,
-                                            labelColor = NeshastyarColors.TextSecondary,
+                                            containerColor = NeshastyarColors.WarningContainer,
+                                            labelColor = NeshastyarColors.Warning,
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = false,
+                                            borderColor = NeshastyarColors.Secondary,
                                         ),
                                     )
                                 }
@@ -327,7 +355,7 @@ fun MeetingTagsScreen(
     MeetingSectionScaffold(
         title = "برچسب‌ها",
         onBack = onBack,
-        loading = state.loading && state.meeting == null,
+        loading = !state.tagsReady && state.error == null,
         error = if (state.meeting == null) state.error else null,
         onRetry = viewModel::retry,
     ) {
@@ -355,8 +383,45 @@ fun MeetingTagsScreen(
                             },
                             label = { Text(tag.name ?: tag.id) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NeshastyarColors.PrimaryContainer,
-                                selectedLabelColor = NeshastyarColors.PrimaryBright,
+                                selectedContainerColor = NeshastyarColors.SuccessContainer,
+                                selectedLabelColor = NeshastyarColors.Success,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = true,
+                                selectedBorderColor = NeshastyarColors.Success,
+                                selectedBorderWidth = 1.dp,
+                            ),
+                        )
+                    }
+                }
+            }
+            val suggestions = suggestedTagNames(state)
+            if (suggestions.isNotEmpty()) {
+                Text(
+                    "برچسب‌های پیشنهادی:",
+                    color = NeshastyarColors.TextMuted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestions.forEach { name ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { viewModel.addSuggestedTag(name) },
+                            label = { Text(name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = NeshastyarColors.WarningContainer,
+                                labelColor = NeshastyarColors.Warning,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = false,
+                                borderColor = NeshastyarColors.Secondary,
                             ),
                         )
                     }
@@ -429,9 +494,14 @@ fun MeetingAddTagsScreen(
     val state by viewModel.ui.collectAsStateWithLifecycle()
     var tagSearch by remember { mutableStateOf("") }
     val query = tagSearch.trim()
-    val visible = state.allTags.filter { tag ->
-        val name = tag.name ?: tag.id
+    val suggestions = suggestedTagNames(state)
+    val visibleSuggestions = suggestions.filter { name ->
         query.isEmpty() || name.contains(query, ignoreCase = true)
+    }
+    val visible = state.allTags.filter { tag ->
+        val name = tagDisplayName(tag)
+        val shownAsSuggestion = visibleSuggestions.any { it.equals(name, ignoreCase = true) }
+        !shownAsSuggestion && (query.isEmpty() || name.contains(query, ignoreCase = true))
     }
 
     Column(
@@ -456,7 +526,7 @@ fun MeetingAddTagsScreen(
             )
         }
         when {
-            state.loading && state.meeting == null -> Box(
+            !state.tagsReady && state.error == null -> Box(
                 Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
@@ -491,10 +561,10 @@ fun MeetingAddTagsScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     when {
-                        state.allTags.isEmpty() -> {
+                        state.allTags.isEmpty() && visibleSuggestions.isEmpty() -> {
                             Text("برچسبی برای این کاربر وجود ندارد", color = NeshastyarColors.TextMuted)
                         }
-                        visible.isEmpty() -> {
+                        visible.isEmpty() && visibleSuggestions.isEmpty() -> {
                             Text("برچسبی با این عبارت پیدا نشد", color = NeshastyarColors.TextMuted)
                         }
                         else -> {
@@ -502,16 +572,39 @@ fun MeetingAddTagsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                visible.forEach { tag ->
+                                visibleSuggestions.forEach { name ->
                                     FilterChip(
-                                        selected = state.tags.any { it.id == tag.id },
+                                        selected = false,
+                                        onClick = { viewModel.addSuggestedTag(name) },
+                                        label = { Text(name) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            containerColor = NeshastyarColors.WarningContainer,
+                                            labelColor = NeshastyarColors.Warning,
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = false,
+                                            borderColor = NeshastyarColors.Secondary,
+                                        ),
+                                    )
+                                }
+                                visible.forEach { tag ->
+                                    val linked = state.tags.any { it.id == tag.id }
+                                    FilterChip(
+                                        selected = linked,
                                         onClick = { viewModel.linkTag(tag.id) },
                                         label = { Text(tag.name ?: tag.id) },
                                         colors = FilterChipDefaults.filterChipColors(
                                             containerColor = NeshastyarColors.SurfaceElevated,
                                             labelColor = NeshastyarColors.TextSecondary,
-                                            selectedContainerColor = NeshastyarColors.PrimaryContainer,
-                                            selectedLabelColor = NeshastyarColors.PrimaryBright,
+                                            selectedContainerColor = NeshastyarColors.SuccessContainer,
+                                            selectedLabelColor = NeshastyarColors.Success,
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = linked,
+                                            selectedBorderColor = NeshastyarColors.Success,
+                                            selectedBorderWidth = 1.dp,
                                         ),
                                     )
                                 }
@@ -606,6 +699,32 @@ private fun MeetingSectionScaffold(
             }
         }
     }
+}
+
+private fun tagDisplayName(tag: TagDto): String = tag.name?.trim().orEmpty().ifBlank { tag.id }
+
+/** Names from the meeting summary that are not already linked to this meeting. */
+private fun suggestedTagNames(state: MeetingDetailUiState): List<String> {
+    val linked = state.tags.map { tagDisplayName(it) }
+    return state.summary.tags
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinctBy { it.lowercase() }
+        .filter { name -> linked.none { it.equals(name, ignoreCase = true) } }
+}
+
+private fun participantDisplayName(person: ParticipantDto): String {
+    return MeetingSummaryParser.normalizePersonName(person.name).ifBlank { person.name ?: person.id }
+}
+
+/** Names from the meeting summary that are not already linked to this meeting. */
+private fun suggestedParticipantNames(state: MeetingDetailUiState): List<String> {
+    val linked = state.participants.map { participantDisplayName(it) }
+    return state.summary.people
+        .map { MeetingSummaryParser.normalizePersonName(it) }
+        .filter { it.isNotEmpty() }
+        .distinctBy { it.lowercase() }
+        .filter { name -> linked.none { it.equals(name, ignoreCase = true) } }
 }
 
 @Composable

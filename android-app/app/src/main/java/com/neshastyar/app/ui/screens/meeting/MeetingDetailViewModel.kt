@@ -44,6 +44,8 @@ data class MeetingDetailUiState(
     val reprocessing: Boolean = false,
     /** Hides leftover summary text after a reprocess request, until processing finishes. */
     val summarySuppressed: Boolean = false,
+    /** Linked tags and participants have been fetched at least once. */
+    val tagsReady: Boolean = false,
 )
 
 @HiltViewModel
@@ -179,6 +181,28 @@ class MeetingDetailViewModel @Inject constructor(
 
     fun linkTag(tagId: String) = viewModelScope.launch {
         tagsRepository.link(meetingId, tagId).onSuccess { reloadMeta() }
+            .onFailure { e -> _ui.update { it.copy(error = e.message) } }
+    }
+
+    fun addSuggestedTag(name: String) = viewModelScope.launch {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@launch
+        val existing = _ui.value.allTags.firstOrNull {
+            it.name.orEmpty().trim().equals(trimmed, ignoreCase = true)
+        }
+        val tag = existing ?: tagsRepository.create(trimmed).getOrElse { error ->
+            _ui.update { it.copy(error = error.message) }
+            return@launch
+        }
+        if (_ui.value.tags.any { it.id == tag.id }) {
+            _ui.update { it.copy(message = "برچسب قبلاً اضافه شده", error = null) }
+            return@launch
+        }
+        tagsRepository.link(meetingId, tag.id)
+            .onSuccess {
+                reloadMeta()
+                refreshMeetingContent("برچسب به جلسه اضافه شد")
+            }
             .onFailure { e -> _ui.update { it.copy(error = e.message) } }
     }
 
@@ -326,6 +350,14 @@ class MeetingDetailViewModel @Inject constructor(
         val allTags = tagsRepository.list().getOrElse { emptyList() }
         val people = participantsRepository.forMeeting(meetingId).getOrElse { emptyList() }
         val allPeople = participantsRepository.list().getOrElse { ParticipantsListResponse() }.participants
-        _ui.update { it.copy(tags = tags, allTags = allTags, participants = people, allParticipants = allPeople) }
+        _ui.update {
+            it.copy(
+                tags = tags,
+                allTags = allTags,
+                participants = people,
+                allParticipants = allPeople,
+                tagsReady = true,
+            )
+        }
     }
 }
