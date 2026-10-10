@@ -8,18 +8,33 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.neshastyar.app.data.api.MeetingDto
+import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.data.repository.AuthRepository
+import com.neshastyar.app.data.repository.DraftRepository
 import com.neshastyar.app.data.repository.MeetingsRepository
 import com.neshastyar.app.data.repository.MeetingsResult
+import com.neshastyar.app.recording.RecorderPhase
+import com.neshastyar.app.recording.RecordingController
 import com.neshastyar.app.util.JalaliDates
 import java.util.Date
 
 data class MeetingDateGroup(
     val label: String,
     val meetings: List<MeetingDto>,
+)
+
+data class LocalDraftUi(
+    val id: String,
+    val status: String,
+    val title: String,
+    val createdAt: Long,
 )
 
 data class HomeUiState(
@@ -34,12 +49,15 @@ data class HomeUiState(
     val totalCount: Int = 0,
     val todayCount: Int = 0,
     val analyzingCount: Int = 0,
+    val localDraft: LocalDraftUi? = null,
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val meetingsRepository: MeetingsRepository,
     private val authRepository: AuthRepository,
+    private val draftRepository: DraftRepository,
+    private val recordingController: RecordingController,
 ) : ViewModel() {
     private val _ui = MutableStateFlow(
         HomeUiState(
@@ -53,6 +71,38 @@ class HomeViewModel @Inject constructor(
 
     init {
         load(initial = true)
+        observeLocalDraft()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun observeLocalDraft() {
+        viewModelScope.launch {
+            combine(draftRepository.observeLatestDraft(), recordingController.state) { draft, live ->
+                draft to live.phase
+            }.flatMapLatest { (draft, phase) ->
+                if (draft == null) {
+                    flowOf(null)
+                } else {
+                    draftRepository.observeFiles(draft.id).map { files ->
+                        val visible = draft.status != DraftStatus.ON_RECORDING ||
+                            files.isNotEmpty() ||
+                            phase != RecorderPhase.Idle
+                        if (!visible) {
+                            null
+                        } else {
+                            LocalDraftUi(
+                                id = draft.id,
+                                status = draft.status,
+                                title = draft.commentText.trim().ifBlank { "جلسه جدید" },
+                                createdAt = draft.createdAt,
+                            )
+                        }
+                    }
+                }
+            }.collect { card ->
+                _ui.update { it.copy(localDraft = card) }
+            }
+        }
     }
 
     fun refresh() = load(initial = false)

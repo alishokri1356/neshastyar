@@ -11,6 +11,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import com.neshastyar.app.data.api.CreateAudioFileRequest
 import com.neshastyar.app.data.api.CreateMeetingRequest
 import com.neshastyar.app.data.api.CreateMeetingTagRequest
+import com.neshastyar.app.data.local.DraftSelectionStore
 import com.neshastyar.app.data.api.CreateMeetingParticipantRequest
 import com.neshastyar.app.data.api.CreateUploadSessionRequest
 import com.neshastyar.app.data.api.NeshastyarApi
@@ -58,9 +59,16 @@ class UploadMeetingRepository @Inject constructor(
         onProgress: suspend (UploadProgress) -> Unit = {},
     ): Result<String> = runCatching {
         val draft = draftDao.getDraft(draftId) ?: error("پیش‌نویس پیدا نشد")
-        draftRepository.pruneDraftFiles(draftId)
         val files = draftDao.listFiles(draftId).map { draftRepository.healStoredPath(it) }
         if (files.isEmpty()) error("فایلی برای آپلود نیست")
+        val missing = files.filter { file ->
+            file.uploadState != STATE_UPLOADED &&
+                file.uploadState != STATE_LINKED &&
+                draftRepository.resolveFile(file) == null
+        }
+        if (missing.isNotEmpty()) {
+            error("فایل روی گوشی پیدا نشد: ${missing.joinToString { it.displayName }}")
+        }
 
         val fileCount = files.size
         emit(onProgress, 0, "شروع آپلود…", 0, fileCount)
@@ -120,12 +128,24 @@ class UploadMeetingRepository @Inject constructor(
         }
 
         emit(onProgress, 97, "ارسال برای پردازش…", fileCount, fileCount)
-        api.analyzeMeeting(meetingId)
+        val analyze = api.analyzeMeeting(meetingId)
+        if (!analyze.isSuccessful) error("ارسال برای پردازش ناموفق (${analyze.code()})")
 
+        val stored = draftDao.listFiles(draftId)
+        val meetingHasEveryAudio = meetingId.isNotBlank() &&
+            stored.size == files.size &&
+            stored.all { it.uploadState == STATE_LINKED && !it.remoteRelativePath.isNullOrBlank() }
+        if (!meetingHasEveryAudio) {
+            error("فایل‌های ضبط‌شده روی گوشی ماندند چون جلسه هنوز کامل ثبت نشده")
+        }
+
+        stored.forEach { file ->
+            if (file.localPath.isNotBlank()) runCatching { File(file.localPath).delete() }
+        }
         draftDao.clearFiles(draftId)
-        files.forEach { runCatching { File(it.localPath).delete() } }
         draftDao.deleteDraft(draftId)
         clearMeetingId(draftId)
+        DraftSelectionStore.clear(context, draftId)
         emit(onProgress, 100, "آپلود کامل شد", fileCount, fileCount)
         meetingId
     }

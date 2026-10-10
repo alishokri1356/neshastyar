@@ -22,6 +22,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.neshastyar.app.MainActivity
 import com.neshastyar.app.R
+import com.neshastyar.app.data.local.DraftStatus
+import com.neshastyar.app.data.repository.DraftRepository
 import com.neshastyar.app.data.repository.UploadMeetingRepository
 
 /**
@@ -33,6 +35,7 @@ import com.neshastyar.app.data.repository.UploadMeetingRepository
 class UploadForegroundService : android.app.Service() {
 
     @Inject lateinit var uploadMeetingRepository: UploadMeetingRepository
+    @Inject lateinit var draftRepository: DraftRepository
     @Inject lateinit var progressHub: UploadProgressHub
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -64,6 +67,7 @@ class UploadForegroundService : android.app.Service() {
         val participantIds = intent.getStringArrayListExtra(EXTRA_PARTICIPANT_IDS).orEmpty()
         progressHub.begin(draftId)
         scope.launch {
+            draftRepository.setStatus(draftId, DraftStatus.ON_UPLOADING)
             try {
                 val result = uploadMeetingRepository.uploadDraft(draftId, tagIds, participantIds) { progress ->
                     progressHub.progress(
@@ -80,10 +84,12 @@ class UploadForegroundService : android.app.Service() {
                         progressHub.success(draftId, meetingId)
                     },
                     onFailure = { error ->
+                        draftRepository.setStatus(draftId, DraftStatus.ON_TAG_SELECTION)
                         progressHub.failure(draftId, error.message ?: getString(R.string.upload_failed))
                     },
                 )
             } catch (error: Exception) {
+                draftRepository.setStatus(draftId, DraftStatus.ON_TAG_SELECTION)
                 progressHub.failure(draftId, error.message ?: getString(R.string.upload_failed))
             } finally {
                 running = false

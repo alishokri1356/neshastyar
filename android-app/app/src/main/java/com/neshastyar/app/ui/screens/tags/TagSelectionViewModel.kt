@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.TagDto
+import com.neshastyar.app.data.local.DraftSelectionStore
+import com.neshastyar.app.data.local.DraftStatus
+import com.neshastyar.app.data.repository.DraftRepository
 import com.neshastyar.app.data.repository.ParticipantsRepository
 import com.neshastyar.app.data.repository.TagsRepository
 import com.neshastyar.app.upload.CreateMeetingWorker
@@ -43,6 +46,7 @@ class TagSelectionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val tagsRepository: TagsRepository,
     private val participantsRepository: ParticipantsRepository,
+    private val draftRepository: DraftRepository,
     private val uploadProgressHub: UploadProgressHub,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -53,10 +57,14 @@ class TagSelectionViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch { markTagSelectionUnlessUploading() }
         WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
         viewModelScope.launch {
             uploadProgressHub.session.collect { session ->
                 if (session == null || session.draftId != draftId) return@collect
+                if (!session.uploading && session.error != null) {
+                    draftRepository.setStatus(draftId, DraftStatus.ON_TAG_SELECTION)
+                }
                 _ui.update {
                     it.copy(
                         uploading = session.uploading,
@@ -73,16 +81,35 @@ class TagSelectionViewModel @Inject constructor(
         }
     }
 
+    private suspend fun markTagSelectionUnlessUploading() {
+        val draft = draftRepository.getDraft(draftId) ?: return
+        val session = uploadProgressHub.session.value
+        val uploading = draft.status == DraftStatus.ON_UPLOADING &&
+            session?.draftId == draftId &&
+            session.uploading &&
+            session.error == null &&
+            !session.done
+        if (!uploading) {
+            draftRepository.setStatus(draftId, DraftStatus.ON_TAG_SELECTION)
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _ui.update { it.copy(loading = true, error = null) }
             val tagsResult = tagsRepository.list()
             val peopleResult = participantsRepository.list()
-            _ui.update {
-                it.copy(
+            val (savedTags, savedPeople) = DraftSelectionStore.load(context, draftId)
+            _ui.update { current ->
+                val tags = tagsResult.getOrDefault(emptyList())
+                val people = peopleResult.getOrNull()?.participants.orEmpty()
+                current.copy(
                     loading = false,
-                    tags = tagsResult.getOrDefault(emptyList()),
-                    participants = peopleResult.getOrNull()?.participants.orEmpty(),
+                    tags = tags,
+                    participants = people,
+                    selected = (current.selected + savedTags).intersect(tags.map { tag -> tag.id }.toSet()),
+                    selectedParticipants = (current.selectedParticipants + savedPeople)
+                        .intersect(people.map { person -> person.id }.toSet()),
                     error = tagsResult.exceptionOrNull()?.message
                         ?: peopleResult.exceptionOrNull()?.message,
                 )
@@ -91,19 +118,23 @@ class TagSelectionViewModel @Inject constructor(
     }
 
     fun selectTag(tagId: String) {
-        _ui.update { it.copy(selected = it.selected + tagId) }
+        _ui.update { it.copy(selected = it.selected + tagId, newTagName = "") }
+        persistSelection()
     }
 
     fun selectParticipant(participantId: String) {
-        _ui.update { it.copy(selectedParticipants = it.selectedParticipants + participantId) }
+        _ui.update { it.copy(selectedParticipants = it.selectedParticipants + participantId, newTagName = "") }
+        persistSelection()
     }
 
     fun removeTag(tagId: String) {
         _ui.update { it.copy(selected = it.selected - tagId) }
+        persistSelection()
     }
 
     fun removeParticipant(participantId: String) {
         _ui.update { it.copy(selectedParticipants = it.selectedParticipants - participantId) }
+        persistSelection()
     }
 
     fun onNewTagName(v: String) = _ui.update { it.copy(newTagName = v) }
@@ -128,8 +159,12 @@ class TagSelectionViewModel @Inject constructor(
             person != null -> _ui.update {
                 it.copy(selectedParticipants = it.selectedParticipants + person.id, newTagName = "")
             }
-            else -> createTag()
+            else -> {
+                createTag()
+                return
+            }
         }
+        persistSelection()
     }
 
     fun createTag() {
@@ -145,6 +180,7 @@ class TagSelectionViewModel @Inject constructor(
                             newTagName = "",
                         )
                     }
+                    persistSelection()
                 },
                 onFailure = { e -> _ui.update { it.copy(error = e.message) } },
             )
@@ -165,9 +201,11 @@ class TagSelectionViewModel @Inject constructor(
             )
         }
         WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
+        viewModelScope.launch { draftRepository.setStatus(draftId, DraftStatus.ON_UPLOADING) }
         try {
             UploadForegroundService.start(context, draftId, tagIds, participantIds)
         } catch (error: Exception) {
+            viewModelScope.launch { draftRepository.setStatus(draftId, DraftStatus.ON_TAG_SELECTION) }
             _ui.update {
                 it.copy(
                     uploading = false,
@@ -176,6 +214,11 @@ class TagSelectionViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun persistSelection() {
+        val state = _ui.value
+        DraftSelectionStore.save(context, draftId, state.selected, state.selectedParticipants)
     }
 }
 

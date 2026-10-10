@@ -41,6 +41,8 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.neshastyar.app.data.local.DraftAudioFileEntity
 import com.neshastyar.app.recording.RecorderPhase
@@ -75,7 +80,22 @@ fun RecordScreen(
     val live by viewModel.liveRecording.collectAsStateWithLifecycle()
     val files by viewModel.files.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var permissionError by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.onRecordingPageVisible()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(ui.resumeDraftId) {
+        val id = ui.resumeDraftId ?: return@LaunchedEffect
+        viewModel.consumeResume()
+        onContinue(id)
+    }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
@@ -284,6 +304,7 @@ fun RecordScreen(
                     text = "ادامه و انتخاب برچسب‌ها",
                     onClick = {
                         val id = ui.draftId ?: return@NeshastyarPrimaryButton
+                        viewModel.markTagSelection()
                         onContinue(id)
                     },
                     enabled = viewModel.canContinue(files),

@@ -7,6 +7,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.ui.components.LocalGoHome
 import com.neshastyar.app.ui.components.NeshastyarTopBar
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -187,6 +188,13 @@ fun NeshastyarNavHost(
                 MeetingsByDateScreen(
                     onBack = { navController.popBackStack() },
                     onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
+                    onOpenLocalDraft = { draftId, status ->
+                        if (status == DraftStatus.ON_RECORDING) {
+                            navController.navigate(Routes.Record.route)
+                        } else {
+                            navController.navigate(Routes.TagSelection.create(draftId))
+                        }
+                    },
                 )
             }
             composable(Routes.Tags.route) {

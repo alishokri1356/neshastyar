@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
         RecordingDraftEntity::class,
         DraftAudioFileEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class NeshastyarDatabase : RoomDatabase() {

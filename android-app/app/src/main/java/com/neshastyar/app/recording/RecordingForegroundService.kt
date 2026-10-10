@@ -23,13 +23,22 @@ import androidx.core.app.ServiceCompat
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.neshastyar.app.MainActivity
 import com.neshastyar.app.R
+import com.neshastyar.app.data.repository.DraftRepository
 
 @AndroidEntryPoint
 class RecordingForegroundService : Service() {
 
     @Inject lateinit var controller: RecordingController
+    @Inject lateinit var draftRepository: DraftRepository
+
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var secondsSinceFlush = 0
 
     private var recorder: MediaRecorder? = null
     private var outputFile: File? = null
@@ -50,6 +59,11 @@ class RecordingForegroundService : Service() {
             if (recording && !paused) {
                 controller.tick()
                 updateNotification()
+                secondsSinceFlush += 1
+                if (secondsSinceFlush >= FLUSH_INTERVAL_SEC) {
+                    secondsSinceFlush = 0
+                    checkpointToDisk()
+                }
                 handler.postDelayed(this, 1000L)
             }
         }
@@ -133,6 +147,7 @@ class RecordingForegroundService : Service() {
             accumulatedMs = 0L
             segmentStartedElapsed = SystemClock.elapsedRealtime()
             controller.onRecordingStarted(file.absolutePath)
+            secondsSinceFlush = 0
             startAsForeground()
             handler.removeCallbacks(tickRunnable)
             handler.post(tickRunnable)
@@ -154,6 +169,7 @@ class RecordingForegroundService : Service() {
             accumulatedMs += SystemClock.elapsedRealtime() - segmentStartedElapsed
             paused = true
             handler.removeCallbacks(tickRunnable)
+            checkpointToDisk()
             controller.onPaused()
             updateNotification()
         } catch (e: Exception) {
@@ -168,6 +184,7 @@ class RecordingForegroundService : Service() {
             mr.resume()
             paused = false
             segmentStartedElapsed = SystemClock.elapsedRealtime()
+            secondsSinceFlush = 0
             controller.onResumed()
             handler.removeCallbacks(tickRunnable)
             handler.post(tickRunnable)
@@ -344,6 +361,29 @@ class RecordingForegroundService : Service() {
         recorder = null
     }
 
+    /**
+     * MediaRecorder writes into the app file, but the kernel can hold those bytes
+     * in memory. Push them to storage and remember the file on the draft so a
+     * power loss keeps everything captured up to this checkpoint.
+     */
+    private fun checkpointToDisk() {
+        val pfd = outputPfd
+        if (pfd != null) {
+            try {
+                Os.fsync(pfd.fileDescriptor)
+            } catch (_: Exception) {
+            }
+        }
+        val file = outputFile ?: return
+        if (!file.exists() || file.length() < 256L) return
+        val path = file.absolutePath
+        val durationSec = (controller.currentElapsedMs() / 1000L).toInt().coerceAtLeast(0)
+        ioScope.launch {
+            val draft = draftRepository.ensureActiveDraft()
+            draftRepository.addRecordingFile(draft.id, path, durationSec)
+        }
+    }
+
     private fun closeOutput() {
         val pfd = outputPfd ?: return
         outputPfd = null
@@ -371,5 +411,6 @@ class RecordingForegroundService : Service() {
         const val ACTION_STOP = "com.neshastyar.app.recording.STOP"
         private const val CHANNEL_ID = "recording_mic"
         private const val NOTIFICATION_ID = 1001
+        private const val FLUSH_INTERVAL_SEC = 10
     }
 }

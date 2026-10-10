@@ -14,6 +14,7 @@ data class RecordingDraftEntity(
     @PrimaryKey val id: String,
     val commentText: String = "",
     val createdAt: Long = System.currentTimeMillis(),
+    val status: String = DraftStatus.ON_RECORDING,
 )
 
 @Entity(tableName = "draft_audio_files")
@@ -35,6 +36,9 @@ data class DraftAudioFileEntity(
 interface DraftDao {
     @Query("SELECT * FROM recording_drafts ORDER BY createdAt DESC LIMIT 1")
     suspend fun latestDraft(): RecordingDraftEntity?
+
+    @Query("SELECT * FROM recording_drafts ORDER BY createdAt DESC LIMIT 1")
+    fun observeLatestDraft(): Flow<RecordingDraftEntity?>
 
     @Query("SELECT * FROM recording_drafts WHERE id = :id")
     suspend fun getDraft(id: String): RecordingDraftEntity?

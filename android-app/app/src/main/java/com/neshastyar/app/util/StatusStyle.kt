@@ -1,10 +1,14 @@
 package com.neshastyar.app.util
 
 import androidx.compose.ui.graphics.Color
+import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.ui.theme.NeshastyarColors
 
 object StatusStyle {
     fun labelColor(status: String?): Color = when {
+        status == DraftStatus.ON_RECORDING -> NeshastyarColors.PrimaryBright
+        status == DraftStatus.ON_TAG_SELECTION -> NeshastyarColors.Warning
+        status == DraftStatus.ON_UPLOADING -> NeshastyarColors.Analyzing
         status.isProcessed() -> NeshastyarColors.Success
         status.isAnalyzing() -> NeshastyarColors.Analyzing
         status.isNeedReview() || status.isError() -> NeshastyarColors.Error
@@ -12,6 +16,9 @@ object StatusStyle {
     }
 
     fun background(status: String?): Color = when {
+        status == DraftStatus.ON_RECORDING -> NeshastyarColors.PrimaryContainer
+        status == DraftStatus.ON_TAG_SELECTION -> NeshastyarColors.WarningContainer
+        status == DraftStatus.ON_UPLOADING -> NeshastyarColors.AnalyzingContainer
         status.isProcessed() -> NeshastyarColors.SuccessContainer
         status.isAnalyzing() -> NeshastyarColors.AnalyzingContainer
         status.isNeedReview() || status.isError() -> NeshastyarColors.ErrorContainer
@@ -20,6 +27,9 @@ object StatusStyle {
 
     fun displayLabel(status: String?): String = when {
         status.isNullOrBlank() -> "—"
+        status == DraftStatus.ON_RECORDING -> "در حال ضبط"
+        status == DraftStatus.ON_TAG_SELECTION -> "انتخاب برچسب"
+        status == DraftStatus.ON_UPLOADING -> "در حال آپلود"
         status == "Done" -> "تکمیل شده"
         status == "Need Review" -> "نیاز به بازبینی"
         status == "On Process" -> "در حال تحلیل"

@@ -39,10 +39,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.neshastyar.app.data.api.MeetingDto
+import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.StatusChip
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
+import java.util.Date
 import kotlinx.coroutines.delay
 
 private const val StatusSyncIntervalMs = 15_000L
@@ -52,6 +54,7 @@ private const val StatusSyncIntervalMs = 15_000L
 fun MeetingsByDateScreen(
     onBack: () -> Unit,
     onOpenMeeting: (String) -> Unit,
+    onOpenLocalDraft: (draftId: String, status: String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
@@ -70,12 +73,12 @@ fun MeetingsByDateScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             when {
-                state.loading -> {
+                state.loading && state.localDraft == null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = NeshastyarColors.Primary)
                     }
                 }
-                state.error != null && state.groups.isEmpty() -> {
+                state.error != null && state.groups.isEmpty() && state.localDraft == null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(state.error!!, color = NeshastyarColors.Error)
@@ -85,7 +88,7 @@ fun MeetingsByDateScreen(
                         }
                     }
                 }
-                state.groups.isEmpty() -> {
+                state.groups.isEmpty() && state.localDraft == null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -109,6 +112,14 @@ fun MeetingsByDateScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
+                        state.localDraft?.let { draft ->
+                            item(key = "local-${draft.id}") {
+                                LocalDraftCard(
+                                    draft = draft,
+                                    onClick = { onOpenLocalDraft(draft.id, draft.status) },
+                                )
+                            }
+                        }
                         state.groups.forEach { group ->
                             item(key = "header-${group.label}") {
                                 Text(
@@ -154,6 +165,44 @@ private fun ListScreenHeader(title: String, onBack: () -> Unit) {
             fontSize = 18.sp,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+@Composable
+private fun LocalDraftCard(draft: LocalDraftUi, onClick: () -> Unit) {
+    val whenText = JalaliDates.formatDateTime(Date(draft.createdAt))
+    NeshastyarCard(
+        modifier = Modifier.clickable(onClick = onClick),
+        accentBar = draft.status == DraftStatus.ON_UPLOADING || draft.status == DraftStatus.ON_RECORDING,
+        contentPadding = PaddingValues(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = draft.title,
+                fontWeight = FontWeight.SemiBold,
+                color = NeshastyarColors.TextPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            StatusChip(draft.status)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.AccessTime,
+                contentDescription = null,
+                tint = NeshastyarColors.TextMuted,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(whenText, color = NeshastyarColors.TextMuted, fontSize = 12.sp, maxLines = 1)
+        }
     }
 }
 

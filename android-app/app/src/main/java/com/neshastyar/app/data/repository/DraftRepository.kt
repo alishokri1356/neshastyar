@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.neshastyar.app.data.local.DraftAudioFileEntity
 import com.neshastyar.app.data.local.DraftDao
+import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.data.local.RecordingDraftEntity
 
 @Singleton
@@ -35,6 +36,15 @@ class DraftRepository @Inject constructor(
     fun observeFiles(draftId: String): Flow<List<DraftAudioFileEntity>> =
         draftDao.observeFiles(draftId)
 
+    fun observeLatestDraft(): Flow<RecordingDraftEntity?> = draftDao.observeLatestDraft()
+
+    suspend fun setStatus(draftId: String, status: String) {
+        if (!DraftStatus.isTemporary(status)) return
+        val draft = draftDao.getDraft(draftId) ?: return
+        if (draft.status == status) return
+        draftDao.updateDraft(draft.copy(status = status))
+    }
+
     suspend fun updateComment(draftId: String, comment: String) {
         val draft = draftDao.getDraft(draftId) ?: return
         draftDao.updateDraft(draft.copy(commentText = comment))
@@ -49,7 +59,14 @@ class DraftRepository @Inject constructor(
         if (!isUsableAudio(file)) return@withLock null
         val path = file.absolutePath
         val existing = draftDao.listFiles(draftId).firstOrNull { sameFile(it.localPath, path) }
-        if (existing != null) return@withLock existing
+        if (existing != null) {
+            if (durationSec > existing.durationSec) {
+                val updated = existing.copy(durationSec = durationSec)
+                draftDao.upsertFile(updated)
+                return@withLock updated
+            }
+            return@withLock existing
+        }
         val count = draftDao.fileCount(draftId)
         val entity = DraftAudioFileEntity(
             id = UUID.randomUUID().toString(),
@@ -63,6 +80,36 @@ class DraftRepository @Inject constructor(
         )
         draftDao.upsertFile(entity)
         entity
+    }
+
+    /**
+     * Attach recording files that survived a crash or power loss but were not
+     * yet linked to the draft. Duration is estimated from the 128 kbps capture.
+     */
+    suspend fun recoverOrphanRecordings(draftId: String) = fileLock.withLock {
+        val dir = File(context.filesDir, "recordings")
+        if (!dir.isDirectory) return@withLock
+        val known = draftDao.listFiles(draftId).map { File(it.localPath).name }.toSet()
+        val orphans = dir.listFiles().orEmpty().filter { file ->
+            file.isFile && file.length() >= 256L && file.name !in known && isSupported(file.name)
+        }
+        var count = draftDao.fileCount(draftId)
+        for (file in orphans.sortedBy { it.lastModified() }) {
+            count += 1
+            val estimatedSec = (file.length() / 16_000L).toInt().coerceAtLeast(0)
+            draftDao.upsertFile(
+                DraftAudioFileEntity(
+                    id = UUID.randomUUID().toString(),
+                    draftId = draftId,
+                    localPath = file.absolutePath,
+                    displayName = file.name,
+                    durationSec = estimatedSec,
+                    mimeType = "audio/mp4",
+                    source = "recording",
+                    sortOrder = count,
+                ),
+            )
+        }
     }
 
     /**
