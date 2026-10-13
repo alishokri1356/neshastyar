@@ -6,6 +6,21 @@ const uploadSessionService = require('../services/uploadSessionService');
 const audioChunkService = require('../services/audioChunkService');
 const transcriptChunkService = require('../services/transcriptChunkService');
 
+// Node rejects non-ASCII bytes in header values. Persian filenames must stay
+// in filename* (percent-encoded) and the plain filename must stay ASCII.
+function attachmentDisposition(fileName) {
+  const original = String(fileName || 'audio').replace(/[\r\n]/g, '');
+  const ascii = original
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/["\\]/g, '_')
+    .trim() || 'audio';
+  const encoded = encodeURIComponent(original).replace(
+    /[!'()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 // Configure multer for large file uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -395,7 +410,7 @@ class FileController {
             
             // Set appropriate headers for file download
             const fileName = audioFile.file_name || `audio-${audioFileId}.${audioFile.format?.split('/')[1] || 'ogg'}`;
-            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.setHeader('Content-Disposition', attachmentDisposition(fileName));
             res.setHeader('Content-Type', audioFile.format || 'application/octet-stream');
             
             if (audioFile.file_size) {
@@ -422,11 +437,7 @@ class FileController {
 
       // Set appropriate headers for file download
       const fileName = audioFile.file_name || `audio-${audioFileId}.${audioFile.format?.split('/')[1] || 'ogg'}`;
-      
-      // Sanitize filename to prevent invalid characters in headers
-      const sanitizedFileName = fileName.replace(/[^\w\-_.]/g, '_');
-      
-      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
+      res.setHeader('Content-Disposition', attachmentDisposition(fileName));
       res.setHeader('Content-Type', audioFile.format || 'application/octet-stream');
       
       if (audioFile.file_size) {
@@ -524,7 +535,7 @@ class FileController {
             
             // Set appropriate headers for file download
             const fileName = meeting.audio_file_name || `meeting-${meetingId}.${meeting.audio_format?.split('/')[1] || 'ogg'}`;
-            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.setHeader('Content-Disposition', attachmentDisposition(fileName));
             res.setHeader('Content-Type', meeting.audio_format || 'application/octet-stream');
             
             if (meeting.audio_file_size) {
@@ -551,11 +562,7 @@ class FileController {
 
       // Set appropriate headers for file download
       const fileName = meeting.audio_file_name || `meeting-${meetingId}.${meeting.audio_format?.split('/')[1] || 'ogg'}`;
-      
-      // Sanitize filename to prevent invalid characters in headers
-      const sanitizedFileName = fileName.replace(/[^\w\-_.]/g, '_');
-      
-      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
+      res.setHeader('Content-Disposition', attachmentDisposition(fileName));
       res.setHeader('Content-Type', meeting.audio_format || 'application/octet-stream');
       
       if (meeting.audio_file_size) {
@@ -754,7 +761,7 @@ class FileController {
       const chunk = await audioChunkService.resolveChunk(req.params.audioFileId, req.params.chunkIndex);
       res.setHeader('Content-Type', chunk.mimeType);
       res.setHeader('Content-Length', String(chunk.fileSize));
-      res.setHeader('Content-Disposition', `attachment; filename="${chunk.fileName}"`);
+      res.setHeader('Content-Disposition', attachmentDisposition(chunk.fileName));
       return res.sendFile(chunk.absolutePath);
     } catch (error) {
       console.error('Download audio chunk error:', error);
