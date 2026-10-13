@@ -25,6 +25,7 @@ import ParticipantsList from "./pages/ParticipantsList";
 import ParticipantDetail from "./pages/ParticipantDetail";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
+import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 import ParticipantsManager from "./pages/ParticipantsManager";
 import TagManager from "./pages/TagManager";
 import AccountManagement from "./pages/AccountManagement";
@@ -62,6 +63,7 @@ const App = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
 
             {/* Admin panel */}
             <Route path="/admin" element={<AdminLogin />} />

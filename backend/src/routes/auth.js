@@ -74,6 +74,12 @@ router.use(authLimiter);
 // POST /api/auth/google
 router.post('/google', authController.googleAuth);
 
+// POST /api/auth/google/callback — GIS redirect (form POST from accounts.google.com)
+router.post('/google/callback', authController.googleAuthRedirect);
+
+// POST /api/auth/google/handoff — exchange short-lived handoff for session JSON
+router.post('/google/handoff', authController.googleAuthHandoff);
+
 // POST /api/auth/login
 router.post('/login', authController.login);
 

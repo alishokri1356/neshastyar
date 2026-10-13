@@ -3,6 +3,15 @@ import { Loader2 } from 'lucide-react';
 
 const GIS_SCRIPT = 'https://accounts.google.com/gsi/client';
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+/** Same-origin /api so the GIS g_csrf_token cookie is included on Google's POST back. */
+function getLoginUri(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return `${window.location.origin}/api/auth/google/callback`;
+  }
+  return `${API_BASE_URL.replace(/\/$/, '')}/auth/google/callback`;
+}
 
 declare global {
   interface Window {
@@ -81,8 +90,13 @@ const GoogleSignInButton = ({
         await loadGisScript();
         if (cancelled || !buttonHostRef.current || !window.google?.accounts?.id) return;
 
+        // Redirect UX avoids Safari popup/opener breakage (blank accounts.google.com on iPhone).
+        // Google POSTs the credential to LOGIN_URI; backend redirects back to the SPA.
         window.google.accounts.id.initialize({
           client_id: CLIENT_ID,
+          ux_mode: 'redirect',
+          login_uri: getLoginUri(),
+          // Kept for non-redirect fallbacks if Google still invokes it.
           callback: async (response: { credential?: string }) => {
             if (!response?.credential) {
               errorRef.current?.('توکن گوگل دریافت نشد.');

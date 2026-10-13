@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.neshastyar.app.data.local.DraftAudioFileEntity
-import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.data.repository.DraftRepository
 import com.neshastyar.app.recording.LiveRecordingState
 import com.neshastyar.app.recording.RecorderPhase
@@ -27,7 +26,6 @@ data class RecordUiState(
     val draftId: String? = null,
     val comment: String = "",
     val ready: Boolean = false,
-    val resumeDraftId: String? = null,
     val message: String? = null,
     val error: String? = null,
 )
@@ -53,28 +51,19 @@ class RecordViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var lastPhase: RecorderPhase = RecorderPhase.Idle
-    private var deferRecordingStatus = true
 
     init {
         viewModelScope.launch {
             val draft = draftRepository.ensureActiveDraft()
             draftIdFlow.value = draft.id
-            draftRepository.recoverOrphanRecordings(draft.id)
             draftRepository.pruneDraftFiles(draft.id)
-            val resume = draft.status == DraftStatus.ON_TAG_SELECTION ||
-                draft.status == DraftStatus.ON_UPLOADING
-            if (!resume) {
-                draftRepository.setStatus(draft.id, DraftStatus.ON_RECORDING)
-            }
             _ui.update {
                 it.copy(
                     draftId = draft.id,
                     comment = draft.commentText,
                     ready = true,
-                    resumeDraftId = if (resume) draft.id else null,
                 )
             }
-            deferRecordingStatus = false
         }
         viewModelScope.launch {
             recordingController.state.collect { state ->
@@ -93,21 +82,6 @@ class RecordViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    fun onRecordingPageVisible() {
-        if (deferRecordingStatus || _ui.value.resumeDraftId != null) return
-        val id = draftIdFlow.value ?: return
-        viewModelScope.launch { draftRepository.setStatus(id, DraftStatus.ON_RECORDING) }
-    }
-
-    fun consumeResume() {
-        _ui.update { it.copy(resumeDraftId = null) }
-    }
-
-    fun markTagSelection() {
-        val id = draftIdFlow.value ?: return
-        viewModelScope.launch { draftRepository.setStatus(id, DraftStatus.ON_TAG_SELECTION) }
     }
 
     fun onComment(value: String) {
@@ -141,8 +115,6 @@ class RecordViewModel @Inject constructor(
     }
 
     fun deleteFile(file: DraftAudioFileEntity) {
-        val active = liveRecording.value
-        if (active.phase != RecorderPhase.Idle && active.outputPath == file.localPath) return
         viewModelScope.launch { draftRepository.deleteFile(file) }
     }
 

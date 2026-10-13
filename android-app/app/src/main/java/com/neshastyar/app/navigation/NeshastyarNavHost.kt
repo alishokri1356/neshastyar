@@ -7,7 +7,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.ui.components.LocalGoHome
 import com.neshastyar.app.ui.components.NeshastyarTopBar
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,8 +32,6 @@ import com.neshastyar.app.ui.screens.meeting.MeetingBulletPointsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingConversationScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailBottomBar
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailScreen
-import com.neshastyar.app.ui.screens.meeting.MeetingDetailViewModel
-import com.neshastyar.app.util.StatusStyle
 import com.neshastyar.app.ui.screens.meeting.MeetingOptionsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingParticipantsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingTagsScreen
@@ -124,17 +121,11 @@ fun NeshastyarNavHost(
                 NeshastyarBottomBar(onSettings = { navController.navigate(Routes.Account.route) })
             } else if (showMeetingBar) {
                 val id = meetingId.orEmpty()
-                val detailEntry = navController.getBackStackEntry(Routes.MeetingDetail.route)
-                val detailVm: MeetingDetailViewModel = hiltViewModel(detailEntry)
-                val detailState by detailVm.ui.collectAsStateWithLifecycle()
-                val showProcessedSections = !StatusStyle.isErrorStatus(detailState.meeting?.status) &&
-                    !detailState.summarySuppressed
                 MeetingDetailBottomBar(
                     onParticipants = { openMeetingSection(Routes.MeetingParticipants.create(id)) },
                     onTags = { openMeetingSection(Routes.MeetingTags.create(id)) },
                     onBulletPoints = { openMeetingSection(Routes.MeetingBulletPoints.create(id)) },
                     onMenu = { openMeetingSection(Routes.MeetingOptions.create(id)) },
-                    showProcessedSections = showProcessedSections,
                 )
             }
         },
@@ -188,13 +179,6 @@ fun NeshastyarNavHost(
                 MeetingsByDateScreen(
                     onBack = { navController.popBackStack() },
                     onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
-                    onOpenLocalDraft = { draftId, status ->
-                        if (status == DraftStatus.ON_RECORDING) {
-                            navController.navigate(Routes.Record.route)
-                        } else {
-                            navController.navigate(Routes.TagSelection.create(draftId))
-                        }
-                    },
                 )
             }
             composable(Routes.Tags.route) {

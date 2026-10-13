@@ -19,6 +19,82 @@ if (!ALLOWED_CLIENT_IDS.includes(androidWebClientId)) {
 
 const googleClient = new OAuth2Client();
 
+function getCookie(req, name) {
+  const header = req.headers.cookie || '';
+  const parts = header.split(';');
+  for (const part of parts) {
+    const [rawKey, ...rest] = part.trim().split('=');
+    if (rawKey === name) {
+      return decodeURIComponent(rest.join('=') || '');
+    }
+  }
+  return null;
+}
+
+function frontendBaseUrl(req) {
+  const allowedHosts = new Set([
+    'neshastyar.com',
+    'www.neshastyar.com',
+    'localhost:5173',
+    'localhost:3000',
+    'localhost:4173',
+  ]);
+  const rawHost = (req.get('x-forwarded-host') || req.get('host') || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  if (rawHost && allowedHosts.has(rawHost)) {
+    const proto = rawHost.startsWith('localhost')
+      ? 'http'
+      : (req.get('x-forwarded-proto') || 'https').split(',')[0].trim();
+    return `${proto}://${rawHost}`;
+  }
+  return (process.env.FRONTEND_URL || 'https://neshastyar.com').replace(/\/$/, '');
+}
+
+function redirectGoogleError(res, req, message) {
+  const url = `${frontendBaseUrl(req)}/auth/google/callback?error=${encodeURIComponent(message)}`;
+  return res.redirect(302, url);
+}
+
+async function createSessionFromGoogleIdToken(tokenToVerify) {
+  const ticket = await googleClient.verifyIdToken({
+    idToken: tokenToVerify,
+    audience: ALLOWED_CLIENT_IDS,
+  });
+  const payload = ticket.getPayload();
+
+  if (!payload || !payload.email) {
+    throw new Error('Google token does not contain email');
+  }
+
+  const email = payload.email;
+  const name = payload.name || payload.given_name || 'کاربر گوگل';
+
+  let user = await userService.findByEmail(email);
+
+  if (!user) {
+    const randomPassword = crypto.randomBytes(32).toString('base64');
+    user = await userService.createUser(email, randomPassword, name);
+    user = await userService.markEmailAsVerified(user.id);
+  } else if (!user.email_verified) {
+    user = await userService.markEmailAsVerified(user.id);
+  }
+
+  await userService.touchLastLogin(user.id);
+
+  const {
+    password_hash,
+    email_verification_token,
+    email_verification_expires,
+    password_reset_token,
+    password_reset_expires,
+    ...userWithoutSensitiveData
+  } = user;
+
+  return authService.createSession(userWithoutSensitiveData);
+}
+
 class AuthController {
   // POST /api/auth/google
   async googleAuth(req, res) {
@@ -33,43 +109,7 @@ class AuthController {
         });
       }
 
-      // Verify Google token
-      const ticket = await googleClient.verifyIdToken({
-        idToken: tokenToVerify,
-        audience: ALLOWED_CLIENT_IDS
-      });
-      const payload = ticket.getPayload();
-      
-      if (!payload || !payload.email) {
-        return res.status(401).json({
-          error: 'Invalid token',
-          message: 'Google token does not contain email'
-        });
-      }
-
-      const email = payload.email;
-      const name = payload.name || payload.given_name || 'کاربر گوگل';
-
-      let user = await userService.findByEmail(email);
-
-      if (!user) {
-        // User does not exist, create a new one with verified email and a random password
-        const randomPassword = crypto.randomBytes(32).toString('base64');
-        user = await userService.createUser(email, randomPassword, name);
-        // Automatically mark email as verified since it came from Google
-        user = await userService.markEmailAsVerified(user.id);
-      } else if (!user.email_verified) {
-        // Existing user but email not verified, let's verify it since they logged in via Google
-        user = await userService.markEmailAsVerified(user.id);
-      }
-
-      // Proceed to log the user in
-      await userService.touchLastLogin(user.id);
-      
-      // Remove sensitive fields
-      const { password_hash, email_verification_token, email_verification_expires, password_reset_token, password_reset_expires, ...userWithoutSensitiveData } = user;
-
-      const session = authService.createSession(userWithoutSensitiveData);
+      const session = await createSessionFromGoogleIdToken(tokenToVerify);
 
       res.json({
         data: {
@@ -85,6 +125,60 @@ class AuthController {
         error: 'Authentication failed',
         message: 'Invalid Google token or backend error',
         details: error.message
+      });
+    }
+  }
+
+  // POST /api/auth/google/callback — GIS redirect UX (Safari / iPhone)
+  // Google POSTs application/x-www-form-urlencoded with credential + g_csrf_token
+  async googleAuthRedirect(req, res) {
+    try {
+      const credential = req.body?.credential;
+      const bodyCsrf = req.body?.g_csrf_token;
+      const cookieCsrf = getCookie(req, 'g_csrf_token');
+
+      if (!credential) {
+        return redirectGoogleError(res, req, 'توکن گوگل دریافت نشد.');
+      }
+
+      if (!bodyCsrf || !cookieCsrf || bodyCsrf !== cookieCsrf) {
+        return redirectGoogleError(res, req, 'اعتبارسنجی امنیتی گوگل ناموفق بود. لطفاً دوباره تلاش کنید.');
+      }
+
+      const session = await createSessionFromGoogleIdToken(credential);
+      const handoff = authService.createGoogleHandoffToken(session);
+      const url = `${frontendBaseUrl(req)}/auth/google/callback?handoff=${encodeURIComponent(handoff)}`;
+      return res.redirect(302, url);
+    } catch (error) {
+      console.error('Google Auth redirect error:', error);
+      return redirectGoogleError(res, req, 'ورود با گوگل ناموفق بود.');
+    }
+  }
+
+  // POST /api/auth/google/handoff — SPA exchanges short-lived handoff for session
+  async googleAuthHandoff(req, res) {
+    try {
+      const { handoff } = req.body || {};
+      if (!handoff) {
+        return res.status(400).json({
+          error: 'Missing handoff',
+          message: 'Handoff token is required',
+        });
+      }
+
+      const session = authService.verifyGoogleHandoffToken(handoff);
+      return res.json({
+        data: {
+          user: session.user,
+          session,
+        },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Google Auth handoff error:', error);
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'Invalid or expired Google handoff token',
       });
     }
   }

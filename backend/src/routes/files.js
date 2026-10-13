@@ -47,6 +47,9 @@ router.get('/meetings/:meetingId/audio-files', FileController.getMeetingAudioFil
 // Create audio file record
 router.post('/audio-files', FileController.createAudioFile);
 
+// Permanently delete an audio file (disk + record)
+router.delete('/audio-files/:audioFileId', FileController.deleteAudioFile);
+
 // Delete audio file
 router.delete('/files/audio/:userId/:filename', FileController.deleteAudio);
 

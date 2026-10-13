@@ -299,6 +299,10 @@ class FileController {
         }
       }
 
+      if (req.query.download) {
+        return res.download(filePath, path.basename(filename));
+      }
+
       // Stream the file
       res.sendFile(filePath);
     } catch (error) {
@@ -703,6 +707,9 @@ class FileController {
         audioFileId, meeting_id, file_name, file_path, file_size, 
         duration, format, upload_order || 1
       ]);
+
+      // New audio invalidates the saved transcript, so n8n must transcribe again
+      await db.query('UPDATE meetings SET TranscriptionCompleted = 0 WHERE id = ?', [meeting_id]);
       
       res.json({
         data: {
@@ -721,6 +728,62 @@ class FileController {
       console.error('Error creating audio file:', error);
       res.status(500).json({
         error: 'Failed to create audio file',
+        message: error.message
+      });
+    }
+  }
+
+  // DELETE /api/audio-files/:audioFileId - Permanently delete an audio file and its record
+  async deleteAudioFile(req, res) {
+    try {
+      const userId = req.user.sub;
+      const { audioFileId } = req.params;
+
+      const rows = await db.query(
+        `SELECT af.id, af.meeting_id, af.file_path
+         FROM audio_files af
+         JOIN meetings m ON m.id = af.meeting_id
+         WHERE af.id = ? AND m.user_id = ?`,
+        [audioFileId, userId]
+      );
+      if (rows.length === 0) {
+        return res.status(404).json({
+          error: 'Audio file not found',
+          message: 'Audio file not found or access denied'
+        });
+      }
+      const audioFile = rows[0];
+
+      const userDir = path.resolve(process.cwd(), 'uploads/audio', userId);
+      const absolutePath = audioFile.file_path ? path.resolve(process.cwd(), audioFile.file_path) : null;
+      if (absolutePath && absolutePath.startsWith(userDir + path.sep)) {
+        try {
+          await fs.unlink(absolutePath);
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+        }
+      } else if (absolutePath) {
+        console.warn('Skipping deletion of audio outside user directory:', audioFile.file_path);
+      }
+
+      await fs.rm(path.join(process.cwd(), 'uploads', 'audio-chunks', String(audioFile.id)), {
+        recursive: true,
+        force: true
+      });
+      await transcriptChunkService.flushMeetingTranscriptChunks(audioFile.meeting_id);
+
+      await db.query('DELETE FROM audio_files WHERE id = ?', [audioFile.id]);
+      // Remaining audio no longer matches the saved transcript, so n8n must transcribe again
+      await db.query('UPDATE meetings SET TranscriptionCompleted = 0 WHERE id = ?', [audioFile.meeting_id]);
+
+      res.json({
+        data: { id: audioFile.id, meeting_id: audioFile.meeting_id },
+        error: null
+      });
+    } catch (error) {
+      console.error('Error deleting audio file:', error);
+      res.status(500).json({
+        error: 'Failed to delete audio file',
         message: error.message
       });
     }

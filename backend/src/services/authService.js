@@ -66,6 +66,35 @@ class AuthService {
       }
     };
   }
+
+  // Short-lived token so GIS redirect can hand the session back to the SPA safely
+  createGoogleHandoffToken(session) {
+    return jwt.sign(
+      {
+        purpose: 'google_gis_handoff',
+        access_token: session.access_token,
+        expires_at: session.expires_at,
+        user: session.user,
+      },
+      this.jwtSecret,
+      { expiresIn: '2m' }
+    );
+  }
+
+  verifyGoogleHandoffToken(token) {
+    const decoded = this.verifyToken(token);
+    if (decoded.purpose !== 'google_gis_handoff' || !decoded.access_token || !decoded.user) {
+      throw new Error('Invalid Google handoff token');
+    }
+    return {
+      access_token: decoded.access_token,
+      token_type: 'bearer',
+      expires_in: 3600,
+      expires_at: decoded.expires_at,
+      refresh_token: decoded.access_token,
+      user: decoded.user,
+    };
+  }
 }
 
 module.exports = new AuthService();
