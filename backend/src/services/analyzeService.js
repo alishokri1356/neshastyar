@@ -2,10 +2,10 @@ class AnalyzeService {
   async requestMeetingAnalysis(meetingId) {
     const webhookUrl =
       process.env.ANALYZE_WEBHOOK_URL ||
-      'https://n8nnew.teraxr.com/webhook/add5d58a-54b1-4459-96f2-ec17590e3cfd';
+      'https://n8nnew.teraxr.com/webhook/75a3d44b-c1dd-4ea1-9888-8e2ee8c83808';
     const webhookTestUrl =
       process.env.ANALYZE_WEBHOOK_TEST_URL ||
-      'https://n8nnew.teraxr.com/webhook-test/add5d58a-54b1-4459-96f2-ec17590e3cfd';
+      'https://n8nnew.teraxr.com/webhook-test/75a3d44b-c1dd-4ea1-9888-8e2ee8c83808';
 
     const headers = {
       'Content-Type': 'application/json',

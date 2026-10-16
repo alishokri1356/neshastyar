@@ -2,12 +2,13 @@ const { execFile } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
 
-// Files longer than 75 minutes are split into ~45 minute slices
+// Every chunk is re-encoded to 16 kHz mono 64 kbps MP3.
+// Files longer than 45 minutes are split into 45 minute slices
 // with a short overlap so transcript stitching can drop duplicated edges.
 const CHUNK_SECONDS = 45 * 60;
 const OVERLAP_SECONDS = 20;
-const SINGLE_FILE_MAX_SECONDS = 75 * 60;
-const PLAN_VERSION = '45m-keep75-overlap20-v1';
+const SINGLE_FILE_MAX_SECONDS = CHUNK_SECONDS;
+const PLAN_VERSION = '45m-mp3-16k-64k-overlap20-v2';
 const FFMPEG_TIMEOUT_MS = 3 * 60 * 1000;
 
 const inflight = new Map();
@@ -135,49 +136,35 @@ async function buildChunks(audioFile) {
   const windows = planChunkWindows(duration);
   const chunks = [];
 
-  if (windows.length === 1 && duration <= SINGLE_FILE_MAX_SECONDS) {
+  for (let index = 0; index < windows.length; index += 1) {
+    const window = windows[index];
+    const fileName = `chunk-${String(index).padStart(3, '0')}.mp3`;
+    const relativePath = path.join('uploads', 'audio-chunks', String(audioFile.id), fileName);
+    const outPath = resolveInsideCwd(relativePath);
+    await execFileAsync('ffmpeg', [
+      '-y',
+      '-ss', String(window.start),
+      '-t', String(window.length),
+      '-i', sourcePath,
+      '-vn',
+      '-ac', '1',
+      '-ar', '16000',
+      '-c:a', 'libmp3lame',
+      '-b:a', '64k',
+      outPath
+    ]);
+    const chunkStat = await fs.stat(outPath);
     chunks.push({
-      index: 0,
-      count: 1,
-      startSeconds: 0,
-      endSeconds: duration,
-      fileName: path.basename(sourcePath),
-      relativePath: audioFile.file_path,
-      mimeType: audioFile.format || 'application/octet-stream',
-      fileSize: sourceStat.size,
-      useOriginal: true
+      index,
+      count: windows.length,
+      startSeconds: window.start,
+      endSeconds: Math.min(window.start + window.length, duration),
+      fileName,
+      relativePath,
+      mimeType: 'audio/mpeg',
+      fileSize: chunkStat.size,
+      useOriginal: false
     });
-  } else {
-    for (let index = 0; index < windows.length; index += 1) {
-      const window = windows[index];
-      const fileName = `chunk-${String(index).padStart(3, '0')}.mp3`;
-      const relativePath = path.join('uploads', 'audio-chunks', String(audioFile.id), fileName);
-      const outPath = resolveInsideCwd(relativePath);
-      await execFileAsync('ffmpeg', [
-        '-y',
-        '-ss', String(window.start),
-        '-t', String(window.length),
-        '-i', sourcePath,
-        '-vn',
-        '-ac', '1',
-        '-ar', '16000',
-        '-c:a', 'libmp3lame',
-        '-b:a', '64k',
-        outPath
-      ]);
-      const chunkStat = await fs.stat(outPath);
-      chunks.push({
-        index,
-        count: windows.length,
-        startSeconds: window.start,
-        endSeconds: Math.min(window.start + window.length, duration),
-        fileName,
-        relativePath,
-        mimeType: 'audio/mpeg',
-        fileSize: chunkStat.size,
-        useOriginal: false
-      });
-    }
   }
 
   const manifest = {
