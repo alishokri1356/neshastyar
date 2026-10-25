@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Mic, Sparkles, Users, Search } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import androidVersionFile from "../../android-app/versioning.txt?raw";
+import { HOME_FAQS } from "@/seo/seoConfig";
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://neshastyar.com/api").replace(/\/$/, "");
 const ANDROID_VERSION = androidVersionFile.trim();
@@ -258,6 +259,23 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="container mx-auto py-12 sm:py-16" aria-labelledby="faq-heading">
+        <div className="mx-auto max-w-3xl">
+          <h2 id="faq-heading" className="mb-8 text-center text-2xl font-bold text-foreground sm:text-3xl">
+            سوالات متداول
+          </h2>
+          <div className="space-y-4">
+            {HOME_FAQS.map((faq) => (
+              <article key={faq.question} className="rounded-xl border border-border/50 bg-card p-5 text-right shadow-soft sm:p-6">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">{faq.question}</h3>
+                <p className="leading-8 text-muted-foreground">{faq.answer}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Bottom CTA Section */}
       <section className="bg-muted/30 py-12 sm:py-16">
         <div className="container mx-auto text-center">
@@ -283,9 +301,12 @@ const Landing = () => {
 
       {/* Footer */}
       <footer className="border-t py-8">
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 text-center space-y-2">
           <p className="text-sm text-muted-foreground">
-            🔒 امنیت سازمانی و تطبیق با GDPR
+            امنیت سازمانی و تطبیق با GDPR
+          </p>
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} نشست یار
           </p>
         </div>
       </footer>

@@ -107,8 +107,13 @@ echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 # Create production environment file for frontend
 echo "--- Creating production environment ---"
 # Use the same domain with /api path (Nginx will proxy to backend)
-echo "VITE_API_URL=https://neshastyar.com/api" > .env.production
+echo "VITE_API_URL=https://www.neshastyar.com/api" > .env.production
 echo "VITE_EMAIL_WEBHOOK_URL=https://n8nnew.teraxr.com/webhook/modiryar-email-sender" >> .env.production
+echo "VITE_APP_ENV=production" >> .env.production
+# Optional: set in environment before deploy to embed GSC verification meta
+if [ -n "${VITE_GOOGLE_SITE_VERIFICATION:-}" ]; then
+  echo "VITE_GOOGLE_SITE_VERIFICATION=${VITE_GOOGLE_SITE_VERIFICATION}" >> .env.production
+fi
 
 # Build the final, optimized production-ready static files
 echo "--- Building frontend ---"

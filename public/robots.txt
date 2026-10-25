@@ -1,14 +1,17 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /home
+Disallow: /tag
+Disallow: /meeting
+Disallow: /record
+Disallow: /tags
+Disallow: /participants
+Disallow: /participant
+Disallow: /account
+Disallow: /admin
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
+
+Sitemap: https://www.neshastyar.com/sitemap.xml

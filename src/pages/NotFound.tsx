@@ -12,8 +12,9 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 px-6 safe-top pb-safe">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 px-6 safe-top pb-safe">
       <div className="text-center">
+        <p className="mb-2 text-sm font-semibold text-primary">خطای ۴۰۴</p>
         <h1 className="mb-2 text-6xl font-extrabold text-primary">۴۰۴</h1>
         <p className="mb-6 text-lg text-muted-foreground">اوه! صفحه پیدا نشد</p>
         <a
@@ -23,7 +24,7 @@ const NotFound = () => {
           بازگشت به خانه
         </a>
       </div>
-    </div>
+    </main>
   );
 };
 

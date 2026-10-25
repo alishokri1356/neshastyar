@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useAuthStore } from "@/store/useAuthStore";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import SeoHead from "@/components/SeoHead";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
@@ -54,6 +55,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <SeoHead />
           <Routes>
             {/* Public routes - accessible without authentication */}
             <Route path="/" element={<Index />} />
