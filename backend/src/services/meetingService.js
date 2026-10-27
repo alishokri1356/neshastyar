@@ -478,16 +478,11 @@ class MeetingService {
       throw new Error('Meeting not found or access denied');
     }
 
-    await db.query(
-      'UPDATE meetings SET status = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
-      ['ارسال درخواست پردازش', id, userId]
-    );
-
     const result = await analyzeService.requestMeetingAnalysis(id);
 
     return {
       ...result,
-      status: 'ارسال درخواست پردازش',
+      status: meeting.status,
     };
   }
 
