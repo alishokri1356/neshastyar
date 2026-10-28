@@ -29,11 +29,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.clickable
-import com.neshastyar.app.BuildConfig
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,22 +70,6 @@ fun LoginScreen(
     var rememberMe by remember { mutableStateOf(true) }
     
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
-
-    fun signInWithGoogle() {
-        coroutineScope.launch {
-            try {
-                val idToken = requestGoogleIdToken(context, webClientId)
-                viewModel.googleLogin(idToken)
-            } catch (e: GoogleSignInCancelledException) {
-                // User closed the account picker.
-            } catch (e: Exception) {
-                val message = googleAuthErrorMessage(e, "خطا در ورود با گوگل")
-                if (message.isNotBlank()) viewModel.setError(message)
-            }
-        }
-    }
 
     LaunchedEffect(state.loggedIn) {
         if (state.loggedIn) onLoggedIn()
@@ -239,7 +220,7 @@ fun LoginScreen(
                     label = "گوگل",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { signInWithGoogle() },
+                        .clickable(enabled = !state.loading) { viewModel.googleSignIn(context) },
                 )
             }
 

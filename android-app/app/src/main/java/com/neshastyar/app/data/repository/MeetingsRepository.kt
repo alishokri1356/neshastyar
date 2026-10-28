@@ -68,7 +68,7 @@ class MeetingsRepository @Inject constructor(
     }
 
     suspend fun sendMail(meetingId: String): Result<String> = runCatching {
-        val url = "https://neshastyar.com/sendmail/$meetingId"
+        val url = "https://www.neshastyar.com/sendmail/$meetingId"
         val r = api.sendMail(url)
         when {
             r.isSuccessful -> "ایمیل ارسال شد"

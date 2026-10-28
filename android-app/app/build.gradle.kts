@@ -25,7 +25,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://www.neshastyar.com/api/\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
     }
 
@@ -39,7 +39,7 @@ android {
     buildTypes {
         debug {
             // Emulator → host machine: 10.0.2.2; physical device on LAN: use your PC IP
-            buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://www.neshastyar.com/api/\"")
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
             applicationIdSuffix = ".debug"
             isDebuggable = true
@@ -50,7 +50,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://neshastyar.com/api/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://www.neshastyar.com/api/\"")
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"361368197313-ob51trc4rb0lu13tpekcj4p3nmvl8os7.apps.googleusercontent.com\"")
         }
     }

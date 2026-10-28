@@ -5,5 +5,5 @@ package com.neshastyar.app.data.api
  * Trailing slash required for Retrofit relative paths.
  */
 object ApiConfig {
-    const val PROD_BASE_URL = "https://neshastyar.com/api/"
+    const val PROD_BASE_URL = "https://www.neshastyar.com/api/"
 }

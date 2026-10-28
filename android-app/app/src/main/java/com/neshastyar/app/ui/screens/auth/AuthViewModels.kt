@@ -1,5 +1,6 @@
 package com.neshastyar.app.ui.screens.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.neshastyar.app.BuildConfig
 import com.neshastyar.app.data.repository.AuthRepository
 import com.neshastyar.app.data.repository.AuthResult
 
@@ -69,16 +71,32 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun googleLogin(idToken: String) {
+    private var googleInFlight = false
+
+    fun googleSignIn(context: Context) {
+        if (googleInFlight || _ui.value.loading) return
+        googleInFlight = true
+        // viewModelScope stays alive while the account picker pauses this screen.
+        // A composition scope is cancelled in that moment and leaves the picker stuck.
         viewModelScope.launch {
-            _ui.update { it.copy(loading = true, error = null, info = null) }
-            when (val result = authRepository.googleLogin(idToken)) {
-                is AuthResult.Success -> _ui.update { it.copy(loading = false, loggedIn = true) }
-                is AuthResult.NeedsVerification -> _ui.update {
-                    it.copy(loading = false, error = result.message, info = result.email)
+            try {
+                val idToken = requestGoogleIdToken(context, BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                _ui.update { it.copy(loading = true, error = null, info = null) }
+                when (val result = authRepository.googleLogin(idToken)) {
+                    is AuthResult.Success -> _ui.update { it.copy(loading = false, loggedIn = true) }
+                    is AuthResult.NeedsVerification -> _ui.update {
+                        it.copy(loading = false, error = result.message, info = result.email)
+                    }
+                    is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
+                    AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ورود با گوگل ناموفق بود") }
                 }
-                is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
-                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ورود با گوگل ناموفق بود") }
+            } catch (e: GoogleSignInCancelledException) {
+                _ui.update { it.copy(loading = false) }
+            } catch (e: Exception) {
+                val message = googleAuthErrorMessage(e, "خطا در ورود با گوگل")
+                _ui.update { it.copy(loading = false, error = message.ifBlank { null }) }
+            } finally {
+                googleInFlight = false
             }
         }
     }
@@ -131,16 +149,30 @@ class SignUpViewModel @Inject constructor(
         }
     }
 
-    fun googleLogin(idToken: String) {
+    private var googleInFlight = false
+
+    fun googleSignIn(context: Context) {
+        if (googleInFlight || _ui.value.loading) return
+        googleInFlight = true
         viewModelScope.launch {
-            _ui.update { it.copy(loading = true, error = null) }
-            when (val result = authRepository.googleLogin(idToken)) {
-                is AuthResult.Success -> _ui.update { it.copy(loading = false, done = true) }
-                is AuthResult.NeedsVerification -> _ui.update {
-                    it.copy(loading = false, error = result.message)
+            try {
+                val idToken = requestGoogleIdToken(context, BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                _ui.update { it.copy(loading = true, error = null) }
+                when (val result = authRepository.googleLogin(idToken)) {
+                    is AuthResult.Success -> _ui.update { it.copy(loading = false, done = true) }
+                    is AuthResult.NeedsVerification -> _ui.update {
+                        it.copy(loading = false, error = result.message)
+                    }
+                    is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
+                    AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ثبت‌نام با گوگل ناموفق بود") }
                 }
-                is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
-                AuthResult.LoggedOut -> _ui.update { it.copy(loading = false, error = "ثبت‌نام با گوگل ناموفق بود") }
+            } catch (e: GoogleSignInCancelledException) {
+                _ui.update { it.copy(loading = false) }
+            } catch (e: Exception) {
+                val message = googleAuthErrorMessage(e, "خطا در ثبت‌نام با گوگل")
+                _ui.update { it.copy(loading = false, error = message.ifBlank { null }) }
+            } finally {
+                googleInFlight = false
             }
         }
     }

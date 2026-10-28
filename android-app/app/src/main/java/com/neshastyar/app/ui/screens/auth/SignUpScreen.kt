@@ -20,9 +20,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.launch
-import com.neshastyar.app.BuildConfig
-import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,22 +43,6 @@ fun SignUpScreen(
     val state by viewModel.ui.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
-    val webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
-
-    fun signInWithGoogle() {
-        coroutineScope.launch {
-            try {
-                val idToken = requestGoogleIdToken(context, webClientId)
-                viewModel.googleLogin(idToken)
-            } catch (e: GoogleSignInCancelledException) {
-                // User closed the account picker.
-            } catch (e: Exception) {
-                val message = googleAuthErrorMessage(e, "خطا در ثبت‌نام با گوگل")
-                if (message.isNotBlank()) viewModel.setError(message)
-            }
-        }
-    }
 
     LaunchedEffect(state.done) {
         if (state.done) onDone()
@@ -172,7 +153,7 @@ fun SignUpScreen(
         Spacer(modifier = Modifier.height(16.dp))
         
         Button(
-            onClick = { signInWithGoogle() },
+            onClick = { viewModel.googleSignIn(context) },
             enabled = !state.loading,
             modifier = Modifier
                 .fillMaxWidth()

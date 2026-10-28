@@ -17,6 +17,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import android.app.Activity
 
+/**
+ * While the Google account picker is open, recomposition must not force edge-to-edge again.
+ * That reset sits on top of the picker and swallows taps, so the dialog looks frozen.
+ */
+internal object CredentialWindowGuard {
+    var active: Boolean = false
+}
+
 private val EditorialScheme = lightColorScheme(
     primary = NeshastyarColors.Primary,
     onPrimary = NeshastyarColors.OnPrimary,
@@ -117,7 +125,9 @@ fun NeshastyarTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            if (!CredentialWindowGuard.active) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+            }
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.parseColor("#FBF9F4")
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
