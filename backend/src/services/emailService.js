@@ -189,6 +189,7 @@ class EmailService {
   // Send meeting summary email
   async sendMeetingSummaryEmail(email, name, meetingTitle, summary) {
     const formattedSummary = this.formatSummaryForEmail(summary);
+    const siteUrl = this.frontendUrl.replace(/\/$/, '') || 'https://www.neshastyar.com';
 
     const html = `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
@@ -200,6 +201,15 @@ class EmailService {
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; direction: rtl;">
             <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 0;">
               ${formattedSummary}
+            </div>
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6; text-align: center;">
+              <p style="margin: 0 0 8px 0; color: #666; font-size: 13px; line-height: 1.6;">
+                این خلاصه توسط نشست یار ایجاد شده است.
+              </p>
+              <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.6;">
+                برای پیوستن به نشست یار از وب‌سایت ما بازدید کنید:
+                <a href="${siteUrl}" style="color: #667eea; text-decoration: none; font-weight: bold;">${siteUrl.replace(/^https?:\/\//, '')}</a>
+              </p>
             </div>
           </div>
         </div>
