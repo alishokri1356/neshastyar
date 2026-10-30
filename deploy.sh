@@ -37,13 +37,15 @@ echo ""
 echo "--- Pulling latest changes from GitHub ---"
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# Local edits (often .env.production / package-lock from prior deploys) must not block pull.
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo -e "${YELLOW}⚠️  Stashing local tracked changes before pull${NC}"
-  git stash push -m "deploy.sh auto-stash $(date -u +%Y%m%dT%H%M%SZ)" -- \
-    .env.production package-lock.json \
-    backend/src/services/emailService.js backend/src/services/meetingService.js \
-    2>/dev/null || git stash push -m "deploy.sh auto-stash $(date -u +%Y%m%dT%H%M%SZ)"
+# Local edits / leftover SCP copies must not block pull (include untracked under code paths).
+# Do NOT stash uploads/ — those are runtime artifacts.
+if ! git diff --quiet || ! git diff --cached --quiet || \
+   [ -n "$(git ls-files --others --exclude-standard -- backend/migrations backend/src src deploy.sh .env.production package-lock.json 2>/dev/null)" ]; then
+  echo -e "${YELLOW}⚠️  Stashing local code changes before pull${NC}"
+  git stash push -u -m "deploy.sh auto-stash $(date -u +%Y%m%dT%H%M%SZ)" -- \
+    .env.production package-lock.json deploy.sh \
+    backend/migrations backend/src src \
+    || true
 fi
 
 git pull origin "$BRANCH"
