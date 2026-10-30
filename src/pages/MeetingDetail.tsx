@@ -857,11 +857,12 @@ const MeetingDetail = () => {
         return;
       }
 
+      // Backend /sendmail — single source for summary emails (footer included).
       const emailWebhookBase =
         import.meta.env.VITE_EMAIL_WEBHOOK_URL ||
-        'https://n8nnew.teraxr.com/webhook/modiryar-email-sender';
-      const webhookUrl = `${emailWebhookBase}?meetingId=${encodeURIComponent(meeting.id)}`;
-      console.log('🔗 Calling n8n email webhook:', webhookUrl);
+        'https://www.neshastyar.com/sendmail';
+      const webhookUrl = `${emailWebhookBase.replace(/\/$/, '')}/${encodeURIComponent(meeting.id)}`;
+      console.log('🔗 Calling sendmail:', webhookUrl);
 
       const response = await fetch(webhookUrl, {
         method: 'GET',
