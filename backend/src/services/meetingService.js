@@ -1,7 +1,11 @@
+const fs = require('fs').promises;
+const path = require('path');
 const db = require('../config/database');
 const authService = require('./authService');
 const participantService = require('./participantService');
 const analyzeService = require('./analyzeService');
+const audioChunkService = require('./audioChunkService');
+const transcriptChunkService = require('./transcriptChunkService');
 const {
   PARTICIPANT_SUMMARY_KEYS,
   extractParticipantsFromMeeting,
@@ -268,10 +272,68 @@ class MeetingService {
     return await this.getMeetingById(id, userId);
   }
 
+  resolveUploadPath(filePath) {
+    if (!filePath || typeof filePath !== 'string') return null;
+    const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+    const resolved = path.isAbsolute(filePath)
+      ? path.resolve(filePath)
+      : path.resolve(process.cwd(), filePath);
+    if (!resolved.startsWith(uploadsRoot + path.sep) && resolved !== uploadsRoot) {
+      return null;
+    }
+    return resolved;
+  }
+
+  async unlinkUploadFile(filePath) {
+    const resolved = this.resolveUploadPath(filePath);
+    if (!resolved) return;
+    try {
+      await fs.unlink(resolved);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.warn('Failed to delete meeting audio file:', resolved, error.message);
+      }
+    }
+  }
+
   async deleteMeeting(id, userId) {
-    const sql = 'DELETE FROM meetings WHERE id = ? AND user_id = ?';
-    await db.query(sql, [id, userId]);
-    return true;
+    const meeting = await this.getMeetingById(id, userId);
+    if (!meeting) return false;
+
+    const audioFiles = await db.query(
+      'SELECT id, file_path FROM audio_files WHERE meeting_id = ?',
+      [id]
+    );
+
+    // Remove derived chunk files while audio_files rows still exist.
+    try {
+      await audioChunkService.flushMeetingChunks(id);
+    } catch (error) {
+      console.warn('Failed to flush audio chunks for meeting:', id, error.message);
+    }
+
+    try {
+      await transcriptChunkService.flushMeetingTranscriptChunks(id);
+    } catch (error) {
+      console.warn('Failed to flush transcript chunks for meeting:', id, error.message);
+    }
+
+    const filePaths = new Set();
+    for (const audioFile of audioFiles) {
+      if (audioFile.file_path) filePaths.add(audioFile.file_path);
+    }
+    if (meeting.audio_file_path) filePaths.add(meeting.audio_file_path);
+
+    for (const filePath of filePaths) {
+      await this.unlinkUploadFile(filePath);
+    }
+
+    const result = await db.query(
+      'DELETE FROM meetings WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+    // audio_files rows cascade via FK; physical files were removed above.
+    return (result.affectedRows || 0) > 0;
   }
 
   async getMeetingsWithTags(userId, options = {}) {
