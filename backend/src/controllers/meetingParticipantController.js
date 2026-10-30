@@ -24,7 +24,7 @@ class MeetingParticipantController {
   async createMeetingParticipant(req, res) {
     try {
       const userId = req.user.sub;
-      const { meeting_id, participant_id, name } = req.body;
+      const { meeting_id, participant_id, name, email } = req.body;
 
       if (!meeting_id) {
         return res.status(400).json({
@@ -39,7 +39,8 @@ class MeetingParticipantController {
         relationship = await meetingParticipantService.addParticipantByNameToMeeting(
           userId,
           meeting_id,
-          name
+          name,
+          email
         );
       } else if (participant_id) {
         relationship = await meetingParticipantService.addParticipantToMeeting(

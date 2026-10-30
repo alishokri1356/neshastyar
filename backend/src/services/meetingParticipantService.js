@@ -79,8 +79,8 @@ class MeetingParticipantService {
     return { id, meeting_id: meetingId, participant_id: participantId };
   }
 
-  async addParticipantByNameToMeeting(userId, meetingId, name) {
-    const participant = await participantService.upsertParticipantByName(userId, name);
+  async addParticipantByNameToMeeting(userId, meetingId, name, email = null) {
+    const participant = await participantService.upsertParticipantByName(userId, name, email);
     if (!participant) {
       throw new Error('Participant name is required');
     }

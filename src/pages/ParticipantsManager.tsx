@@ -42,6 +42,7 @@ import type { CheckedState } from "@radix-ui/react-checkbox";
 interface Participant {
   id: string;
   name: string;
+  email?: string | null;
   meetingCount: number;
 }
 
@@ -62,6 +63,7 @@ const ParticipantsManager: React.FC = () => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [nameInput, setNameInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -127,6 +129,7 @@ const ParticipantsManager: React.FC = () => {
   const handleOpenRenameDialog = (participant: Participant) => {
     setSelectedParticipant(participant);
     setNameInput(participant.name);
+    setEmailInput(participant.email || "");
     setRenameDialogOpen(true);
   };
 
@@ -140,6 +143,7 @@ const ParticipantsManager: React.FC = () => {
     if (!open) {
       setSelectedParticipant(null);
       setNameInput("");
+      setEmailInput("");
     }
   };
 
@@ -149,6 +153,8 @@ const ParticipantsManager: React.FC = () => {
     }
 
     const trimmedName = nameInput.trim();
+    const trimmedEmail = emailInput.trim();
+    const previousEmail = (selectedParticipant.email || "").trim();
 
     if (!trimmedName) {
       toast({
@@ -159,10 +165,10 @@ const ParticipantsManager: React.FC = () => {
       return;
     }
 
-    if (trimmedName === selectedParticipant.name) {
+    if (trimmedName === selectedParticipant.name && trimmedEmail === previousEmail) {
       toast({
-        title: "نام بدون تغییر است",
-        description: "برای بروزرسانی، نام جدیدی وارد کنید.",
+        title: "بدون تغییر",
+        description: "برای بروزرسانی، نام یا ایمیل جدیدی وارد کنید.",
         variant: "destructive",
       });
       return;
@@ -173,6 +179,7 @@ const ParticipantsManager: React.FC = () => {
       const { data, error } = await mysqlClient.participants.rename({
         id: selectedParticipant.id,
         newName: trimmedName,
+        email: trimmedEmail || null,
       });
 
       if (error) {
@@ -184,11 +191,11 @@ const ParticipantsManager: React.FC = () => {
       }
 
       toast({
-        title: "نام شرکت‌کننده بروزرسانی شد",
+        title: "شرکت‌کننده بروزرسانی شد",
         description:
           data?.updatedMeetings !== undefined
             ? `${data.updatedMeetings} جلسه با نام جدید بروزرسانی شد.`
-            : `نام ${selectedParticipant.name} به ${trimmedName} تغییر یافت.`,
+            : `اطلاعات ${selectedParticipant.name} ذخیره شد.`,
       });
 
         handleRenameDialogChange(false);
@@ -196,8 +203,8 @@ const ParticipantsManager: React.FC = () => {
         await loadParticipants();
     } catch (error: any) {
       toast({
-        title: "خطا در بروزرسانی نام",
-        description: error?.message || "امکان بروزرسانی نام شرکت‌کننده وجود ندارد.",
+        title: "خطا در بروزرسانی",
+        description: error?.message || "امکان بروزرسانی شرکت‌کننده وجود ندارد.",
         variant: "destructive",
       });
     } finally {
@@ -518,6 +525,11 @@ const ParticipantsManager: React.FC = () => {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium text-foreground">{participant.name}</p>
+                          {participant.email ? (
+                            <p className="truncate text-xs text-muted-foreground" dir="ltr">
+                              {participant.email}
+                            </p>
+                          ) : null}
                           <p className="text-xs text-muted-foreground">{participant.meetingCount} جلسه</p>
                         </div>
                         <DropdownMenu>
@@ -555,9 +567,10 @@ const ParticipantsManager: React.FC = () => {
                             aria-label="انتخاب همه شرکت‌کنندگان"
                           />
                         </TableHead>
-                        <TableHead className="w-1/2">نام شرکت‌کننده</TableHead>
-                        <TableHead className="w-1/4 text-center">تعداد جلسات</TableHead>
-                        <TableHead className="w-1/4 text-left">اقدامات</TableHead>
+                        <TableHead className="w-1/3">نام شرکت‌کننده</TableHead>
+                        <TableHead className="w-1/3">ایمیل</TableHead>
+                        <TableHead className="w-1/6 text-center">تعداد جلسات</TableHead>
+                        <TableHead className="w-1/6 text-left">اقدامات</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -573,6 +586,9 @@ const ParticipantsManager: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell className="font-medium text-foreground">{participant.name}</TableCell>
+                          <TableCell className="text-muted-foreground" dir="ltr">
+                            {participant.email || "—"}
+                          </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="secondary" className="text-xs px-2 py-1">
                               {participant.meetingCount} جلسه
@@ -618,20 +634,34 @@ const ParticipantsManager: React.FC = () => {
       <Dialog open={renameDialogOpen} onOpenChange={handleRenameDialogChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>تغییر نام شرکت‌کننده</DialogTitle>
+            <DialogTitle>ویرایش شرکت‌کننده</DialogTitle>
             <DialogDescription>
-              نام جدید شرکت‌کننده را وارد کنید تا تمامی جلسات مرتبط با آن بروزرسانی شوند.
+              نام و ایمیل شرکت‌کننده را ویرایش کنید. تغییر نام در جلسات مرتبط نیز اعمال می‌شود.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="participant-new-name">نام جدید</Label>
-            <Input
-              id="participant-new-name"
-              value={nameInput}
-              onChange={(event) => setNameInput(event.target.value)}
-              disabled={isRenaming}
-              placeholder="نام جدید را وارد کنید"
-            />
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="participant-new-name">نام</Label>
+              <Input
+                id="participant-new-name"
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                disabled={isRenaming}
+                placeholder="نام شرکت‌کننده"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="participant-email">ایمیل</Label>
+              <Input
+                id="participant-email"
+                type="email"
+                value={emailInput}
+                onChange={(event) => setEmailInput(event.target.value)}
+                disabled={isRenaming}
+                placeholder="email@example.com"
+                dir="ltr"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => handleRenameDialogChange(false)} disabled={isRenaming}>

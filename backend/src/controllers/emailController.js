@@ -1,5 +1,6 @@
 const userService = require('../services/userService');
 const emailService = require('../services/emailService');
+const meetingParticipantService = require('../services/meetingParticipantService');
 const mysqlClient = require('../config/database');
 
 class EmailController {
@@ -166,11 +167,27 @@ class EmailController {
         console.log('lastTimeEmailSent field not found, treating as null');
       }
 
+      let approvedParticipants = [];
+      try {
+        const meetingRows = await mysqlClient.query(
+          'SELECT user_id FROM meetings WHERE id = ? LIMIT 1',
+          [meetingId]
+        );
+        const ownerId = meetingRows?.[0]?.user_id;
+        if (ownerId) {
+          const rows = await meetingParticipantService.getParticipantsForMeeting(meetingId, ownerId);
+          approvedParticipants = rows.map((row) => row.name).filter(Boolean);
+        }
+      } catch (e) {
+        console.log('Could not load approved participants for email:', e.message);
+      }
+
       await emailService.sendMeetingSummaryEmail(
         userEmail,
         userName || userEmail,
         meetingTitle,
-        summary
+        summary,
+        approvedParticipants
       );
 
       // Update lastTimeEmailSent timestamp
@@ -296,12 +313,24 @@ class EmailController {
       const userName = user.email; // Use email as name since user_metadata doesn't exist
       const meetingTitle = meeting.title || `Meeting ${meetingId}`;
 
-      // Send the email
+      let approvedParticipants = [];
+      try {
+        const rows = await meetingParticipantService.getParticipantsForMeeting(
+          meetingId,
+          meeting.user_id
+        );
+        approvedParticipants = rows.map((row) => row.name).filter(Boolean);
+      } catch (e) {
+        console.log('Could not load approved participants for email:', e.message);
+      }
+
+      // Send the email (people list = approved meeting_participants only)
       await emailService.sendMeetingSummaryEmail(
         userEmail,
         userName,
         meetingTitle,
-        meeting.summary
+        meeting.summary,
+        approvedParticipants
       );
 
       // Update lastTimeEmailSent timestamp (handle case where field might not exist)

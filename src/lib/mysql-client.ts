@@ -358,7 +358,7 @@ class MySQLClient {
           return { data: null, error };
         }
       },
-      create: async (name: string) => {
+      create: async (name: string, email?: string) => {
         try {
           const response = await fetch(`${API_BASE_URL}/participants`, {
             method: 'POST',
@@ -366,7 +366,7 @@ class MySQLClient {
               ...this.getAuthHeaders(),
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name }),
+            body: JSON.stringify({ name, email }),
           });
 
           const data = await response.json();
@@ -465,12 +465,24 @@ class MySQLClient {
           return { data: null, error };
         }
       },
-      rename: async ({ id, newName, oldName }: { id?: string; newName: string; oldName?: string }) => {
+      rename: async ({
+        id,
+        newName,
+        oldName,
+        email,
+      }: {
+        id?: string;
+        newName: string;
+        oldName?: string;
+        email?: string | null;
+      }) => {
         try {
           const url = id
             ? `${API_BASE_URL}/participants/${id}`
             : `${API_BASE_URL}/participants/rename`;
-          const body = id ? { name: newName } : { oldName, newName };
+          const body = id
+            ? { name: newName, email }
+            : { oldName, newName, email };
 
           const response = await fetch(url, {
             method: 'PUT',
@@ -544,15 +556,18 @@ class MySQLClient {
         meetingId,
         participantId,
         name,
+        email,
       }: {
         meetingId: string;
         participantId?: string;
         name?: string;
+        email?: string;
       }) => {
         try {
           const body: Record<string, string> = { meeting_id: meetingId };
           if (participantId) body.participant_id = participantId;
           if (name) body.name = name;
+          if (email) body.email = email;
 
           const response = await fetch(`${API_BASE_URL}/meeting-participants`, {
             method: 'POST',

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS participants (
   id varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   user_id varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  email varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),

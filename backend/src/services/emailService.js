@@ -187,8 +187,9 @@ class EmailService {
   }
 
   // Send meeting summary email
-  async sendMeetingSummaryEmail(email, name, meetingTitle, summary) {
-    const formattedSummary = this.formatSummaryForEmail(summary);
+  // approvedParticipants: names from meeting_participants only (not AI suggestions)
+  async sendMeetingSummaryEmail(email, name, meetingTitle, summary, approvedParticipants = []) {
+    const formattedSummary = this.formatSummaryForEmail(summary, approvedParticipants);
     const siteUrl = this.frontendUrl.replace(/\/$/, '') || 'https://www.neshastyar.com';
 
     const html = `
@@ -230,12 +231,18 @@ class EmailService {
   }
 
   // Format summary for email display
-  formatSummaryForEmail(summary) {
+  formatSummaryForEmail(summary, approvedParticipants = []) {
     try {
       const jsonData = parseMeetingSummaryJson(summary);
       if (!jsonData) {
         throw new Error('Summary is not structured JSON');
       }
+
+      const people = Array.isArray(approvedParticipants)
+        ? approvedParticipants
+            .map((person) => (typeof person === 'string' ? person.trim() : String(person?.name || '').trim()))
+            .filter(Boolean)
+        : [];
 
       let html = '<h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>';
 
@@ -261,12 +268,12 @@ class EmailService {
         `;
       }
 
-      if (jsonData['People in meetings'] && jsonData['People in meetings'].length > 0) {
+      if (people.length > 0) {
         html += `
           <div style="margin-bottom: 20px;">
             <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">افراد حاضر در جلسه:</h4>
             <div style="text-align: right;">
-              ${jsonData['People in meetings']
+              ${people
                 .map(
                   (person) =>
                     `<span style="display: inline-block; background: #f0f0f0; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; color: #555;">${person}</span>`

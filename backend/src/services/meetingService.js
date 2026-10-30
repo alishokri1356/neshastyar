@@ -379,7 +379,7 @@ class MeetingService {
     return await participantService.getParticipantManagementData(userId);
   }
 
-  async renameParticipant(userId, participantId, newName, legacyOldName) {
+  async renameParticipant(userId, participantId, newName, legacyOldName, email) {
     if (!userId) {
       throw new Error('User ID is required');
     }
@@ -405,18 +405,28 @@ class MeetingService {
       throw new Error('New participant name is required');
     }
 
-    if (trimmedOldName === trimmedNewName) {
+    const nameChanged = trimmedOldName !== trimmedNewName;
+    const emailProvided = email !== undefined;
+
+    if (!nameChanged && !emailProvided) {
       return { updatedMeetings: 0, participant };
     }
 
-    await participantService.renameParticipant(userId, participant.id, trimmedNewName);
-
-    const updatedMeetings = await updateMeetingParticipantFields(
+    await participantService.renameParticipant(
       userId,
-      trimmedOldName,
+      participant.id,
       trimmedNewName,
-      'rename'
+      emailProvided ? email : undefined
     );
+
+    const updatedMeetings = nameChanged
+      ? await updateMeetingParticipantFields(
+          userId,
+          trimmedOldName,
+          trimmedNewName,
+          'rename'
+        )
+      : 0;
 
     const updatedParticipant = await participantService.getParticipantById(
       participant.id,

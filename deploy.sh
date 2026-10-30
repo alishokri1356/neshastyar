@@ -36,6 +36,16 @@ echo ""
 # 2. Pull latest code from GitHub
 echo "--- Pulling latest changes from GitHub ---"
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Local edits (often .env.production / package-lock from prior deploys) must not block pull.
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo -e "${YELLOW}⚠️  Stashing local tracked changes before pull${NC}"
+  git stash push -m "deploy.sh auto-stash $(date -u +%Y%m%dT%H%M%SZ)" -- \
+    .env.production package-lock.json \
+    backend/src/services/emailService.js backend/src/services/meetingService.js \
+    2>/dev/null || git stash push -m "deploy.sh auto-stash $(date -u +%Y%m%dT%H%M%SZ)"
+fi
+
 git pull origin "$BRANCH"
 echo -e "${GREEN}✅ Code updated${NC}"
 echo ""

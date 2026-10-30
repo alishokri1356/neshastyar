@@ -70,6 +70,7 @@ const MeetingDetail = () => {
   const [meetingTags, setMeetingTags] = useState<any[]>([]);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState('');
+  const [newParticipantEmail, setNewParticipantEmail] = useState('');
   const [linkedParticipants, setLinkedParticipants] = useState<any[]>([]);
   const [localAllUserParticipants, setLocalAllUserParticipants] = useState<any[]>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -84,6 +85,7 @@ const MeetingDetail = () => {
   const [suggestedParticipantDialogOpen, setSuggestedParticipantDialogOpen] = useState(false);
   const [selectedSuggestedParticipant, setSelectedSuggestedParticipant] = useState<string | null>(null);
   const [participantNameInput, setParticipantNameInput] = useState('');
+  const [participantEmailInput, setParticipantEmailInput] = useState('');
   const [isAddingSuggestedParticipant, setIsAddingSuggestedParticipant] = useState(false);
 
   // Fetch meeting and all user tags from database with auto-refresh
@@ -509,12 +511,14 @@ const MeetingDetail = () => {
 
   const handleAddParticipant = async () => {
     const trimmedName = newParticipantName.trim();
+    const trimmedEmail = newParticipantEmail.trim();
     if (!trimmedName) return;
 
     try {
       const { data, error } = await mysqlClient.meetingParticipants.add({
         meetingId: meeting.id,
         name: trimmedName,
+        email: trimmedEmail || undefined,
       });
 
       if (error) throw error;
@@ -525,11 +529,15 @@ const MeetingDetail = () => {
       const added = participants.find(
         (p: { name: string }) => p.name.toLowerCase() === trimmedName.toLowerCase()
       );
-      if (added && !localAllUserParticipants.some((p) => p.id === added.id)) {
-        setLocalAllUserParticipants((prev) => [...prev, added]);
+      if (added) {
+        setLocalAllUserParticipants((prev) => {
+          const without = prev.filter((p) => p.id !== added.id);
+          return [...without, added];
+        });
       }
 
       setNewParticipantName('');
+      setNewParticipantEmail('');
       setShowAddParticipant(false);
 
       toast({
@@ -616,15 +624,16 @@ const MeetingDetail = () => {
     }
   };
 
-  const handleAddSuggestedParticipant = async (personName: string) => {
+  const handleAddSuggestedParticipant = async (personName: string, personEmail?: string) => {
     const trimmedName = personName.trim();
+    const trimmedEmail = (personEmail || '').trim();
     if (!trimmedName) return;
 
     const existing = localAllUserParticipants.find(
       (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
     );
 
-    if (existing) {
+    if (existing && !trimmedEmail) {
       await handleAddExistingParticipant(existing);
       return;
     }
@@ -633,6 +642,7 @@ const MeetingDetail = () => {
       const { data, error } = await mysqlClient.meetingParticipants.add({
         meetingId: meeting.id,
         name: trimmedName,
+        email: trimmedEmail || undefined,
       });
 
       if (error) throw error;
@@ -643,9 +653,10 @@ const MeetingDetail = () => {
         (p: { name: string }) => p.name.toLowerCase() === trimmedName.toLowerCase()
       );
       if (added) {
-        setLocalAllUserParticipants((prev) =>
-          prev.some((p) => p.id === added.id) ? prev : [...prev, added]
-        );
+        setLocalAllUserParticipants((prev) => {
+          const without = prev.filter((p) => p.id !== added.id);
+          return [...without, added];
+        });
       }
 
       toast({
@@ -674,6 +685,10 @@ const MeetingDetail = () => {
   const handleOpenSuggestedParticipantDialog = (person: string) => {
     setSelectedSuggestedParticipant(person);
     setParticipantNameInput(person);
+    const existing = localAllUserParticipants.find(
+      (p) => p.name.toLowerCase() === person.trim().toLowerCase()
+    );
+    setParticipantEmailInput(existing?.email || '');
     setSuggestedParticipantDialogOpen(true);
   };
 
@@ -687,6 +702,7 @@ const MeetingDetail = () => {
     if (!open) {
       setSelectedSuggestedParticipant(null);
       setParticipantNameInput('');
+      setParticipantEmailInput('');
     }
   };
 
@@ -696,6 +712,7 @@ const MeetingDetail = () => {
     }
 
     const trimmedName = participantNameInput.trim();
+    const trimmedEmail = participantEmailInput.trim();
 
     if (!trimmedName) {
       toast({
@@ -737,11 +754,12 @@ const MeetingDetail = () => {
         queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
       }
 
-      await handleAddSuggestedParticipant(trimmedName);
+      await handleAddSuggestedParticipant(trimmedName, trimmedEmail);
 
       setSuggestedParticipantDialogOpen(false);
       setSelectedSuggestedParticipant(null);
       setParticipantNameInput('');
+      setParticipantEmailInput('');
     } catch (error: any) {
       if (error?.message && !error.message.includes('Relationship already exists')) {
         console.error('Error adding suggested participant:', error);
@@ -1603,6 +1621,7 @@ const MeetingDetail = () => {
                 onClick={() => {
                   setShowAddParticipant(true);
                   setNewParticipantName('');
+                  setNewParticipantEmail('');
                 }}
                 size="sm"
                 variant="outline"
@@ -1682,6 +1701,14 @@ const MeetingDetail = () => {
                     onChange={(e) => setNewParticipantName(e.target.value)}
                     className="flex-1"
                   />
+                  <Input
+                    type="email"
+                    placeholder="ایمیل شرکت‌کننده (اختیاری)"
+                    value={newParticipantEmail}
+                    onChange={(e) => setNewParticipantEmail(e.target.value)}
+                    className="flex-1"
+                    dir="ltr"
+                  />
 
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-2">
@@ -1699,10 +1726,12 @@ const MeetingDetail = () => {
                             onClick={() => {
                               handleAddExistingParticipant(participant);
                               setNewParticipantName('');
+                              setNewParticipantEmail('');
                             }}
                             className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors bg-muted/40"
                           >
                             {participant.name}
+                            {participant.email ? ` · ${participant.email}` : ''}
                           </button>
                         ))
                       ) : (
@@ -1721,6 +1750,7 @@ const MeetingDetail = () => {
                       onClick={() => {
                         setShowAddParticipant(false);
                         setNewParticipantName('');
+                        setNewParticipantEmail('');
                       }}
                       variant="outline"
                       size="sm"
@@ -1947,21 +1977,37 @@ const MeetingDetail = () => {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-2">
-              <Label htmlFor="suggested-participant-name">نام شرکت‌کننده</Label>
-              <Input
-                id="suggested-participant-name"
-                value={participantNameInput}
-                onChange={(e) => setParticipantNameInput(e.target.value)}
-                placeholder="نام شرکت‌کننده"
-                disabled={isAddingSuggestedParticipant}
-                autoComplete="off"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleConfirmAddSuggestedParticipant();
-                  }
-                }}
-              />
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="suggested-participant-name">نام شرکت‌کننده</Label>
+                <Input
+                  id="suggested-participant-name"
+                  value={participantNameInput}
+                  onChange={(e) => setParticipantNameInput(e.target.value)}
+                  placeholder="نام شرکت‌کننده"
+                  disabled={isAddingSuggestedParticipant}
+                  autoComplete="off"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleConfirmAddSuggestedParticipant();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="suggested-participant-email">ایمیل شرکت‌کننده</Label>
+                <Input
+                  id="suggested-participant-email"
+                  type="email"
+                  value={participantEmailInput}
+                  onChange={(e) => setParticipantEmailInput(e.target.value)}
+                  placeholder="email@example.com"
+                  disabled={isAddingSuggestedParticipant}
+                  autoComplete="off"
+                  dir="ltr"
+                />
+              </div>
 
               {participantNameInput.trim().length > 0 && (
                 <div className="pt-1">
@@ -1974,11 +2020,15 @@ const MeetingDetail = () => {
                         <button
                           key={participant.id}
                           type="button"
-                          onClick={() => setParticipantNameInput(participant.name)}
+                          onClick={() => {
+                            setParticipantNameInput(participant.name);
+                            setParticipantEmailInput(participant.email || '');
+                          }}
                           disabled={isAddingSuggestedParticipant}
                           className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors bg-muted/40 disabled:opacity-50"
                         >
                           {participant.name}
+                          {participant.email ? ` · ${participant.email}` : ''}
                         </button>
                       ))}
                     </div>
