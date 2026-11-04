@@ -247,8 +247,30 @@ export const emptyEditableSummary = (): EditableMeetingSummary => ({
   tags: [],
 });
 
+/** Names the user approved for this meeting (linked participants, not AI suggestions). */
+export const normalizeApprovedParticipantNames = (names: string[] = []): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const name of names) {
+    const trimmed = name.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+  }
+  return result;
+};
+
+const approvedParticipantsPlain = (names: string[]): string | null => {
+  const people = normalizeApprovedParticipantNames(names);
+  if (people.length === 0) return null;
+  return `افراد حاضر در جلسه:\n${people.map((person) => `• ${person}`).join('\n')}`;
+};
+
 export const formatEditableSummaryForClipboard = (
   editable: EditableMeetingSummary,
+  approvedParticipants: string[] = [],
 ): string | null => {
   const parts: string[] = [];
 
@@ -258,6 +280,10 @@ export const formatEditableSummaryForClipboard = (
   const plainSummary = htmlToPlainText(editable.summaryText).trim();
   if (plainSummary) {
     parts.push(`خلاصه:\n${plainSummary}`);
+  }
+  const people = approvedParticipantsPlain(approvedParticipants);
+  if (people) {
+    parts.push(people);
   }
   if (editable.bulletPoints.length > 0) {
     parts.push(
@@ -278,11 +304,21 @@ const toHtmlBlock = (text: string): string =>
  * Format the summary as rich HTML for the clipboard, so pasting into
  * Google Docs / Word keeps headings, formatting, and bullet lists.
  */
-export const formatSummaryAsHtml = (summaryText: string): string | null => {
-  if (!summaryText?.trim()) return null;
+const approvedParticipantsHtml = (names: string[]): string | null => {
+  const people = normalizeApprovedParticipantNames(names);
+  if (people.length === 0) return null;
+  return `<h2>افراد حاضر در جلسه</h2><ul>${people
+    .map((person) => `<li>${escapeHtml(person)}</li>`)
+    .join('')}</ul>`;
+};
 
+export const formatSummaryAsHtml = (
+  summaryText: string,
+  approvedParticipants: string[] = [],
+): string | null => {
   const parts: string[] = [];
-  const json = parseMeetingSummaryJson(summaryText);
+  const json = summaryText?.trim() ? parseMeetingSummaryJson(summaryText) : null;
+  const peopleHtml = approvedParticipantsHtml(approvedParticipants);
 
   if (json) {
     const editable = jsonToEditableSummary(json);
@@ -292,6 +328,7 @@ export const formatSummaryAsHtml = (summaryText: string): string | null => {
     if (editable.summaryText.trim()) {
       parts.push(`<h2>خلاصه</h2>${toHtmlBlock(editable.summaryText.trim())}`);
     }
+    if (peopleHtml) parts.push(peopleHtml);
     if (editable.bulletPoints.length > 0) {
       parts.push(
         `<h2>نکات کلیدی</h2><ul>${editable.bulletPoints
@@ -299,8 +336,11 @@ export const formatSummaryAsHtml = (summaryText: string): string | null => {
           .join('')}</ul>`,
       );
     }
-  } else {
+  } else if (summaryText?.trim()) {
     parts.push(toHtmlBlock(summaryText.trim()));
+    if (peopleHtml) parts.push(peopleHtml);
+  } else if (peopleHtml) {
+    parts.push(peopleHtml);
   }
 
   return parts.length > 0
@@ -308,13 +348,19 @@ export const formatSummaryAsHtml = (summaryText: string): string | null => {
     : null;
 };
 
-export const formatSummaryForClipboard = (summaryText: string): string | null => {
-  if (!summaryText?.trim()) return null;
-
-  const json = parseMeetingSummaryJson(summaryText);
+export const formatSummaryForClipboard = (
+  summaryText: string,
+  approvedParticipants: string[] = [],
+): string | null => {
+  const json = summaryText?.trim() ? parseMeetingSummaryJson(summaryText) : null;
   if (json) {
-    return formatEditableSummaryForClipboard(jsonToEditableSummary(json));
+    return formatEditableSummaryForClipboard(jsonToEditableSummary(json), approvedParticipants);
   }
 
-  return `خلاصه:\n${htmlToPlainText(summaryText).trim()}`;
+  const parts: string[] = [];
+  const plain = summaryText?.trim() ? htmlToPlainText(summaryText).trim() : '';
+  if (plain) parts.push(`خلاصه:\n${plain}`);
+  const people = approvedParticipantsPlain(approvedParticipants);
+  if (people) parts.push(people);
+  return parts.length > 0 ? parts.join('\n\n') : null;
 };

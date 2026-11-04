@@ -1052,19 +1052,25 @@ const MeetingDetail = () => {
     setIsEditingSummary(true);
   };
 
+  const approvedParticipantNames = linkedParticipants
+    .map((participant) => (typeof participant?.name === 'string' ? participant.name : ''))
+    .filter((name) => name.trim().length > 0);
+
   const handleCopySummary = async () => {
     let text: string | null;
 
     if (isEditingSummary) {
       if (summaryEditMode === 'structured') {
-        text = formatEditableSummaryForClipboard(editedSummaryFields);
+        text = formatEditableSummaryForClipboard(editedSummaryFields, approvedParticipantNames);
       } else {
-        const plain = htmlToPlainText(summary).trim();
-        text = plain ? `خلاصه:\n${plain}` : null;
+        text = formatEditableSummaryForClipboard(
+          { ...emptyEditableSummary(), summaryText: summary },
+          approvedParticipantNames,
+        );
       }
     } else {
       const currentSummary = statusData?.summary || summary;
-      text = formatSummaryForClipboard(currentSummary);
+      text = formatSummaryForClipboard(currentSummary, approvedParticipantNames);
     }
 
     if (!text) {
@@ -1080,7 +1086,10 @@ const MeetingDetail = () => {
       await navigator.clipboard.writeText(text);
       toast({
         title: 'کپی شد',
-        description: 'موضوع، خلاصه و نکات کلیدی در کلیپ‌بورد کپی شد.',
+        description:
+          approvedParticipantNames.length > 0
+            ? 'موضوع، خلاصه، افراد حاضر و نکات کلیدی در کلیپ‌بورد کپی شد.'
+            : 'موضوع، خلاصه و نکات کلیدی در کلیپ‌بورد کپی شد.',
       });
     } catch (error) {
       console.error('Error copying summary:', error);
@@ -1094,8 +1103,8 @@ const MeetingDetail = () => {
 
   const copySummaryForGoogleDocs = async (): Promise<boolean> => {
     const currentSummary = statusData?.summary || summary;
-    const text = formatSummaryForClipboard(currentSummary);
-    const html = formatSummaryAsHtml(currentSummary);
+    const text = formatSummaryForClipboard(currentSummary, approvedParticipantNames);
+    const html = formatSummaryAsHtml(currentSummary, approvedParticipantNames);
 
     if (!text) return false;
 
@@ -1126,7 +1135,7 @@ const MeetingDetail = () => {
   const handleOpenInGoogleDocs = async () => {
     const currentSummary = statusData?.summary || summary;
 
-    if (!formatSummaryForClipboard(currentSummary)) {
+    if (!formatSummaryForClipboard(currentSummary, approvedParticipantNames)) {
       toast({
         title: 'خطا',
         description: 'خلاصه‌ای برای انتقال به Google Docs وجود ندارد.',
