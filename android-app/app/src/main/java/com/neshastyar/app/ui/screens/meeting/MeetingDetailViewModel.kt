@@ -158,7 +158,7 @@ class MeetingDetailViewModel @Inject constructor(
         )
     }
 
-    /** Subject, summary, and key points, in the same plain-text shape as the web app. */
+    /** Subject, summary, approved participants, and key points as plain text. */
     fun summaryClipboardText(): String? {
         val state = _ui.value
         val parts = buildList {
@@ -166,6 +166,13 @@ class MeetingDetailViewModel @Inject constructor(
             if (subject.isNotEmpty()) add("موضوع:\n$subject")
             val summary = state.editSummaryText.trim()
             if (summary.isNotEmpty()) add("خلاصه:\n$summary")
+            val approvedParticipants = state.participants
+                .map { MeetingSummaryParser.normalizePersonName(it.name) }
+                .filter { it.isNotEmpty() }
+                .distinctBy { it.lowercase() }
+            if (approvedParticipants.isNotEmpty()) {
+                add("حاضرین تاییدشده:\n" + approvedParticipants.joinToString("\n") { "• $it" })
+            }
             if (state.summary.bulletPoints.isNotEmpty()) {
                 add("نکات کلیدی:\n" + state.summary.bulletPoints.joinToString("\n") { "• $it" })
             }
@@ -174,7 +181,7 @@ class MeetingDetailViewModel @Inject constructor(
     }
 
     fun noteCopied() = _ui.update {
-        it.copy(message = "موضوع، خلاصه و نکات کلیدی کپی شد", error = null)
+        it.copy(message = "موضوع، خلاصه، حاضرین تاییدشده و نکات کلیدی کپی شد", error = null)
     }
 
     fun noteCopyEmpty() = _ui.update { it.copy(error = "خلاصه‌ای برای کپی وجود ندارد") }
