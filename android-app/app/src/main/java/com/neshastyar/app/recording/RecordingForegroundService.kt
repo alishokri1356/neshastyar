@@ -45,6 +45,7 @@ class RecordingForegroundService : Service() {
     private var outputPfd: ParcelFileDescriptor? = null
     private var recording = false
     private var paused = false
+    private var resumeAfterFocusGain = false
     private var stopInProgress = false
     private var destroyed = false
     private var segmentStartedElapsed: Long = 0L
@@ -71,10 +72,17 @@ class RecordingForegroundService : Service() {
 
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { change ->
         when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (recording && paused && resumeAfterFocusGain) {
+                    resumeAfterFocusGain = false
+                    resumeInternal()
+                }
+            }
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK,
             -> {
-                if (recording && !paused) pauseInternal()
+                if (recording && !paused) pauseInternal(resumeWhenFocusReturns = true)
             }
         }
     }
@@ -84,8 +92,11 @@ class RecordingForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startRecording()
-            ACTION_PAUSE -> pauseInternal()
-            ACTION_RESUME -> resumeInternal()
+            ACTION_PAUSE -> pauseInternal(resumeWhenFocusReturns = false)
+            ACTION_RESUME -> {
+                resumeAfterFocusGain = false
+                resumeInternal()
+            }
             ACTION_STOP -> stopRecording(error = null)
             else -> Unit
         }
@@ -144,6 +155,7 @@ class RecordingForegroundService : Service() {
             recorder = mr
             recording = true
             paused = false
+            resumeAfterFocusGain = false
             accumulatedMs = 0L
             segmentStartedElapsed = SystemClock.elapsedRealtime()
             controller.onRecordingStarted(file.absolutePath)
@@ -161,13 +173,18 @@ class RecordingForegroundService : Service() {
         }
     }
 
-    private fun pauseInternal() {
+    private fun pauseInternal(resumeWhenFocusReturns: Boolean) {
         val mr = recorder ?: return
-        if (!recording || paused) return
+        if (!recording) return
+        if (paused) {
+            if (!resumeWhenFocusReturns) resumeAfterFocusGain = false
+            return
+        }
         try {
             mr.pause()
             accumulatedMs += SystemClock.elapsedRealtime() - segmentStartedElapsed
             paused = true
+            resumeAfterFocusGain = resumeWhenFocusReturns
             handler.removeCallbacks(tickRunnable)
             checkpointToDisk()
             controller.onPaused()
@@ -218,6 +235,7 @@ class RecordingForegroundService : Service() {
         closeOutput()
         recording = false
         paused = false
+        resumeAfterFocusGain = false
         abandonFocus()
         val path = outputFile?.absolutePath
         val file = outputFile

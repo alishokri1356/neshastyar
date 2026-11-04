@@ -1,0 +1,10 @@
+---
+description: Prevent Android compilation until the user requests a version update
+alwaysApply: true
+---
+
+# Android compilation
+
+- Do not compile, build, assemble, package, or run Gradle verification tasks for the Android app.
+- This restriction remains active until the user explicitly says **"update version"**.
+- Read-only inspection and IDE diagnostics are allowed.
