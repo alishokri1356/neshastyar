@@ -47,6 +47,7 @@ class ParticipantController {
       return res.json({
         id: participant.id,
         name: participant.name,
+        email: participant.email || null,
       });
     } catch (error) {
       console.error('Get participant error:', error);
@@ -60,7 +61,7 @@ class ParticipantController {
   async createParticipant(req, res) {
     try {
       const userId = req.user?.sub;
-      const { name } = req.body || {};
+      const { name, email } = req.body || {};
 
       if (!userId) {
         return res.status(401).json({
@@ -69,11 +70,12 @@ class ParticipantController {
         });
       }
 
-      const participant = await participantService.createParticipant(userId, name);
+      const participant = await participantService.createParticipant(userId, name, email);
 
       return res.status(201).json({
         id: participant.id,
         name: participant.name,
+        email: participant.email || null,
       });
     } catch (error) {
       console.error('Create participant error:', error);
@@ -96,7 +98,7 @@ class ParticipantController {
     try {
       const userId = req.user?.sub;
       const { id } = req.params;
-      const { name, newName, oldName } = req.body || {};
+      const { name, newName, oldName, email } = req.body || {};
 
       if (!userId) {
         return res.status(401).json({
@@ -106,14 +108,22 @@ class ParticipantController {
       }
 
       const targetName = name || newName;
+      const emailProvided = Object.prototype.hasOwnProperty.call(req.body || {}, 'email');
 
       if (id) {
-        const result = await meetingService.renameParticipant(userId, id, targetName);
+        const result = await meetingService.renameParticipant(
+          userId,
+          id,
+          targetName,
+          undefined,
+          emailProvided ? email : undefined
+        );
         return res.json({
           updatedMeetings: result.updatedMeetings,
           participant: {
             id: result.participant.id,
             name: result.participant.name,
+            email: result.participant.email || null,
           },
         });
       }
@@ -129,7 +139,8 @@ class ParticipantController {
         userId,
         null,
         targetName,
-        oldName
+        oldName,
+        emailProvided ? email : undefined
       );
 
       return res.json({
@@ -137,6 +148,7 @@ class ParticipantController {
         participant: {
           id: result.participant.id,
           name: result.participant.name,
+          email: result.participant.email || null,
         },
       });
     } catch (error) {

@@ -143,7 +143,8 @@ const Landing = () => {
 
           {/* Description */}
           <p className="mx-auto mb-8 max-w-2xl text-base text-muted-foreground sm:text-xl">
-            جلسات خود را باهوش مصنوعی خلاصه سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید. 
+            جلسات خود را با هوش مصنوعی خلاصه سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید.
+            نشست یار کاملاً رایگان است.
           </p>
 
           {/* CTA Buttons */}
@@ -294,7 +295,7 @@ const Landing = () => {
             رایگان شروع کنید ←
           </Button>
           <p className="text-sm text-muted-foreground mt-4">
-            نیازی به پرداخت پول نیست • یک ماه آزمایش رایگان
+            کاملاً رایگان • نیازی به پرداخت نیست
           </p>
         </div>
       </section>

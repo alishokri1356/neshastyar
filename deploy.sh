@@ -36,6 +36,18 @@ echo ""
 # 2. Pull latest code from GitHub
 echo "--- Pulling latest changes from GitHub ---"
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Local edits / leftover SCP copies must not block pull (include untracked under code paths).
+# Do NOT stash uploads/ — those are runtime artifacts.
+if ! git diff --quiet || ! git diff --cached --quiet || \
+   [ -n "$(git ls-files --others --exclude-standard -- backend/migrations backend/src src deploy.sh .env.production package-lock.json 2>/dev/null)" ]; then
+  echo -e "${YELLOW}⚠️  Stashing local code changes before pull${NC}"
+  git stash push -u -m "deploy.sh auto-stash $(date -u +%Y%m%dT%H%M%SZ)" -- \
+    .env.production package-lock.json deploy.sh \
+    backend/migrations backend/src src \
+    || true
+fi
+
 git pull origin "$BRANCH"
 echo -e "${GREEN}✅ Code updated${NC}"
 echo ""
@@ -108,7 +120,7 @@ echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 echo "--- Creating production environment ---"
 # Use the same domain with /api path (Nginx will proxy to backend)
 echo "VITE_API_URL=https://www.neshastyar.com/api" > .env.production
-echo "VITE_EMAIL_WEBHOOK_URL=https://n8nnew.teraxr.com/webhook/modiryar-email-sender" >> .env.production
+echo "VITE_EMAIL_WEBHOOK_URL=https://www.neshastyar.com/sendmail" >> .env.production
 echo "VITE_APP_ENV=production" >> .env.production
 # Optional: set in environment before deploy to embed GSC verification meta
 if [ -n "${VITE_GOOGLE_SITE_VERIFICATION:-}" ]; then

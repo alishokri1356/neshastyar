@@ -187,8 +187,10 @@ class EmailService {
   }
 
   // Send meeting summary email
-  async sendMeetingSummaryEmail(email, name, meetingTitle, summary) {
-    const formattedSummary = this.formatSummaryForEmail(summary);
+  // approvedParticipants: names from meeting_participants only (not AI suggestions)
+  async sendMeetingSummaryEmail(email, name, meetingTitle, summary, approvedParticipants = []) {
+    const formattedSummary = this.formatSummaryForEmail(summary, approvedParticipants);
+    const siteUrl = this.frontendUrl.replace(/\/$/, '') || 'https://www.neshastyar.com';
 
     const html = `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
@@ -200,6 +202,15 @@ class EmailService {
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; direction: rtl;">
             <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 0;">
               ${formattedSummary}
+            </div>
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6; text-align: center;">
+              <p style="margin: 0 0 8px 0; color: #666; font-size: 13px; line-height: 1.6;">
+                این خلاصه توسط نشست یار ایجاد شده است.
+              </p>
+              <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.6;">
+                برای پیوستن به نشست یار از وب‌سایت ما بازدید کنید:
+                <a href="${siteUrl}" style="color: #667eea; text-decoration: none; font-weight: bold;">${siteUrl.replace(/^https?:\/\//, '')}</a>
+              </p>
             </div>
           </div>
         </div>
@@ -220,12 +231,18 @@ class EmailService {
   }
 
   // Format summary for email display
-  formatSummaryForEmail(summary) {
+  formatSummaryForEmail(summary, approvedParticipants = []) {
     try {
       const jsonData = parseMeetingSummaryJson(summary);
       if (!jsonData) {
         throw new Error('Summary is not structured JSON');
       }
+
+      const people = Array.isArray(approvedParticipants)
+        ? approvedParticipants
+            .map((person) => (typeof person === 'string' ? person.trim() : String(person?.name || '').trim()))
+            .filter(Boolean)
+        : [];
 
       let html = '<h3 style="color: #333; margin-top: 0; text-align: right; border-bottom: 2px solid #667eea; padding-bottom: 10px;">خلاصه جلسه</h3>';
 
@@ -251,12 +268,12 @@ class EmailService {
         `;
       }
 
-      if (jsonData['People in meetings'] && jsonData['People in meetings'].length > 0) {
+      if (people.length > 0) {
         html += `
           <div style="margin-bottom: 20px;">
             <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">افراد حاضر در جلسه:</h4>
             <div style="text-align: right;">
-              ${jsonData['People in meetings']
+              ${people
                 .map(
                   (person) =>
                     `<span style="display: inline-block; background: #f0f0f0; padding: 5px 10px; margin: 2px; border-radius: 15px; font-size: 14px; color: #555;">${person}</span>`

@@ -2,11 +2,18 @@ const db = require('../config/database');
 const authService = require('./authService');
 
 class ParticipantService {
+  normalizeEmail(email) {
+    if (email == null) return null;
+    const trimmed = String(email).trim();
+    return trimmed ? trimmed.toLowerCase() : null;
+  }
+
   async getParticipantsWithCount(userId) {
     const sql = `
       SELECT
         p.id,
         p.name,
+        p.email,
         p.created_at,
         p.updated_at,
         COUNT(mp.meeting_id) AS meeting_count
@@ -23,6 +30,7 @@ class ParticipantService {
     return (rows || []).map((row) => ({
       id: row.id,
       name: row.name,
+      email: row.email || null,
       meetingCount: Number(row.meeting_count ?? 0),
       created_at: row.created_at,
       updated_at: row.updated_at,
@@ -76,14 +84,22 @@ class ParticipantService {
     return rows[0] || null;
   }
 
-  async createParticipant(userId, name) {
+  async createParticipant(userId, name, email = null) {
     const trimmedName = (name ?? '').trim();
     if (!trimmedName) {
       throw new Error('Participant name is required');
     }
 
+    const normalizedEmail = this.normalizeEmail(email);
     const existing = await this.getParticipantByName(userId, trimmedName);
     if (existing) {
+      if (normalizedEmail && !existing.email) {
+        await db.query(
+          'UPDATE participants SET email = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+          [normalizedEmail, new Date(), existing.id, userId]
+        );
+        return await this.getParticipantById(existing.id, userId);
+      }
       return existing;
     }
 
@@ -91,28 +107,36 @@ class ParticipantService {
     const now = new Date();
 
     await db.query(
-      'INSERT INTO participants (id, user_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [id, userId, trimmedName, now, now]
+      'INSERT INTO participants (id, user_id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, trimmedName, normalizedEmail, now, now]
     );
 
     return await this.getParticipantById(id, userId);
   }
 
-  async upsertParticipantByName(userId, name) {
+  async upsertParticipantByName(userId, name, email = null) {
     const trimmedName = (name ?? '').trim();
     if (!trimmedName) {
       return null;
     }
 
+    const normalizedEmail = this.normalizeEmail(email);
     const existing = await this.findParticipantByNameCaseInsensitive(userId, trimmedName);
     if (existing) {
+      if (normalizedEmail && existing.email !== normalizedEmail) {
+        await db.query(
+          'UPDATE participants SET email = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+          [normalizedEmail, new Date(), existing.id, userId]
+        );
+        return await this.getParticipantById(existing.id, userId);
+      }
       return existing;
     }
 
-    return await this.createParticipant(userId, trimmedName);
+    return await this.createParticipant(userId, trimmedName, normalizedEmail);
   }
 
-  async renameParticipant(userId, participantId, newName) {
+  async renameParticipant(userId, participantId, newName, email) {
     const trimmedNewName = (newName ?? '').trim();
     if (!trimmedNewName) {
       throw new Error('New participant name is required');
@@ -123,7 +147,13 @@ class ParticipantService {
       throw new Error('Participant not found');
     }
 
-    if (participant.name === trimmedNewName) {
+    const emailProvided = email !== undefined;
+    const normalizedEmail = emailProvided ? this.normalizeEmail(email) : undefined;
+
+    if (
+      participant.name === trimmedNewName &&
+      (!emailProvided || (participant.email || null) === normalizedEmail)
+    ) {
       return participant;
     }
 
@@ -134,10 +164,17 @@ class ParticipantService {
       throw error;
     }
 
-    await db.query(
-      'UPDATE participants SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?',
-      [trimmedNewName, new Date(), participantId, userId]
-    );
+    if (emailProvided) {
+      await db.query(
+        'UPDATE participants SET name = ?, email = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+        [trimmedNewName, normalizedEmail, new Date(), participantId, userId]
+      );
+    } else {
+      await db.query(
+        'UPDATE participants SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+        [trimmedNewName, new Date(), participantId, userId]
+      );
+    }
 
     return await this.getParticipantById(participantId, userId);
   }

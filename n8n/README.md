@@ -86,28 +86,14 @@ Authorization: Bearer <token>
 
 The n8n **meeting** MySQL node filters by `id` from `x-meeting-id` header and status `ارسال درخواست پردازش`.
 
-## Modiryar Email Sender workflow
+## Meeting summary email (backend — not n8n)
 
-Import or use the deployed workflow **`Modiryar Email Sender`** (`n8n/Modiryar-Email-Sender-workflow.json`).
-
-It sends the meeting summary email by loading data from MySQL and sending via [Resend](https://resend.com) from `noreply@neshastyar.com`.
-
-### Trigger
+Summary emails are sent by the Node backend:
 
 ```http
-GET https://n8nnew.teraxr.com/webhook/modiryar-email-sender?meetingId={meeting-uuid}
+GET https://www.neshastyar.com/sendmail/{meeting-uuid}
 ```
 
-The web app **ارسال به ایمیل** button calls this webhook.
+Used by the web **ارسال به ایمیل** button, Android, and Modiryar analysis after processing. Implementation: `backend/src/controllers/emailController.js` → `emailService.sendMeetingSummaryEmail` (Resend).
 
-### Flow
-
-```
-Webhook → Extract Meeting ID → Load Meeting (MySQL) → Format Email (Code) → Is Valid?
-  ├─ true  → Send Email via Resend (HTTP) → Update Timestamp → Respond Success
-  └─ false → Respond Error
-```
-
-Credentials required in n8n: **MySQL_Modiryar**, and a **Resend API key** via env `RESEND_API_KEY` (used in the **Send Email via Resend** node Authorization header as `Bearer {{ $env.RESEND_API_KEY }}`).
-
-Resend requires a `User-Agent` header on API requests; the workflow sets `neshastyar-n8n/1.0`.
+The old **`Modiryar Email Sender`** n8n workflow and the temporary **Email → Backend Proxy** are archived. Production web/Android/analysis all call `/sendmail` on the backend.
