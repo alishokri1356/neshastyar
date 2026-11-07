@@ -1,0 +1,219 @@
+{
+  "id": "2MmlReW5QRBVzkrn",
+  "name": "Modiryar_google_analyze",
+  "active": true,
+  "nodes": [
+    {
+      "id": "ffc35e85-7d5d-4355-bb36-9e84aa33fd69",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        -80
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  contents: [\n    {\n      role: \"user\",\n      parts: [\n        {\n          text: $('When Executed by Another Workflow').first().json.CommentText\n        }\n      ]\n    }\n  ],\n  generationConfig: {\n    responseMimeType: \"application/json\"\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "a0fa0f40-8d01-47a9-8e6c-f4ae5bc4734e",
+      "name": "Analyze (gemini-3.8-flash)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -480,
+        -80
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "maxTries": 5,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        },
+        "googleOAuth2Api": {
+          "id": "7Mq4n70FAl5yySUh",
+          "name": "Google OAuth2 API Alex"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  contents: [\n    {\n      role: \"user\",\n      parts: [\n        {\n          text: $('When Executed by Another Workflow').first().json.CommentText\n        }\n      ]\n    }\n  ],\n  generationConfig: {\n    responseMimeType: \"application/json\"\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "7a951155-5aeb-4cae-aede-9bce75d548b3",
+      "name": "Analyze2 (gemini-3.7-flash)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -160,
+        80
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        },
+        "googleOAuth2Api": {
+          "id": "7Mq4n70FAl5yySUh",
+          "name": "Google OAuth2 API Alex"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  contents: [\n    {\n      role: \"user\",\n      parts: [\n        {\n          text: $('When Executed by Another Workflow').first().json.CommentText\n        }\n      ]\n    }\n  ],\n  generationConfig: {\n    responseMimeType: \"application/json\"\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "21c35feb-7e17-4959-aeb5-7614cbdde573",
+      "name": "Analyze3 (gemini-3.5-flash-lite)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        160,
+        240
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        },
+        "httpQueryAuth": {
+          "id": "bE1Nl0rvCpNt9BXz",
+          "name": "Query Auth account Alex"
+        },
+        "googleOAuth2Api": {
+          "id": "7Mq4n70FAl5yySUh",
+          "name": "Google OAuth2 API Alex"
+        }
+      }
+    },
+    {
+      "id": "11984299-cd43-4106-9740-455accdd4dd6",
+      "name": "Return Analyze Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -80
+      ],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst text = response && response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts && response.candidates[0].content.parts[0] && response.candidates[0].content.parts[0].text;\nif (!text || !String(text).trim()) {\n  throw new Error('Google analyze returned an empty response');\n}\nreturn [{ json: response }];\n"
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Analyze (gemini-3.8-flash)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze (gemini-3.8-flash)": {
+      "main": [
+        [
+          {
+            "node": "Return Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze2 (gemini-3.7-flash)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze2 (gemini-3.7-flash)": {
+      "main": [
+        [
+          {
+            "node": "Return Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze3 (gemini-3.5-flash-lite)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze3 (gemini-3.5-flash-lite)": {
+      "main": [
+        [
+          {
+            "node": "Return Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Tehran",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "663fef23-29ac-451c-b2e7-eebc787a8f30"
+}
