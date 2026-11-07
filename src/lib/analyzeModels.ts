@@ -42,7 +42,7 @@ const FALLBACK_MODELS: AnalyzeModelsResponse = {
     { key: 'deepseek_v41_flash', label: 'DeepSeek V4.1 Flash', kind: 'open_weight', provider: 'openrouter' },
     { key: 'qwen38_27b', label: 'Qwen3.8 27B', kind: 'open_weight', provider: 'openrouter' },
     { key: 'glm_53', label: 'GLM-5.3', kind: 'open_weight', provider: 'openrouter' },
-    { key: 'gemma4_31b_free', label: 'Gemma 4 31B (free)', kind: 'open_weight', provider: 'openrouter' },
+    { key: 'gemma4_31b_free', label: 'Gemma 4 31B', kind: 'open_weight', provider: 'openrouter' },
   ],
 };
 

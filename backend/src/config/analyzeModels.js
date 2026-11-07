@@ -57,10 +57,10 @@ const ANALYZE_MODELS = [
   },
   {
     key: 'gemma4_31b_free',
-    label: 'Gemma 4 31B (free)',
+    label: 'Gemma 4 31B',
     kind: 'open_weight',
     provider: 'openrouter',
-    openrouterId: 'google/gemma-4-31b-it:free',
+    openrouterId: 'google/gemma-4-31b-it',
   },
 ];
 

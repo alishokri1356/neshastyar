@@ -1,0 +1,5 @@
+{
+  "install": "echo 'Cloud Agent env ready'",
+  "start": "bash scripts/cloud-agent/startup.sh || true",
+  "terminals": []
+}
