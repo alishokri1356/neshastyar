@@ -130,6 +130,9 @@ CREATE TABLE `meeting_tags` (
 | lastTimeEmailSent | datetime | YES | MUL | NULL |  |
 | email_status | varchar(50) | NO |  | Email Not Sent |  |
 | CommentText | text | YES |  | NULL |  |
+| analyze_model | varchar(50) | YES |  | NULL |  |
+| analyzing_model | varchar(50) | YES |  | NULL |  |
+| analyzed_by | varchar(50) | YES |  | NULL |  |
 
 ### Indexes
 
@@ -162,6 +165,9 @@ CREATE TABLE `meetings` (
   `lastTimeEmailSent` datetime DEFAULT NULL,
   `email_status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Email Not Sent',
   `CommentText` text COLLATE utf8mb4_unicode_ci,
+  `analyze_model` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `analyzing_model` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `analyzed_by` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_status` (`status`),
@@ -273,6 +279,7 @@ CREATE TABLE `tags` (
 | created_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 | updated_at | timestamp | YES |  | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
 | baleID | varchar(20) | YES |  | NULL |  |
+| default_analyze_model | varchar(50) | YES |  | NULL |  |
 
 ### Indexes
 
@@ -298,6 +305,7 @@ CREATE TABLE `users` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `baleID` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `default_analyze_model` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   KEY `idx_email` (`email`),

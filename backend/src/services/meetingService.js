@@ -219,9 +219,9 @@ class MeetingService {
 
     const sql = `
       INSERT INTO meetings (
-        id, user_id, title, meeting_date, status, summary, CommentText,
+        id, user_id, title, meeting_date, status, summary, CommentText, analyze_model,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const meetingDate = meetingData.meeting_date
@@ -236,6 +236,7 @@ class MeetingService {
       meetingData.status || 'pending',
       meetingData.summary || null,
       meetingData.CommentText || null,
+      meetingData.analyze_model || null,
       toMySQLDateTime(now),
       toMySQLDateTime(now),
     ];
@@ -246,7 +247,7 @@ class MeetingService {
   }
 
   async updateMeeting(id, userId, updates) {
-    const allowedFields = ['title', 'meeting_date', 'status', 'summary', 'CommentText'];
+    const allowedFields = ['title', 'meeting_date', 'status', 'summary', 'CommentText', 'analyze_model'];
     const updateFields = [];
     const values = [];
 
@@ -544,16 +545,44 @@ class MeetingService {
     return { updatedMeetings };
   }
 
-  async triggerAnalyze(id, userId) {
+  async triggerAnalyze(id, userId, requestedModel) {
+    const {
+      normalizeAnalyzeModelKey,
+      AUTO_KEY,
+    } = require('../config/analyzeModels');
+    const userService = require('./userService');
+
     const meeting = await this.getMeetingById(id, userId);
     if (!meeting) {
       throw new Error('Meeting not found or access denied');
     }
 
-    const result = await analyzeService.requestMeetingAnalysis(id);
+    let modelKey = null;
+    if (requestedModel !== undefined && requestedModel !== null && requestedModel !== '') {
+      modelKey = normalizeAnalyzeModelKey(requestedModel);
+      if (!modelKey) {
+        throw new Error('Invalid analyze model');
+      }
+    } else {
+      const user = await userService.findById(userId);
+      modelKey = normalizeAnalyzeModelKey(user?.default_analyze_model) || AUTO_KEY;
+    }
+
+    await db.query(
+      `UPDATE meetings
+       SET analyze_model = ?,
+           analyzing_model = NULL,
+           analyzed_by = NULL,
+           updated_at = NOW()
+       WHERE id = ? AND user_id = ?`,
+      [modelKey, id, userId]
+    );
+
+    const result = await analyzeService.requestMeetingAnalysis(id, modelKey);
 
     return {
       ...result,
+      analyze_model: modelKey,
       status: meeting.status,
     };
   }

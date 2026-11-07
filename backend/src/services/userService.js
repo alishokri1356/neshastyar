@@ -76,14 +76,30 @@ class UserService {
 
   // Update user
   async updateUser(id, updates) {
-    const allowedFields = ['name', 'email', 'baleID'];
+    const {
+      normalizeAnalyzeModelKey,
+      AUTO_KEY,
+    } = require('../config/analyzeModels');
+    const allowedFields = ['name', 'email', 'baleID', 'default_analyze_model'];
     const updateFields = [];
     const values = [];
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
+        let nextValue = value === '' ? null : value;
+        if (key === 'default_analyze_model') {
+          if (nextValue === null) {
+            nextValue = null;
+          } else {
+            const normalized = normalizeAnalyzeModelKey(nextValue);
+            if (!normalized) {
+              throw new Error('Invalid analyze model');
+            }
+            nextValue = normalized === AUTO_KEY ? AUTO_KEY : normalized;
+          }
+        }
         updateFields.push(`\`${key}\` = ?`);
-        values.push(value === '' ? null : value);
+        values.push(nextValue);
       }
     }
 

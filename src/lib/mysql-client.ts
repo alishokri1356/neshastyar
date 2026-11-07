@@ -201,7 +201,11 @@ class MySQLClient {
         }
       },
 
-      updateProfile: async (updates: { name?: string; baleID?: string }) => {
+      updateProfile: async (updates: {
+        name?: string;
+        baleID?: string;
+        default_analyze_model?: string | null;
+      }) => {
         try {
           const response = await fetch(`${API_BASE_URL}/auth/profile`, {
             method: 'PUT',

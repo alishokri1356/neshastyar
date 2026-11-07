@@ -159,13 +159,28 @@ class MeetingController {
     }
   }
 
+  // GET /api/meetings/analyze-models
+  async getAnalyzeModels(req, res) {
+    try {
+      const { getAnalyzeModelsForApi } = require('../config/analyzeModels');
+      res.json(getAnalyzeModelsForApi());
+    } catch (error) {
+      console.error('Get analyze models error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch analyze models',
+        message: 'An error occurred while fetching analyze models',
+      });
+    }
+  }
+
   // POST /api/meetings/:id/analyze
   async triggerAnalyze(req, res) {
     try {
       const userId = req.user.sub;
       const { id } = req.params;
+      const model = req.body?.model;
 
-      const result = await meetingService.triggerAnalyze(id, userId);
+      const result = await meetingService.triggerAnalyze(id, userId, model);
 
       res.json(result);
     } catch (error) {
@@ -174,6 +189,13 @@ class MeetingController {
       if (error.message.includes('not found') || error.message.includes('access denied')) {
         return res.status(404).json({
           error: 'Meeting not found',
+          message: error.message,
+        });
+      }
+
+      if (error.message.includes('Invalid analyze model')) {
+        return res.status(400).json({
+          error: 'Invalid analyze model',
           message: error.message,
         });
       }

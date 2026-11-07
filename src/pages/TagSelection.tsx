@@ -31,6 +31,7 @@ import {
   setUploadActive,
 } from '@/lib/uploadDraftStore';
 import { useToast } from '@/components/ui/use-toast';
+import AnalyzeModelSelect from '@/components/AnalyzeModelSelect';
 
 // Get API base URL from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -139,10 +140,28 @@ const TagSelection = () => {
   const [commentText, setCommentText] = useState(
     routeDraft?.commentText ?? recordDraft?.commentText ?? '',
   );
+  const [analyzeModel, setAnalyzeModel] = useState('auto');
   const audioFilesRef = useRef(audioFiles);
   audioFilesRef.current = audioFiles;
   const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
   const autoResumeStarted = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await mysqlClient.auth.getProfile();
+        if (!cancelled && data?.default_analyze_model) {
+          setAnalyzeModel(data.default_analyze_model);
+        }
+      } catch {
+        // Keep Auto default when profile lookup fails.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -571,6 +590,7 @@ const TagSelection = () => {
               ...mysqlClient.getAuthHeaders(),
               'Content-Type': 'application/json',
             },
+            body: JSON.stringify({ model: analyzeModel || 'auto' }),
           }
         );
 
@@ -715,6 +735,21 @@ const TagSelection = () => {
       actions={<Badge variant="secondary" className="shrink-0">{selectedTags.length} انتخاب شده</Badge>}
     >
       <div className="mx-auto max-w-2xl space-y-6 pb-28">
+        <Card className="border border-border/50 bg-card/70 shadow-soft">
+          <CardContent className="space-y-2 p-4">
+            <Label htmlFor="analyzeModel">مدل تحلیل</Label>
+            <AnalyzeModelSelect
+              id="analyzeModel"
+              value={analyzeModel}
+              onValueChange={setAnalyzeModel}
+              disabled={isUploading}
+            />
+            <p className="text-xs text-muted-foreground">
+              در حالت Auto، مدل‌ها به ترتیب ارزان‌تر و پایدارتر امتحان می‌شوند.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Audio Files List */}
         {audioFiles && audioFiles.length > 0 && !isUploading && (
           <Card className="border border-border/50 bg-card/70 shadow-soft">

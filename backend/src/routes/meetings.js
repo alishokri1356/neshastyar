@@ -12,6 +12,9 @@ router.use(requireEmailVerification);
 // GET /api/meetings
 router.get('/', meetingController.getMeetings);
 
+// GET /api/meetings/analyze-models
+router.get('/analyze-models', meetingController.getAnalyzeModels);
+
 // GET /api/meetings/untagged
 router.get('/untagged', meetingController.getUntaggedMeetings);
 

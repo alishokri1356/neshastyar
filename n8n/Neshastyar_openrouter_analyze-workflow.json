@@ -1,0 +1,137 @@
+{
+  "id": "cqOMmPHbmAGej0hs",
+  "name": "Neshastyar_openrouter_analyze",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "48c8b850-ad3f-4a17-b72d-129b9f07ac7c",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "HTTP-Referer",
+              "value": "https://neshastyar.com"
+            },
+            {
+              "name": "X-OpenRouter-Title",
+              "value": "Neshastyar"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: String($json.modelId || '').trim(),\n  messages: [\n    {\n      role: \"user\",\n      content: $json.CommentText\n    }\n  ],\n  temperature: 0.2,\n  max_tokens: 8192,\n  response_format: { type: \"json_object\" }\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "5abf5d17-2433-471d-a223-94fde3bc0609",
+      "name": "Analyze OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OrNvdaHeaderAuth",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const REQUIRED = ['Subject', 'Summary', 'People in meetings', 'Bolet Points', 'Tags'];\nconst trigger = $('When Executed by Another Workflow').first().json || {};\nconst MODEL = String(trigger.modelId || '').trim();\n\nfunction messageText(message) {\n  if (!message) return '';\n  const content = message.content;\n  if (typeof content === 'string') return content;\n  if (Array.isArray(content)) {\n    return content.map((part) => {\n      if (typeof part === 'string') return part;\n      if (part && typeof part.text === 'string') return part.text;\n      return '';\n    }).join('');\n  }\n  return '';\n}\n\nfunction parseAnalysis(text) {\n  let source = String(text || '').trim();\n  if (!source) return null;\n  const fenced = source.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fenced) source = fenced[1].trim();\n  const tryParse = (value) => {\n    try { return JSON.parse(value); } catch (e) { return null; }\n  };\n  let parsed = tryParse(source);\n  if (!parsed) {\n    const start = source.indexOf('{');\n    const end = source.lastIndexOf('}');\n    if (start >= 0 && end > start) parsed = tryParse(source.slice(start, end + 1));\n  }\n  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;\n  if (REQUIRED.some((key) => !Object.prototype.hasOwnProperty.call(parsed, key))) return null;\n  return parsed;\n}\n\nconst item = $input.first().json || {};\nif (item.error) {\n  const message = (item.error && (item.error.message || item.error.description)) || 'Model request failed';\n  throw new Error(message);\n}\nif (!MODEL) {\n  throw new Error('OpenRouter modelId is required');\n}\nconst message = item.choices && item.choices[0] && item.choices[0].message;\nconst parsed = parseAnalysis(messageText(message));\nif (!parsed) {\n  throw new Error('Model returned invalid analysis JSON');\n}\nreturn [{\n  json: {\n    candidates: [{ content: { parts: [{ text: JSON.stringify(parsed) }] } }],\n    analyzeProvider: 'openrouter',\n    analyzeModel: MODEL,\n  },\n}];\n"
+      },
+      "id": "867c9c49-fea0-4d96-998e-965f82d22325",
+      "name": "Validate OpenRouter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst text = response && response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts && response.candidates[0].content.parts[0] && response.candidates[0].content.parts[0].text;\nif (!text || !String(text).trim()) {\n  throw new Error('OpenRouter analyze returned an empty response');\n}\nreturn [{ json: response }];\n"
+      },
+      "id": "03b742d2-dbef-4ac8-b1bd-10aefd5b141f",
+      "name": "Return Analyze Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Analyze OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Validate OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Return Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "87a90aab-bf88-4b74-83d1-c44158555cc5"
+}

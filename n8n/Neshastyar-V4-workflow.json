@@ -1,0 +1,2021 @@
+{
+  "id": "uGFuUqZOCE0Ay0nY",
+  "name": "Neshastyar V4",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "7df546f1-321a-40d7-a5c1-3084ad0ce697",
+        "options": {}
+      },
+      "id": "2ac9ba6e-22aa-433c-a446-fa5ba0593cb3",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -6384,
+        -336
+      ],
+      "typeVersion": 2,
+      "webhookId": "7df546f1-321a-40d7-a5c1-3084ad0ce697"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "03f0784f-24e0-4c32-960e-3c72a558c06f",
+              "name": "fileREST",
+              "type": "string",
+              "value": "=https://neshastyar.com{{ $('Loop Over Items1').item.json.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9430ddb2-e5ed-43bb-8553-30df8685995a",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -2960,
+        -32
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').first().json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "summary",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "column": "title",
+              "value": "={{ $json.Subject }}"
+            },
+            {
+              "column": "status",
+              "value": "پردازش شده"
+            },
+            {
+              "column": "people",
+              "value": "={{ $json.People ? $json.People.toJsonString() : null }}"
+            },
+            {
+              "column": "bullets",
+              "value": "={{ $json['Bullet Points'] ? $json['Bullet Points'].toJsonString() : null }}"
+            },
+            {
+              "column": "tags",
+              "value": "={{ $json.Tags ? $json.Tags.toJsonString() : null }}"
+            },
+            {
+              "column": "transcription",
+              "value": "={{ $('Join Transcripts').first().json.text }}"
+            },
+            {
+              "column": "analyzed_by",
+              "value": "={{ $json.analyzedByKey }}"
+            },
+            {
+              "column": "analyzing_model",
+              "value": "={{ null }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8bf43513-8b6d-43e5-99ab-bed251884a2a",
+      "name": "Update rows in a table1",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -496,
+        -896
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "f8e62ebc-6800-4fbc-92d8-21251d1530ac",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -6560,
+        -112
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').first().json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "summary",
+              "value": "={{ $json.error.message }}"
+            },
+            {
+              "column": "status",
+              "value": "={{ ('Error: ' + $prevNode.name).slice(0, 50) }}"
+            },
+            {
+              "column": "analyzing_model",
+              "value": "={{ null }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0ab2f42-c45f-482e-b3e9-0bc8d1c64fba",
+      "name": "Update meeting on error",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -992,
+        976
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "439f5c31-4693-44e9-b59f-04430fe8d681",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            {
+              "id": "ff741de8-7a63-4f97-96d6-e24c8de3bb88",
+              "name": "Summary",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Summary }}"
+            },
+            {
+              "id": "d7c71586-b322-4c39-aec0-cad27a753503",
+              "name": "People",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text)['People in meetings'] }}"
+            },
+            {
+              "id": "39e33648-524e-4f45-9d8b-1eec93898a21",
+              "name": "Bullet Points",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text)['Bolet Points'] }}"
+            },
+            {
+              "id": "20646b02-ad17-4f55-8309-8f53b282a39b",
+              "name": "Subject",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Subject }}"
+            },
+            {
+              "id": "7f4489d4-b22b-4caf-9de6-d822104d57c7",
+              "name": "Tags",
+              "type": "string",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Tags }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9ff91421-1bcf-4a9d-8473-8a3f74dfc32a",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -768,
+        -896
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ', ') AS tag_list\nFROM tags t\nINNER JOIN meetings m ON m.user_id = t.user_id\nWHERE m.id = \"{{ $('meeting').first().json.id }}\";\n",
+        "options": {}
+      },
+      "id": "e336c64a-c58c-4c97-92dc-a06c43e87144",
+      "name": "ListOfTags",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -5536,
+        -432
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "users",
+          "cachedResultName": "users"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "63d4f99e-fb87-4f56-8afb-112c2c0c7826",
+      "name": "UserInfo",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -5536,
+        -192
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "audio_files",
+          "cachedResultName": "audio_files"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "meeting_id",
+              "value": "={{ $('meeting').first().json.id }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "upload_order"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c15cfcc4-f1e4-48c5-9128-3ae0b2d962b4",
+      "name": "AudioFiles",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -4800,
+        -16
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "5277d31c-6408-43ac-ae2b-78068a7d81da",
+      "name": "Loop Over Items1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        -3424,
+        -48
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "={{ $json.headers?.['x-meeting-id'] || $json['x-meeting-id'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "289410c4-0df2-4bfe-a943-73de30d2483b",
+      "name": "meeting",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -6160,
+        -256
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://neshastyar.com/sendmail/{{ $('meeting').first().json.id }}",
+        "options": {}
+      },
+      "id": "84c35f08-1074-47d5-bf52-b0232d2f661f",
+      "name": "send mail",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        -896
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a5baa35-de87-4815-bc7c-62557eacaadb",
+              "name": "CommentText",
+              "type": "string",
+              "value": "=# Role\n\nتو یک دستیار حرفه‌ای برای تحلیل جلسات هستی.\n\nوظیفه تو استخراج دقیق اطلاعات از متن پیاده‌سازی شده جلسه (Transcript) و تولید فقط یک JSON معتبر است.\n\nاطلاعاتی تولید نکن که در متن پیاده‌سازی شده جلسه یا ورودی‌های تأییدشده وجود ندارد.\n\nاگر در مورد موضوعی مطمئن نیستی، حدس نزن.\n\n---\n\n# Inputs\n\nممکن است ورودی‌های زیر وجود داشته باشند یا خالی باشند.\n\nComments:\n{{ $('meeting').first().json.CommentText }}\n\nApprovedParticipants:\n{{ $('ApprovedParticipants').first().json.approved_participants }}\n\nApprovedTags:\n{{ $('ApprovedTags').first().json.approved_tags }}\n\nKnownPeople:\n{{ $('ListOfParticipants').first().json.participant_list }}\n\nKnownTags:\n{{ $('ListOfTags').first().json.tag_list }}\n\nTranscript:\n{{ $('Join Transcripts').first().json.text }}\n\n---\n\n# Priority Rules\n\nترتیب اهمیت اطلاعات به صورت زیر است:\n\n1. ApprovedParticipants\n2. ApprovedTags\n3. متن جلسه (Transcript)\n4. Comments\n5. KnownPeople\n6. KnownTags\n\nApprovedParticipants و ApprovedTags حقیقت قطعی هستند.\n\nاگر مقدار داشته باشند، حتماً بدون تغییر در خروجی قرار بگیرند؛ حتی اگر در متن جلسه قابل تشخیص نباشند.\n\n---\n\n# Task\n\nاز متن جلسه (Transcript)، اطلاعات زیر را استخراج کن.\n\n---\n\n## Subject\n\nیک عنوان کوتاه برای موضوع اصلی جلسه.\n\nشرایط:\n\n- حداکثر ۱۰ کلمه\n- واضح\n- توصیفی\n\n---\n\n## People in meetings\n\nآرایه‌ای از اسامی افراد حاضر.\n\nقوانین:\n\nابتدا تمام ApprovedParticipants را قرار بده.\n\nسپس سایر افراد حاضر را اضافه کن.\n\nاز KnownPeople فقط برای کمک به تشخیص اسامی استفاده کن.\n\nفقط افرادی را اضافه کن که:\n\n- شخصاً صحبت کرده‌اند\nیا\n- حضورشان در جلسه به وضوح مشخص است.\n\nاگر فقط نام شخص برده شده باشد، او را حاضر در جلسه فرض نکن.\n\nافراد تکراری نباشند.\n\nترتیب:\n\n1. ApprovedParticipants\n2. سایر افراد بر اساس اولین حضور\n\n---\n\n## Summary\n\nخلاصه‌ای کامل از جلسه.\n\nیک متن جامع و طولانی (حدود ۴۰۰ تا ۱۲۰۰ کلمه).\n\nساختار Summary:\n\n- هدف جلسه\n- موضوع اصلی\n- روند بحث\n- نکات مهم\n- استدلال‌های مهم\n- تصمیم‌های گرفته‌شده\n- اختلاف‌نظرها (در صورت وجود)\n- نتیجه نهایی\n- اقدامات بعدی\n\nاگر Comments مقدار داشت:\n\nآن را به عنوان تمرکز اصلی خلاصه در نظر بگیر اما سایر موضوعات جلسه را حذف نکن.\n\n---\n\n## Bolet Points\n\nآرایه‌ای از مهم‌ترین نکات جلسه.\n\nهر آیتم فقط یک موضوع داشته باشد.\n\nدر صورت امکان به صورت زیر بنویس:\n\nتصمیم:\nمسئول:\nزمان انجام:\n\nاگر مسئول یا زمان مشخص نبود، آن بخش را حذف کن.\n\n---\n\n## Tags\n\nحداکثر ۱۰ تگ.\n\nترتیب انتخاب:\n\n1. ApprovedTags\n2. تگ‌های موجود در KnownTags که واقعاً در جلسه مطرح شده‌اند.\n3. تگ‌های جدید استخراج‌شده از جلسه.\n\nقوانین:\n\n- بدون تکرار\n- فقط موضوعات جلسه\n- نام افراد هرگز Tag نیست.\n- از کلی‌ترین به اختصاصی‌ترین مرتب شوند.\n\n---\n\n# General Rules\n\nهمه متن‌ها فارسی باشند.\n\nاسامی اشخاص ترجمه نشوند.\n\nاصطلاحات انگلیسی ترجمه نشوند.\n\nهرگز اطلاعات ساختگی تولید نکن.\n\nاگر مطمئن نیستی، آن مورد را حذف کن.\n\nهیچ آرایه‌ای نباید عضو تکراری داشته باشد.\n\nهیچ کلیدی حذف نشود.\n\n---\n\n# Output Schema\n\nخروجی باید دقیقاً مطابق این ساختار باشد:\n\n{\n  \"Subject\": \"\",\n  \"People in meetings\": [],\n  \"Summary\": \"\",\n  \"Bolet Points\": [],\n  \"Tags\": []\n}\n\n---\n\n# Output Rules\n\nفقط یک JSON معتبر تولید کن.\n\nهیچ متن دیگری ننویس.\n\nاز Markdown استفاده نکن.\n\nاز ```json استفاده نکن.\n\nقبل یا بعد از JSON هیچ توضیحی ننویس.\n\nاگر مقداری قابل استخراج نبود:\n\nSubject = \"\"\n\nPeople in meetings = []\n\nSummary = \"\"\n\nBolet Points = []\n\nTags = []\n\nاما ساختار JSON را همیشه حفظ کن."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "821d41f6-ef6a-4b4b-b59b-ee1d899d565a",
+      "name": "MeetingSummaryPrompt",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1568,
+        -992
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').first().json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "status",
+              "value": "=در حال ارسال فایل {{ Number($('Loop Over Items1').item.json.fileIndex) + 1 }} از {{ $('Loop Over Items1').item.json.fileCount }} بخش {{ Number($('Loop Over Items1').item.json.chunkIndex) + 1 }} از {{ $('Loop Over Items1').item.json.chunkCount }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6c277bfa-9e43-498c-aee5-e0d203066a2b",
+      "name": "Update meeting Status 1",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -3200,
+        -32
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ', ') AS approved_tags\nFROM tags t\nINNER JOIN meeting_tags mt ON t.id = mt.tag_id\nWHERE mt.meeting_id = \"{{ $('meeting').first().json.id }}\";\n",
+        "options": {}
+      },
+      "id": "f40ac373-7da5-4404-8d0c-82caa5465c59",
+      "name": "ApprovedTags",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -5536,
+        -48
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ', ') AS approved_participants\nFROM participants p\nINNER JOIN meeting_participants mp ON p.id = mp.participant_id\nWHERE mp.meeting_id = \"{{ $('meeting').first().json.id }}\";\n",
+        "options": {}
+      },
+      "id": "6139aeed-0b01-454e-97d7-f301610819ad",
+      "name": "ApprovedParticipants",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -5536,
+        128
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ', ') AS participant_list\nFROM participants p\nINNER JOIN meetings m ON m.user_id = p.user_id\nWHERE m.id = \"{{ $('meeting').first().json.id }}\";\n",
+        "options": {}
+      },
+      "id": "4dcfe99b-f469-47bd-98a4-c3a3ff558775",
+      "name": "ListOfParticipants",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -5536,
+        -624
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "numberInputs": 6,
+        "output": "empty"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -5200,
+        -304
+      ],
+      "id": "c86d15f2-3f46-4c14-bac5-9088d6d46f44",
+      "name": "Data"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "meetings",
+          "cachedResultName": "meetings"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "id",
+        "valueToMatchOn": "={{ $('meeting').first().json.id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "transcription",
+              "value": "={{ $('Join Transcripts').first().json.text }}"
+            },
+            {
+              "column": "status",
+              "value": "در حال تحلیل متن جلسه"
+            },
+            {
+              "column": "TranscriptionCompleted",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "save-transcribe-db-001",
+      "name": "Save Transcribe to DB",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -2496,
+        -384
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e49c3820-4352-47dc-9d00-8848c23b2001",
+              "name": "headers.x-meeting-id",
+              "value": "e3b5d55c-af0a-4b73-bf46-f1cd9c0ff292",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -6400,
+        -112
+      ],
+      "id": "bf690828-3dd6-4e6c-8238-41f5be932d98",
+      "name": "SetMeetingID"
+    },
+    {
+      "parameters": {
+        "url": "=https://neshastyar.com/api/audio-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 600000
+        }
+      },
+      "id": "list-audio-chunks-001",
+      "name": "List Audio Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4608,
+        -16
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meetingId = $('meeting').first().json.id;\nconst chunks = $input.first().json.chunks || [];\nif (!chunks.length) {\n  throw new Error('No audio chunks to transcribe');\n}\n\nreturn chunks.map((chunk, index) => {\n  const fileSize = Number(chunk.fileSize);\n  if (!Number.isFinite(fileSize) || fileSize < 0) {\n    throw new Error(`Audio chunk ${index} is missing fileSize`);\n  }\n  const fileChunkIndex = Number(chunk.chunkIndex);\n  const fileChunkCount = Number(chunk.chunkCount);\n  return {\n    json: {\n      ...chunk,\n      fileChunkIndex: Number.isFinite(fileChunkIndex) ? fileChunkIndex : index,\n      fileChunkCount: Number.isFinite(fileChunkCount) ? fileChunkCount : chunks.length,\n      meetingChunkIndex: index,\n      meetingChunkCount: chunks.length,\n      chunkIndex: index,\n      chunkCount: chunks.length,\n      fileSize,\n      chunkId: `${meetingId}:${index}:${fileSize}`,\n    },\n  };\n});\n"
+      },
+      "id": "expand-audio-chunks-001",
+      "name": "Expand Audio Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4400,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const meetingRow = $('meeting').first().json;\nconst savedTranscript = String(meetingRow.transcription || '').trim();\nif (Number(meetingRow.TranscriptionCompleted) === 1 && savedTranscript) {\n  return [{\n    json: {\n      text: savedTranscript,\n      chunkCount: 0,\n      checkpointCount: 0,\n      reusedSavedTranscript: true,\n    },\n  }];\n}\n\nfunction stitchTranscripts(parts) {\n  let result = '';\n  for (const part of parts) {\n    const text = String(part || '').trim();\n    if (!text) continue;\n    if (!result) {\n      result = text;\n      continue;\n    }\n    const prevWords = result.split(/\\s+/).slice(-12).join(' ');\n    const windowText = text.slice(0, 1200);\n    const at = prevWords ? windowText.indexOf(prevWords) : -1;\n    if (at >= 0) {\n      const remainder = text.slice(at + prevWords.length).trim();\n      result = remainder ? result.trimEnd() + '\\n\\n' + remainder : result;\n    } else {\n      result = result.trimEnd() + '\\n\\n' + text;\n    }\n  }\n  return result.trim();\n}\n\nconst expected = $('Expand Audio Chunks').all().map((item) => item.json);\nif (!expected.length) {\n  throw new Error('No expected audio chunks to join');\n}\n\nconst saved = ($input.first().json.chunks || []);\nconst byId = {};\nfor (const row of saved) {\n  if (row && row.chunkId && typeof row.text === 'string' && row.text.trim()) {\n    byId[row.chunkId] = row.text.trim();\n  }\n}\n\nconst parts = expected.map((chunk) => {\n  const text = byId[chunk.chunkId];\n  if (!text) {\n    throw new Error(`Missing transcript checkpoint for ${chunk.chunkId}`);\n  }\n  return text;\n});\n\nreturn [{\n  json: {\n    text: stitchTranscripts(parts),\n    chunkCount: parts.length,\n    checkpointCount: saved.length,\n  },\n}];\n"
+      },
+      "id": "join-transcripts-001",
+      "name": "Join Transcripts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "last-chunk-check-001",
+              "leftValue": "={{ Number($json.pendingIndex !== undefined && $json.pendingIndex !== null ? $json.pendingIndex : $('Loop Over Items1').item.json.pendingIndex) + 1 }}",
+              "rightValue": "={{ Number($json.pendingCount !== undefined && $json.pendingCount !== null ? $json.pendingCount : $('Loop Over Items1').item.json.pendingCount) }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-last-transcribe-chunk-001",
+      "name": "If Last Transcribe Chunk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1680,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://neshastyar.com/api/audio-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "143060ee-ac79-4157-a85f-10d299108b31",
+      "name": "Flush Temp Audio Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2192,
+        -400
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput",
+      "notes": "Deletes generated audio slice files under uploads/audio-chunks. Original uploaded audio is kept. Also clears transcript checkpoints via the same API."
+    },
+    {
+      "parameters": {
+        "url": "=https://neshastyar.com/api/transcript-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "get-transcript-checkpoints-001",
+      "name": "Get Transcript Checkpoints",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4224,
+        -32
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const saved = $input.first().json.chunks || [];\nconst savedIds = new Set(\n  saved\n    .filter((row) => row && row.chunkId && typeof row.text === 'string' && row.text.trim())\n    .map((row) => row.chunkId)\n);\n\nconst pending = $('Expand Audio Chunks')\n  .all()\n  .filter((item) => !savedIds.has(item.json.chunkId))\n  .map((item) => item.json);\n\nif (!pending.length) {\n  return [{ json: { noPending: true, pendingCount: 0 } }];\n}\n\nreturn pending.map((chunk, index) => ({\n  json: {\n    ...chunk,\n    pendingIndex: index,\n    pendingCount: pending.length,\n  },\n}));\n"
+      },
+      "id": "filter-pending-transcript-chunks-001",
+      "name": "Filter Pending Transcript Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4032,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://neshastyar.com/api/transcript-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  chunkIndex: Number($json.chunkIndex !== undefined && $json.chunkIndex !== null ? $json.chunkIndex : $('Loop Over Items1').item.json.chunkIndex),\n  fileSize: Number($json.fileSize !== undefined && $json.fileSize !== null ? $json.fileSize : $('Loop Over Items1').item.json.fileSize),\n  text: ((($json.candidates && $json.candidates[0] && $json.candidates[0].content && $json.candidates[0].content.parts) || []).map(p => p && p.text).filter(Boolean).join('\\n').trim() || String($json.text || '').trim())\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "save-transcript-chunk-001",
+      "name": "Save Transcript Chunk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2080,
+        -48
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://neshastyar.com/api/transcript-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "load-transcript-checkpoints-001",
+      "name": "Load Transcript Checkpoints",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3072,
+        -368
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://neshastyar.com/api/transcript-chunks/meeting/{{ $('meeting').first().json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "flush-transcript-chunks-001",
+      "name": "Flush Temp Transcript Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1936,
+        -400
+      ],
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "notes": "Deletes per-chunk transcript checkpoint texts. Only the full meetings.transcription remains."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "transcription-completed-check-001",
+              "leftValue": "={{ Number($('meeting').first().json.TranscriptionCompleted) === 1 && String($('meeting').first().json.transcription || '').trim().length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "41573bed-4afe-43e8-abaa-d9f79a6fb1a3",
+      "name": "Transcription Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4960,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "myA3pRCSQAxH1CtO",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/myA3pRCSQAxH1CtO",
+          "cachedResultName": "Modiryar_whisper_v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "audioFileId": "={{ $('Loop Over Items1').item.json.audioFileId }}",
+            "fileChunkIndex": "={{ $('Loop Over Items1').item.json.fileChunkIndex }}",
+            "chunkIndex": "={{ $('Loop Over Items1').item.json.chunkIndex }}",
+            "fileSize": "={{ $('Loop Over Items1').item.json.fileSize }}",
+            "mimeType": "={{ $('Loop Over Items1').item.json.mimeType }}",
+            "pendingIndex": "={{ $('Loop Over Items1').item.json.pendingIndex }}",
+            "pendingCount": "={{ $('Loop Over Items1').item.json.pendingCount }}",
+            "meetingId": "={{ $('meeting').first().json.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "c1c58708-d229-416e-937b-b4d3e8cc9d74",
+      "name": "Call Modiryar_whisper_v1",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -2384,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "chunks-pending-001",
+              "leftValue": "={{ Number($json.pendingCount) > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "860b44f5-2e8d-4471-8587-3d26af8ae796",
+      "name": "Chunks Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3792,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "BScOGHpuyYkXPhL2",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/BScOGHpuyYkXPhL2",
+          "cachedResultName": "modiryar_googleTranscribe_v1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fileREST": "={{ $json.fileREST }}",
+            "meetingId": "={{ $('meeting').first().json.id }}",
+            "chunkIndex": "={{ $('Loop Over Items1').item.json.chunkIndex }}",
+            "meetingChunkIndex": "={{ $('Loop Over Items1').item.json.meetingChunkIndex }}",
+            "chunkCount": "={{ $('Loop Over Items1').item.json.chunkCount }}",
+            "meetingChunkCount": "={{ $('Loop Over Items1').item.json.meetingChunkCount }}",
+            "fileSize": "={{ $('Loop Over Items1').item.json.fileSize }}",
+            "fileIndex": "={{ $('Loop Over Items1').item.json.fileIndex }}",
+            "fileCount": "={{ $('Loop Over Items1').item.json.fileCount }}",
+            "audioFileId": "={{ $('Loop Over Items1').item.json.audioFileId }}",
+            "fileChunkIndex": "={{ $('Loop Over Items1').item.json.fileChunkIndex }}",
+            "fileChunkCount": "={{ $('Loop Over Items1').item.json.fileChunkCount }}",
+            "chunkId": "={{ $('Loop Over Items1').item.json.chunkId }}",
+            "mimeType": "={{ $('Loop Over Items1').item.json.mimeType }}",
+            "pendingIndex": "={{ $('Loop Over Items1').item.json.pendingIndex }}",
+            "pendingCount": "={{ $('Loop Over Items1').item.json.pendingCount }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "b2f0f33e-2084-407c-87cb-6d10ede9e7cf",
+      "name": "Call modiryar_googleTranscribe_v1",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -2688,
+        -32
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": 75
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1504,
+        192
+      ],
+      "id": "017b324c-92e3-4777-9225-cb6859d7b9e5",
+      "name": "Wait",
+      "webhookId": "400f0d7f-a2af-492a-a771-03bfdd5e1372"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE meetings\nSET status = 'در حال پردازش',\n    updated_at = NOW()\nWHERE id = $1\n  AND (\n    status IN ('آماده پردازش', 'ارسال درخواست پردازش', 'پردازش شده')\n    OR status LIKE 'Error:%'\n    OR updated_at < NOW() - INTERVAL 10 MINUTE\n  )",
+        "options": {
+          "queryReplacement": "={{ $('meeting').first().json.id }}",
+          "detailedOutput": true
+        }
+      },
+      "id": "c03ec9b4-985d-4579-8aa8-501399855e3b",
+      "name": "Claim Meeting",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -6000,
+        -256
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "meeting-claimed-affected-rows",
+              "leftValue": "={{ Number($json.data && $json.data.affectedRows) > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6533ce23-3c1b-4848-9e72-de4ae990c097",
+      "name": "Meeting Claimed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -5840,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const AUTO_ORDER = [{\"key\": \"gemini_flash\", \"provider\": \"google\", \"openrouterId\": null, \"label\": \"Gemini Flash\"}, {\"key\": \"deepseek_v41_flash\", \"provider\": \"openrouter\", \"openrouterId\": \"deepseek/deepseek-v4.1-flash\", \"label\": \"DeepSeek V4.1 Flash\"}, {\"key\": \"glm_53\", \"provider\": \"openrouter\", \"openrouterId\": \"z-ai/glm-5.3\", \"label\": \"GLM-5.3\"}, {\"key\": \"qwen38_27b\", \"provider\": \"openrouter\", \"openrouterId\": \"qwen/qwen3.8-27b\", \"label\": \"Qwen3.8 27B\"}, {\"key\": \"gemini_4_argon\", \"provider\": \"openrouter\", \"openrouterId\": \"google/gemini-4-argon\", \"label\": \"Gemini 4 Argon\"}, {\"key\": \"gpt_61_sol\", \"provider\": \"openrouter\", \"openrouterId\": \"openai/gpt-6.1-sol\", \"label\": \"GPT-6.1 Sol\"}, {\"key\": \"claude_sonnet_55\", \"provider\": \"openrouter\", \"openrouterId\": \"anthropic/claude-sonnet-5.5\", \"label\": \"Claude Sonnet 5.5\"}, {\"key\": \"gemma4_31b_free\", \"provider\": \"openrouter\", \"openrouterId\": \"google/gemma-4-31b-it:free\", \"label\": \"Gemma 4 31B (free)\"}, {\"key\": \"nvidia\", \"provider\": \"nvidia\", \"openrouterId\": null, \"label\": \"NVIDIA Nemotron\"}];\nconst MANUAL_FALLBACK = [{\"key\": \"gemma4_31b_free\", \"provider\": \"openrouter\", \"openrouterId\": \"google/gemma-4-31b-it:free\", \"label\": \"Gemma 4 31B (free)\"}, {\"key\": \"nvidia\", \"provider\": \"nvidia\", \"openrouterId\": null, \"label\": \"NVIDIA Nemotron\"}];\nconst MODEL_BY_KEY = Object.fromEntries(AUTO_ORDER.map((m) => [m.key, m]));\n\nconst meeting = $('meeting').first().json || {};\nconst prompt = $('MeetingSummaryPrompt').first().json || {};\nconst requested = String(meeting.analyze_model || 'auto').trim() || 'auto';\n\nfunction orderFor(key) {\n  if (!key || key === 'auto' || !MODEL_BY_KEY[key]) {\n    return AUTO_ORDER.slice();\n  }\n  const primary = MODEL_BY_KEY[key];\n  const order = [primary];\n  for (const fallback of MANUAL_FALLBACK) {\n    if (fallback.key === key) continue;\n    order.push(fallback);\n  }\n  return order;\n}\n\nconst order = orderFor(requested);\nreturn order.map((model, index) => ({\n  json: {\n    key: model.key,\n    provider: model.provider,\n    openrouterId: model.openrouterId,\n    label: model.label,\n    index,\n    requested,\n    CommentText: prompt.CommentText,\n    meetingId: meeting.id,\n  },\n}));\n"
+      },
+      "id": "9c453b89-3f5a-49dd-acd4-b48b8d1145fb",
+      "name": "Build Model Order",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1318,
+        -992
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "447209ae-1485-45d9-a19f-e7a628ed6925",
+      "name": "Loop Analyze Models",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1088,
+        -992
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE meetings\nSET analyzing_model = $1,\n    updated_at = NOW()\nWHERE id = $2",
+        "options": {
+          "queryReplacement": "={{ [$json.key, $json.meetingId] }}"
+        }
+      },
+      "id": "6da2898e-37e5-4bf9-8b85-5d86ffa7fceb",
+      "name": "Set Analyzing Model",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -848,
+        -912
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "2Pra15EliiSLhGUC",
+          "name": "MySQL_Modiryar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "37372014-f1ae-4825-be4e-e2e31db6c68c",
+              "name": "key",
+              "type": "string",
+              "value": "={{ $('Loop Analyze Models').item.json.key }}"
+            },
+            {
+              "id": "fe38c2d1-9d8d-407d-9cac-c1325133ca02",
+              "name": "provider",
+              "type": "string",
+              "value": "={{ $('Loop Analyze Models').item.json.provider }}"
+            },
+            {
+              "id": "83d5304e-d972-44aa-8d40-4f6ebe6ab2f6",
+              "name": "openrouterId",
+              "type": "string",
+              "value": "={{ $('Loop Analyze Models').item.json.openrouterId }}"
+            },
+            {
+              "id": "eeb02076-0bdf-4bab-856e-0cd706712244",
+              "name": "label",
+              "type": "string",
+              "value": "={{ $('Loop Analyze Models').item.json.label }}"
+            },
+            {
+              "id": "5d1b73bf-9782-4153-80b5-e57baaf3b793",
+              "name": "CommentText",
+              "type": "string",
+              "value": "={{ $('Loop Analyze Models').item.json.CommentText }}"
+            },
+            {
+              "id": "ca3a2ddd-5d7c-4988-b4a3-6814c3e4d533",
+              "name": "meetingId",
+              "type": "string",
+              "value": "={{ $('Loop Analyze Models').item.json.meetingId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "012265fa-8a38-4203-9a36-5e5656c4ec7c",
+      "name": "Restore Model Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -628,
+        -912
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0591118f-4fe4-4626-b50b-c0c5b06f2a60",
+                    "leftValue": "={{ $json.provider }}",
+                    "rightValue": "google",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "google"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f3019276-1eeb-4510-a5e4-2d5ecb72b29d",
+                    "leftValue": "={{ $json.provider }}",
+                    "rightValue": "nvidia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "nvidia"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e46de158-ecfb-40ce-8d0c-41b298d93784",
+                    "leftValue": "={{ $json.provider }}",
+                    "rightValue": "openrouter",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "openrouter"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9ec58c11-e860-4cd4-917f-5bd622a7fc6a",
+      "name": "Route By Provider",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -408,
+        -912
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "2MmlReW5QRBVzkrn",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/2MmlReW5QRBVzkrn",
+          "cachedResultName": "Modiryar_google_analyze"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "CommentText": "={{ $json.CommentText }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "24c61d5e-5c34-47ca-b2d2-5552a1bdb142",
+      "name": "Call Modiryar_google_analyze",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        -1112
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ModNvidiaAnalyze",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ModNvidiaAnalyze",
+          "cachedResultName": "Modiryar_nvidia_analyze"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "CommentText": "={{ $json.CommentText }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "9c291199-5186-42b4-ad02-0fae149f97a5",
+      "name": "Call Modiryar_nvidia_analyze",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        -912
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "cqOMmPHbmAGej0hs",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/cqOMmPHbmAGej0hs",
+          "cachedResultName": "Neshastyar_openrouter_analyze"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "CommentText": "={{ $json.CommentText }}",
+            "modelId": "={{ $json.openrouterId }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "05879b69-b188-40bd-acef-b272f1572e1a",
+      "name": "Call Neshastyar_openrouter_analyze",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        -712
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const REQUIRED = ['Subject', 'Summary', 'People in meetings', 'Bolet Points', 'Tags'];\nconst current = $('Loop Analyze Models').item.json || {};\nconst item = $input.first().json || {};\nif (item.error) {\n  const message = (item.error && (item.error.message || item.error.description)) || 'Analyze failed';\n  throw new Error(message);\n}\nconst text = item.candidates && item.candidates[0] && item.candidates[0].content && item.candidates[0].content.parts && item.candidates[0].content.parts[0] && item.candidates[0].content.parts[0].text;\nlet source = String(text || '').trim();\nconst fenced = source.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\nif (fenced) source = fenced[1].trim();\nlet parsed;\ntry {\n  parsed = JSON.parse(source);\n} catch (e) {\n  parsed = null;\n}\nif (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || REQUIRED.some((key) => !Object.prototype.hasOwnProperty.call(parsed, key))) {\n  throw new Error((current.label || current.key || 'Model') + ' returned invalid JSON');\n}\nreturn [{\n  json: {\n    ...item,\n    analyzedByKey: current.key,\n    analyzedByLabel: current.label,\n  },\n}];\n"
+      },
+      "id": "8b8e4c57-6d17-484a-87f6-835a5241e46b",
+      "name": "Validate Analyze Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -912
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    error: {\n      message: 'All configured analyze models failed',\n    },\n  },\n}];\n"
+      },
+      "id": "68b391d5-e492-415e-bb4b-d92862cca645",
+      "name": "All Models Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        -672
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "meeting": {
+      "main": [
+        [
+          {
+            "node": "Claim Meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UserInfo": {
+      "main": [
+        [
+          {
+            "node": "Data",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "AudioFiles": {
+      "main": [
+        [
+          {
+            "node": "List Audio Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ListOfTags": {
+      "main": [
+        [
+          {
+            "node": "Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Update rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Call modiryar_googleTranscribe_v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Load Transcript Checkpoints",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting Status 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MeetingSummaryPrompt": {
+      "main": [
+        [
+          {
+            "node": "Build Model Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows in a table1": {
+      "main": [
+        [
+          {
+            "node": "send mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "SetMeetingID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update meeting Status 1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ApprovedTags": {
+      "main": [
+        [
+          {
+            "node": "Data",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "ApprovedParticipants": {
+      "main": [
+        [
+          {
+            "node": "Data",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "ListOfParticipants": {
+      "main": [
+        [
+          {
+            "node": "Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Transcribe to DB": {
+      "main": [
+        [
+          {
+            "node": "Flush Temp Audio Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetMeetingID": {
+      "main": [
+        [
+          {
+            "node": "meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Audio Chunks": {
+      "main": [
+        [
+          {
+            "node": "Expand Audio Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Audio Chunks": {
+      "main": [
+        [
+          {
+            "node": "Get Transcript Checkpoints",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Join Transcripts": {
+      "main": [
+        [
+          {
+            "node": "Save Transcribe to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Last Transcribe Chunk": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Transcript Checkpoints": {
+      "main": [
+        [
+          {
+            "node": "Filter Pending Transcript Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Pending Transcript Chunks": {
+      "main": [
+        [
+          {
+            "node": "Chunks Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Transcript Chunk": {
+      "main": [
+        [
+          {
+            "node": "If Last Transcribe Chunk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Transcript Checkpoints": {
+      "main": [
+        [
+          {
+            "node": "Join Transcripts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flush Temp Audio Chunks": {
+      "main": [
+        [
+          {
+            "node": "Flush Temp Transcript Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flush Temp Transcript Chunks": {
+      "main": [
+        [
+          {
+            "node": "MeetingSummaryPrompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data": {
+      "main": [
+        [
+          {
+            "node": "Transcription Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcription Completed?": {
+      "main": [
+        [
+          {
+            "node": "Load Transcript Checkpoints",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AudioFiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Modiryar_whisper_v1": {
+      "main": [
+        [
+          {
+            "node": "Save Transcript Chunk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunks Pending?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load Transcript Checkpoints",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call modiryar_googleTranscribe_v1": {
+      "main": [
+        [
+          {
+            "node": "Save Transcript Chunk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Modiryar_whisper_v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Meeting": {
+      "main": [
+        [
+          {
+            "node": "Meeting Claimed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Claimed?": {
+      "main": [
+        [
+          {
+            "node": "UserInfo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ApprovedTags",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ApprovedParticipants",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ListOfTags",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ListOfParticipants",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Data",
+            "type": "main",
+            "index": 2
+          }
+        ],
+        []
+      ]
+    },
+    "Build Model Order": {
+      "main": [
+        [
+          {
+            "node": "Loop Analyze Models",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Analyze Models": {
+      "main": [
+        [
+          {
+            "node": "All Models Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Analyzing Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Analyzing Model": {
+      "main": [
+        [
+          {
+            "node": "Restore Model Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Model Context": {
+      "main": [
+        [
+          {
+            "node": "Route By Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route By Provider": {
+      "main": [
+        [
+          {
+            "node": "Call Modiryar_google_analyze",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Modiryar_nvidia_analyze",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Neshastyar_openrouter_analyze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Modiryar_google_analyze": {
+      "main": [
+        [
+          {
+            "node": "Validate Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Modiryar_nvidia_analyze": {
+      "main": [
+        [
+          {
+            "node": "Validate Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Neshastyar_openrouter_analyze": {
+      "main": [
+        [
+          {
+            "node": "Validate Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Analyze Result": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Analyze Models",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Models Failed": {
+      "main": [
+        [
+          {
+            "node": "Update meeting on error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "Asia/Tehran"
+  },
+  "versionId": "fdf17737-dae2-48bb-8684-6293fe6df88d"
+}

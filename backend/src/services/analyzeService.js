@@ -1,5 +1,5 @@
 class AnalyzeService {
-  async requestMeetingAnalysis(meetingId) {
+  async requestMeetingAnalysis(meetingId, analyzeModel) {
     const webhookUrl =
       process.env.ANALYZE_WEBHOOK_URL ||
       'https://n8nnew.teraxr.com/webhook/75a3d44b-c1dd-4ea1-9888-8e2ee8c83808';
@@ -11,6 +11,10 @@ class AnalyzeService {
       'Content-Type': 'application/json',
       'X-Meeting-Id': meetingId,
     };
+
+    if (analyzeModel) {
+      headers['X-Analyze-Model'] = analyzeModel;
+    }
 
     if (webhookTestUrl) {
       try {

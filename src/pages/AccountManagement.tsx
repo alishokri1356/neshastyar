@@ -9,6 +9,7 @@ import { mysqlClient } from "@/lib/mysql-client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Save, LogOut } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
+import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
 
 const AccountManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const AccountManagement: React.FC = () => {
   const [loggingOut, setLoggingOut] = useState(false);
   const [baleID, setBaleID] = useState("");
   const [name, setName] = useState("");
+  const [defaultAnalyzeModel, setDefaultAnalyzeModel] = useState("auto");
 
   useEffect(() => {
     loadProfile();
@@ -37,6 +39,7 @@ const AccountManagement: React.FC = () => {
       if (data) {
         setName(data.name || "");
         setBaleID(data.baleID ?? "");
+        setDefaultAnalyzeModel(data.default_analyze_model || "auto");
       }
     } catch (error: any) {
       console.error("Error loading profile:", error);
@@ -53,7 +56,11 @@ const AccountManagement: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updates: { name?: string; baleID?: string | null } = {};
+      const updates: {
+        name?: string;
+        baleID?: string | null;
+        default_analyze_model?: string | null;
+      } = {};
       
       if (name !== undefined) {
         updates.name = name.trim() || null;
@@ -62,6 +69,8 @@ const AccountManagement: React.FC = () => {
       if (baleID !== undefined) {
         updates.baleID = baleID.trim() || null;
       }
+
+      updates.default_analyze_model = defaultAnalyzeModel || "auto";
 
       const { data, error } = await mysqlClient.auth.updateProfile(updates);
 
@@ -169,6 +178,35 @@ const AccountManagement: React.FC = () => {
                   ذخیره تغییرات
                 </>
               )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>مدل تحلیل پیش‌فرض</CardTitle>
+            <CardDescription>
+              این مدل برای تحلیل جلسات جدید استفاده می‌شود، مگر اینکه برای یک جلسه مدل دیگری انتخاب کنید.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="defaultAnalyzeModel">مدل تحلیل</Label>
+              <AnalyzeModelSelect
+                id="defaultAnalyzeModel"
+                value={defaultAnalyzeModel}
+                onValueChange={setDefaultAnalyzeModel}
+                disabled={saving}
+              />
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              variant="primary"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
+              {saving ? "در حال ذخیره..." : "ذخیره مدل پیش‌فرض"}
             </Button>
           </CardContent>
         </Card>

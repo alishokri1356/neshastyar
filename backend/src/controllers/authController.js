@@ -323,6 +323,9 @@ class AuthController {
       const allowedUpdates = {};
       if (updates.name !== undefined) allowedUpdates.name = updates.name;
       if (updates.baleID !== undefined) allowedUpdates.baleID = updates.baleID;
+      if (updates.default_analyze_model !== undefined) {
+        allowedUpdates.default_analyze_model = updates.default_analyze_model;
+      }
 
       if (Object.keys(allowedUpdates).length === 0) {
         return res.status(400).json({
@@ -343,6 +346,12 @@ class AuthController {
       });
     } catch (error) {
       console.error('Update profile error:', error);
+      if (error.message && error.message.includes('Invalid analyze model')) {
+        return res.status(400).json({
+          error: 'Invalid analyze model',
+          message: error.message,
+        });
+      }
       res.status(500).json({
         error: 'Failed to update profile',
         message: error.message || 'An error occurred while updating the profile'

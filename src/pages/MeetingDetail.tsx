@@ -28,6 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import AppShell from '@/components/layout/AppShell';
 import RichTextEditor from '@/components/RichTextEditor';
 import { getStatusBadgeClass } from '@/lib/status';
+import AnalyzeModelSelect from '@/components/AnalyzeModelSelect';
+import { getModelLabel, useAnalyzeModels } from '@/lib/analyzeModels';
 
 import { mysqlClient } from '@/lib/mysql-client';
 import {
@@ -82,6 +84,8 @@ const MeetingDetail = () => {
   );
   const [googleDocsDialogOpen, setGoogleDocsDialogOpen] = useState(false);
   const [googleDocsCopied, setGoogleDocsCopied] = useState(false);
+  const [analyzeModel, setAnalyzeModel] = useState('auto');
+  const { data: analyzeModelsData } = useAnalyzeModels();
   const [suggestedParticipantDialogOpen, setSuggestedParticipantDialogOpen] = useState(false);
   const [selectedSuggestedParticipant, setSelectedSuggestedParticipant] = useState<string | null>(null);
   const [participantNameInput, setParticipantNameInput] = useState('');
@@ -138,6 +142,9 @@ const MeetingDetail = () => {
           summary: meetingData.summary || '',
           transcription: meetingData.transcription || '',
           status: meetingData.status,
+          analyze_model: meetingData.analyze_model || null,
+          analyzing_model: meetingData.analyzing_model || null,
+          analyzed_by: meetingData.analyzed_by || null,
           tags: tags,
           userId: meetingData.user_id,
         };
@@ -163,7 +170,7 @@ const MeetingDetail = () => {
 
       const { data: meetingData, error: meetingError } = await mysqlClient
         .from('meetings')
-        .select('status, summary, transcription')
+        .select('status, summary, transcription, analyze_model, analyzing_model, analyzed_by')
         .eq('id', meetingId)
         .eq('user_id', user.id)
         .single();
@@ -174,12 +181,28 @@ const MeetingDetail = () => {
         status: meetingData.status,
         summary: meetingData.summary || '',
         transcription: meetingData.transcription || '',
+        analyze_model: meetingData.analyze_model || null,
+        analyzing_model: meetingData.analyzing_model || null,
+        analyzed_by: meetingData.analyzed_by || null,
       };
     },
-    refetchInterval: 30000, // Reduce to 30 seconds
+    refetchInterval: (query) => {
+      const status = query.state.data?.status || '';
+      return status === 'در حال پردازش' || status === 'ارسال درخواست پردازش' ? 10000 : 30000;
+    },
     refetchIntervalInBackground: false, // Disable background refetching
     enabled: !!meetingId && !!meetingData
   });
+
+  useEffect(() => {
+    const preferred =
+      statusData?.analyze_model ||
+      meeting?.analyze_model ||
+      null;
+    if (preferred) {
+      setAnalyzeModel(preferred);
+    }
+  }, [statusData?.analyze_model, meeting?.analyze_model]);
 
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['user-tags'],
@@ -838,6 +861,7 @@ const MeetingDetail = () => {
             ...mysqlClient.getAuthHeaders(),
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ model: analyzeModel || 'auto' }),
         }
       );
 
@@ -846,7 +870,14 @@ const MeetingDetail = () => {
         throw new Error(errorData.message || 'Failed to trigger analysis');
       }
 
-      setMeeting((prev) => ({ ...prev, status: 'ارسال درخواست پردازش' }));
+      setMeeting((prev) => ({
+        ...prev,
+        status: 'ارسال درخواست پردازش',
+        analyze_model: analyzeModel || 'auto',
+        analyzing_model: null,
+        analyzed_by: null,
+      }));
+      queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
 
       toast({
         title: "درخواست تولید اتوماتیک خلاصه ارسال شد",
@@ -1296,6 +1327,26 @@ const MeetingDetail = () => {
 
   const currentStatus = statusData?.status || meeting?.status || '';
   const isProcessed = currentStatus === 'پردازش شده';
+  const isProcessing =
+    currentStatus === 'در حال پردازش' || currentStatus === 'ارسال درخواست پردازش';
+  const analyzingModelKey = statusData?.analyzing_model || meeting?.analyzing_model || null;
+  const analyzedByKey = statusData?.analyzed_by || meeting?.analyzed_by || null;
+  const requestedModelKey = statusData?.analyze_model || meeting?.analyze_model || analyzeModel;
+  const analyzingLabel = getModelLabel(
+    analyzingModelKey,
+    analyzeModelsData?.models,
+    analyzeModelsData?.autoKey
+  );
+  const analyzedByLabel = getModelLabel(
+    analyzedByKey,
+    analyzeModelsData?.models,
+    analyzeModelsData?.autoKey
+  );
+  const requestedModelLabel = getModelLabel(
+    requestedModelKey,
+    analyzeModelsData?.models,
+    analyzeModelsData?.autoKey
+  );
   const transcriptionText =
     (typeof statusData?.transcription === 'string' ? statusData.transcription : null) ??
     (typeof meeting?.transcription === 'string' ? meeting.transcription : '') ??
@@ -1326,7 +1377,16 @@ const MeetingDetail = () => {
     <AppShell title={meeting.title} onBack={true} clickableBack actions={headerActions}>
       <div className="space-y-5">
         {/* Process request CTA */}
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="meetingAnalyzeModel">مدل تحلیل</Label>
+            <AnalyzeModelSelect
+              id="meetingAnalyzeModel"
+              value={analyzeModel}
+              onValueChange={setAnalyzeModel}
+              disabled={isProcessing}
+            />
+          </div>
           {isProcessed ? (
             <Button
               onClick={handleSendSummaryToEmail}
@@ -1339,6 +1399,7 @@ const MeetingDetail = () => {
           ) : (
             <Button
               onClick={handleAutoGenerateSummary}
+              disabled={isProcessing}
               className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
             >
               <Sparkles className="h-4 w-4" />
@@ -1399,12 +1460,29 @@ const MeetingDetail = () => {
   })}
 </p>
               </div>
-              <Badge
-                variant="outline"
-                className={`shrink-0 ${getStatusBadgeClass(currentStatus)}`}
-              >
-                {currentStatus}
-              </Badge>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <Badge
+                  variant="outline"
+                  className={`${getStatusBadgeClass(currentStatus)}`}
+                >
+                  {currentStatus}
+                </Badge>
+                {isProcessing && analyzingModelKey ? (
+                  <p className="max-w-[14rem] text-right text-xs text-muted-foreground">
+                    در حال تحلیل با {analyzingLabel}
+                  </p>
+                ) : null}
+                {isProcessed && analyzedByKey ? (
+                  <p className="max-w-[14rem] text-right text-xs text-muted-foreground">
+                    تحلیل شده با {analyzedByLabel}
+                    {requestedModelKey &&
+                    requestedModelKey !== 'auto' &&
+                    analyzedByKey !== requestedModelKey
+                      ? ` (fallback از ${requestedModelLabel})`
+                      : ''}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </CardHeader>
         </Card>
