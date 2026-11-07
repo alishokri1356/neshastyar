@@ -1,7 +1,5 @@
 {
-  "id": "uGFuUqZOCE0Ay0nY",
   "name": "Neshastyar V4",
-  "active": true,
   "nodes": [
     {
       "parameters": {
@@ -86,7 +84,7 @@
             },
             {
               "column": "analyzed_by",
-              "value": "={{ $json.analyzedByKey }}"
+              "value": "={{ $json.analyzedByKey || $('Validate Analyze Result').item.json.analyzedByKey || $('Loop Analyze Models').item.json.key }}"
             },
             {
               "column": "analyzing_model",
@@ -100,8 +98,8 @@
       "name": "Update rows in a table1",
       "type": "n8n-nodes-base.mySql",
       "position": [
-        -496,
-        -896
+        1744,
+        -1312
       ],
       "typeVersion": 2.5,
       "credentials": {
@@ -206,6 +204,12 @@
               "name": "Tags",
               "type": "string",
               "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Tags }}"
+            },
+            {
+              "id": "badefad2-3ca1-4b34-8fbe-d6f50cad6d80",
+              "name": "analyzedByKey",
+              "type": "string",
+              "value": "={{ $('Validate Analyze Result').item.json.analyzedByKey || $('Loop Analyze Models').item.json.key }}"
             }
           ]
         },
@@ -215,8 +219,8 @@
       "name": "Edit Fields",
       "type": "n8n-nodes-base.set",
       "position": [
-        -768,
-        -896
+        1472,
+        -1312
       ],
       "typeVersion": 3.4
     },
@@ -375,8 +379,8 @@
       "name": "send mail",
       "type": "n8n-nodes-base.httpRequest",
       "position": [
-        -192,
-        -896
+        2096,
+        -1312
       ],
       "typeVersion": 4.2
     },
@@ -1049,7 +1053,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1318,
+        -1312,
         -992
       ]
     },
@@ -1062,8 +1066,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1088,
-        -992
+        -848,
+        -1520
       ]
     },
     {
@@ -1079,8 +1083,8 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        -848,
-        -912
+        -656,
+        -1504
       ],
       "credentials": {
         "mySql": {
@@ -1138,8 +1142,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -628,
-        -912
+        -432,
+        -1504
       ]
     },
     {
@@ -1227,8 +1231,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        -408,
-        -912
+        -224,
+        -1520
       ]
     },
     {
@@ -1260,8 +1264,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -128,
-        -1112
+        96,
+        -1696
       ],
       "onError": "continueErrorOutput"
     },
@@ -1294,8 +1298,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -128,
-        -912
+        96,
+        -1504
       ],
       "onError": "continueErrorOutput"
     },
@@ -1329,8 +1333,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -128,
-        -712
+        80,
+        -1280
       ],
       "onError": "continueErrorOutput"
     },
@@ -1343,8 +1347,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        192,
-        -912
+        1088,
+        -1296
       ],
       "onError": "continueErrorOutput"
     },
@@ -1357,8 +1361,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -848,
-        -672
+        -608,
+        -880
       ]
     }
   ],
@@ -2017,5 +2021,5 @@
     "availableInMCP": true,
     "timezone": "Asia/Tehran"
   },
-  "versionId": "fdf17737-dae2-48bb-8684-6293fe6df88d"
+  "id": "uGFuUqZOCE0Ay0nY"
 }

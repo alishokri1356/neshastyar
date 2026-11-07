@@ -188,9 +188,27 @@ class EmailService {
 
   // Send meeting summary email
   // approvedParticipants: names from meeting_participants only (not AI suggestions)
-  async sendMeetingSummaryEmail(email, name, meetingTitle, summary, approvedParticipants = []) {
+  async sendMeetingSummaryEmail(
+    email,
+    name,
+    meetingTitle,
+    summary,
+    approvedParticipants = [],
+    analyzedBy = null
+  ) {
+    const { getModelLabel } = require('../config/analyzeModels');
+    const escapeHtml = (value) =>
+      String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     const formattedSummary = this.formatSummaryForEmail(summary, approvedParticipants);
     const siteUrl = this.frontendUrl.replace(/\/$/, '') || 'https://www.neshastyar.com';
+    const modelLabel = analyzedBy ? escapeHtml(getModelLabel(analyzedBy)) : null;
+    const createdByLine = modelLabel
+      ? `این خلاصه توسط نشست یار با مدل ${modelLabel} ایجاد شده است.`
+      : 'این خلاصه توسط نشست یار ایجاد شده است.';
 
     const html = `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
@@ -205,7 +223,7 @@ class EmailService {
             </div>
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6; text-align: center;">
               <p style="margin: 0 0 8px 0; color: #666; font-size: 13px; line-height: 1.6;">
-                این خلاصه توسط نشست یار ایجاد شده است.
+                ${createdByLine}
               </p>
               <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.6;">
                 برای پیوستن به نشست یار از وب‌سایت ما بازدید کنید:

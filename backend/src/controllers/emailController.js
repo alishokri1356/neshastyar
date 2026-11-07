@@ -168,12 +168,14 @@ class EmailController {
       }
 
       let approvedParticipants = [];
+      let analyzedBy = null;
       try {
         const meetingRows = await mysqlClient.query(
-          'SELECT user_id FROM meetings WHERE id = ? LIMIT 1',
+          'SELECT user_id, analyzed_by FROM meetings WHERE id = ? LIMIT 1',
           [meetingId]
         );
         const ownerId = meetingRows?.[0]?.user_id;
+        analyzedBy = meetingRows?.[0]?.analyzed_by || null;
         if (ownerId) {
           const rows = await meetingParticipantService.getParticipantsForMeeting(meetingId, ownerId);
           approvedParticipants = rows.map((row) => row.name).filter(Boolean);
@@ -187,7 +189,8 @@ class EmailController {
         userName || userEmail,
         meetingTitle,
         summary,
-        approvedParticipants
+        approvedParticipants,
+        analyzedBy
       );
 
       // Update lastTimeEmailSent timestamp
@@ -235,7 +238,7 @@ class EmailController {
       // Fetch meeting data from database (handle case where lastTimeEmailSent might not exist)
       console.log('🔍 Fetching meeting data for ID:', meetingId);
       const meetingQuery = `
-        SELECT id, title, summary, user_id 
+        SELECT id, title, summary, user_id, analyzed_by
         FROM meetings 
         WHERE id = ?
       `;
@@ -330,7 +333,8 @@ class EmailController {
         userName,
         meetingTitle,
         meeting.summary,
-        approvedParticipants
+        approvedParticipants,
+        meeting.analyzed_by || null
       );
 
       // Update lastTimeEmailSent timestamp (handle case where field might not exist)
