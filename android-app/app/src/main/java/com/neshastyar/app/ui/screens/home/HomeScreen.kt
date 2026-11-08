@@ -71,6 +71,7 @@ private const val HomeSyncIntervalMs = 15_000L
 fun HomeScreen(
     onRecord: () -> Unit,
     onSearch: () -> Unit,
+    onAsk: () -> Unit,
     onAccount: () -> Unit,
     onOpenMeeting: (String) -> Unit,
     onOpenLocalDraft: (draftId: String, status: String) -> Unit,
@@ -120,7 +121,7 @@ fun HomeScreen(
             }
         }
 
-        HomeActions(onRecord = onRecord, onSearch = onSearch)
+        HomeActions(onRecord = onRecord, onAsk = onAsk)
     }
 }
 
@@ -372,7 +373,7 @@ private fun TimelineCard(
 }
 
 @Composable
-private fun HomeActions(onRecord: () -> Unit, onSearch: () -> Unit) {
+private fun HomeActions(onRecord: () -> Unit, onAsk: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -391,7 +392,7 @@ private fun HomeActions(onRecord: () -> Unit, onSearch: () -> Unit) {
             text = "هر چیزی بپرس",
             icon = Icons.Outlined.Search,
             light = false,
-            onClick = onSearch,
+            onClick = onAsk,
             modifier = Modifier.weight(1f),
         )
     }

@@ -24,6 +24,8 @@ import com.neshastyar.app.ui.screens.account.AccountScreen
 import com.neshastyar.app.ui.screens.auth.ForgotPasswordScreen
 import com.neshastyar.app.ui.screens.auth.LoginScreen
 import com.neshastyar.app.ui.screens.auth.SignUpScreen
+import com.neshastyar.app.ui.screens.chat.ChatHistoryScreen
+import com.neshastyar.app.ui.screens.chat.ChatScreen
 import com.neshastyar.app.ui.screens.home.HomeScreen
 import com.neshastyar.app.ui.screens.home.MeetingsByDateScreen
 import com.neshastyar.app.ui.screens.search.SearchScreen
@@ -107,8 +109,15 @@ fun NeshastyarNavHost(
         Routes.SignUp.route,
         Routes.ForgotPassword.route,
         Routes.Home.route,
+        Routes.Chat.route,
+        Routes.ChatHistory.route,
     )
     val showBottomBar = route == Routes.Search.route
+    fun openChat(meetingId: String? = null, sessionId: String? = null) {
+        navController.navigate(Routes.Chat.create(meetingId = meetingId, sessionId = sessionId)) {
+            launchSingleTop = true
+        }
+    }
 
     CompositionLocalProvider(LocalGoHome provides { goHomeClear() }) {
     Scaffold(
@@ -132,6 +141,7 @@ fun NeshastyarNavHost(
                     onParticipants = { openMeetingSection(Routes.MeetingParticipants.create(id)) },
                     onTags = { openMeetingSection(Routes.MeetingTags.create(id)) },
                     onBulletPoints = { openMeetingSection(Routes.MeetingBulletPoints.create(id)) },
+                    onAsk = { openChat(meetingId = id) },
                     onMenu = { openMeetingSection(Routes.MeetingOptions.create(id)) },
                     showProcessedSections = showProcessedSections,
                 )
@@ -141,7 +151,14 @@ fun NeshastyarNavHost(
         NavHost(
             navController = navController,
             startDestination = Routes.Splash.route,
-            modifier = if (route == Routes.Login.route) Modifier else Modifier.padding(padding),
+            modifier = if (route == Routes.Login.route ||
+                route == Routes.Chat.route ||
+                route == Routes.ChatHistory.route
+            ) {
+                Modifier
+            } else {
+                Modifier.padding(padding)
+            },
         ) {
             composable(Routes.Splash.route) {
                 SplashScreen(onGoHome = { goHomeClear() }, onGoLogin = { goLoginClear() })
@@ -174,6 +191,7 @@ fun NeshastyarNavHost(
                         }
                     },
                     onSearch = ::openSearch,
+                    onAsk = { openChat() },
                     onAccount = { navController.navigate(Routes.Account.route) },
                     onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
                     onOpenLocalDraft = { draftId, status ->
@@ -181,6 +199,50 @@ fun NeshastyarNavHost(
                             navController.navigate(Routes.Record.route)
                         } else {
                             navController.navigate(Routes.TagSelection.create(draftId))
+                        }
+                    },
+                )
+            }
+            composable(
+                route = Routes.Chat.route,
+                arguments = listOf(
+                    navArgument("meetingId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = ""
+                    },
+                    navArgument("sessionId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = ""
+                    },
+                ),
+            ) {
+                ChatScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenHistory = { meetingIdArg ->
+                        navController.navigate(Routes.ChatHistory.create(meetingIdArg))
+                    },
+                )
+            }
+            composable(
+                route = Routes.ChatHistory.route,
+                arguments = listOf(
+                    navArgument("meetingId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = ""
+                    },
+                ),
+            ) {
+                ChatHistoryScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenSession = { sessionId, meetingIdArg ->
+                        navController.navigate(
+                            Routes.Chat.create(meetingId = meetingIdArg, sessionId = sessionId),
+                        ) {
+                            popUpTo(Routes.ChatHistory.route) { inclusive = true }
+                            launchSingleTop = true
                         }
                     },
                 )

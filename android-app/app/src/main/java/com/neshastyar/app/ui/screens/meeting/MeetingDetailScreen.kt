@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -272,6 +273,7 @@ fun MeetingDetailBottomBar(
     onParticipants: () -> Unit,
     onTags: () -> Unit,
     onBulletPoints: () -> Unit,
+    onAsk: () -> Unit,
     onMenu: () -> Unit,
     showProcessedSections: Boolean = true,
 ) {
@@ -299,6 +301,7 @@ fun MeetingDetailBottomBar(
             MeetingDetailBarAction(Icons.Default.Label, "برچسب‌ها", onTags)
             if (showProcessedSections) {
                 MeetingDetailBarAction(Icons.AutoMirrored.Filled.FormatListBulleted, "نکات", onBulletPoints)
+                MeetingDetailBarAction(Icons.Outlined.ChatBubbleOutline, "بپرس", onAsk)
             }
             MeetingDetailBarAction(Icons.Default.Menu, "گزینه‌ها", onMenu)
         }

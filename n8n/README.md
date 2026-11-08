@@ -13,7 +13,16 @@
 - Auto: gemini_flash → deepseek → glm → qwen → gemini_4_argon → gpt_61_sol → claude_sonnet → gemma → nvidia
 - Manual: chosen model → gemma → nvidia
 
+## Chat
+
+- **Neshastyar-AI V1** — sync chat answers for `/api/chats`
+  - Local export: `neshastyar_ai_v1.workflow.json`
+  - Webhook path: `c8f3a91e-4d2b-4e7a-9c1f-6b8e5d0a3f27`
+  - Models: GLM-5.3 → Gemma 4 31B → NVIDIA Nemotron (OpenRouter)
+  - Auth header: `x-internal-secret` (must match backend `INTERNAL_WEBHOOK_SECRET`; n8n needs env `INTERNAL_WEBHOOK_SECRET`)
+
 ## Notes
 
 - Prefer the **live published** workflow in n8n over local JSON exports.
 - Modiryar V3 remains in n8n but is deactivated (rollback).
+

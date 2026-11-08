@@ -196,4 +196,26 @@ interface NeshastyarApi {
 
     @GET
     suspend fun sendMail(@Url url: String): Response<SendMailResponse>
+
+    // Chat
+    @GET("chats")
+    suspend fun getChatSessions(
+        @Query("meetingId") meetingId: String? = null,
+        @Query("scope") scope: String? = null,
+    ): Response<List<ChatSessionDto>>
+
+    @POST("chats")
+    suspend fun createChatSession(@Body body: CreateChatSessionRequest): Response<ChatSessionDto>
+
+    @GET("chats/{id}")
+    suspend fun getChatSession(@Path("id") id: String): Response<ChatSessionDto>
+
+    @DELETE("chats/{id}")
+    suspend fun deleteChatSession(@Path("id") id: String): Response<SuccessResponse>
+
+    @POST("chats/{id}/messages")
+    suspend fun sendChatMessage(
+        @Path("id") id: String,
+        @Body body: SendChatMessageRequest,
+    ): Response<SendChatMessageResponse>
 }

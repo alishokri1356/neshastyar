@@ -83,7 +83,22 @@ Requires Bearer token.
 | `POST` | `/participants/merge` | `{ "sourceIds": [], "targetName" }` | Merge participants. |
 | `POST` | `/meeting-participants` | `{ "meeting_id", "participant_id", "name" }` | Add participant to a meeting. |
 
+## Chat (`/api/chats`)
+
+Requires Bearer token and verified email.
+
+Chat answers are produced by the n8n workflow **Neshastyar-AI V1** (GLM-5.3 → Gemma 4 31B → NVIDIA Nemotron).
+
+| Method | Endpoint | Request / Query Params | Description |
+|---|---|---|---|
+| `GET` | `/chats` | Query: `meetingId` or `scope=all` | List chat sessions for the current user (scoped). |
+| `POST` | `/chats` | `{ "meetingId"? }` | Create a session. Omit `meetingId` for all-meetings scope. |
+| `GET` | `/chats/:id` | None | Get a session with its messages. |
+| `POST` | `/chats/:id/messages` | `{ "content" }` | Send a question. Returns `{ userMessage, assistantMessage, session }`. |
+| `DELETE` | `/chats/:id` | None | Delete a chat session and its messages. |
+
 ## Android app (`/api/android`)
+
 
 Public. No authentication required.
 
