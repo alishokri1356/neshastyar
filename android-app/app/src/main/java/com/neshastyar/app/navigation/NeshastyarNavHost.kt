@@ -106,10 +106,9 @@ fun NeshastyarNavHost(
         Routes.Login.route,
         Routes.SignUp.route,
         Routes.ForgotPassword.route,
+        Routes.Home.route,
     )
-    val showBottomBar = route in setOf(
-        Routes.Home.route, Routes.Search.route,
-    )
+    val showBottomBar = route == Routes.Search.route
 
     CompositionLocalProvider(LocalGoHome provides { goHomeClear() }) {
     Scaffold(
@@ -142,7 +141,7 @@ fun NeshastyarNavHost(
         NavHost(
             navController = navController,
             startDestination = Routes.Splash.route,
-            modifier = Modifier.padding(padding),
+            modifier = if (route == Routes.Login.route) Modifier else Modifier.padding(padding),
         ) {
             composable(Routes.Splash.route) {
                 SplashScreen(onGoHome = { goHomeClear() }, onGoLogin = { goLoginClear() })
@@ -174,9 +173,16 @@ fun NeshastyarNavHost(
                             launchSingleTop = true
                         }
                     },
-                    onMeetingsByDate = { navController.navigate(Routes.MeetingsByDate.route) },
-                    onMeetingsByTag = { navController.navigate(Routes.Tags.route) },
-                    onMeetingsByParticipant = { navController.navigate(Routes.Participants.route) },
+                    onSearch = ::openSearch,
+                    onAccount = { navController.navigate(Routes.Account.route) },
+                    onOpenMeeting = { navController.navigate(Routes.MeetingDetail.create(it)) },
+                    onOpenLocalDraft = { draftId, status ->
+                        if (status == DraftStatus.ON_RECORDING) {
+                            navController.navigate(Routes.Record.route)
+                        } else {
+                            navController.navigate(Routes.TagSelection.create(draftId))
+                        }
+                    },
                 )
             }
             composable(Routes.Search.route) {
