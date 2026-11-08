@@ -115,6 +115,8 @@ fun NeshastyarNavHost(
     val showBottomBar = route == Routes.Search.route
     fun openChat(meetingId: String? = null, sessionId: String? = null) {
         navController.navigate(Routes.Chat.create(meetingId = meetingId, sessionId = sessionId)) {
+            // Replace any existing chat screen so session args create a fresh ViewModel.
+            popUpTo(Routes.Chat.route) { inclusive = true }
             launchSingleTop = true
         }
     }
@@ -206,12 +208,8 @@ fun NeshastyarNavHost(
             composable(
                 route = Routes.Chat.route,
                 arguments = listOf(
+                    navArgument("sessionKey") { type = NavType.StringType },
                     navArgument("meetingId") {
-                        type = NavType.StringType
-                        nullable = true
-                        defaultValue = ""
-                    },
-                    navArgument("sessionId") {
                         type = NavType.StringType
                         nullable = true
                         defaultValue = ""
@@ -238,12 +236,7 @@ fun NeshastyarNavHost(
                 ChatHistoryScreen(
                     onBack = { navController.popBackStack() },
                     onOpenSession = { sessionId, meetingIdArg ->
-                        navController.navigate(
-                            Routes.Chat.create(meetingId = meetingIdArg, sessionId = sessionId),
-                        ) {
-                            popUpTo(Routes.ChatHistory.route) { inclusive = true }
-                            launchSingleTop = true
-                        }
+                        openChat(meetingId = meetingIdArg, sessionId = sessionId)
                     },
                 )
             }

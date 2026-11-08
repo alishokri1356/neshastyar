@@ -14,7 +14,7 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1040, 0],
+      "position": [-720, 0],
       "webhookId": "c8f3a91e-4d2b-4e7a-9c1f-6b8e5d0a3f27"
     },
     {
@@ -25,7 +25,7 @@
       "name": "Prepare Messages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, 0]
+      "position": [-480, 0]
     },
     {
       "parameters": {
@@ -42,140 +42,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: \"z-ai/glm-5.3\",\n  messages: $json.openrouterMessages,\n  temperature: 0.3,\n  max_tokens: 4096\n}) }}",
-        "options": { "timeout": 90000 }
-      },
-      "id": "chat-glm-001",
-      "name": "Call GLM-5.3",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [-560, 0],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "OrNvdaHeaderAuth",
-          "name": "OpenRouter account"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "function messageText(message) {\n  if (!message) return '';\n  const content = message.content;\n  if (typeof content === 'string') return content.trim();\n  if (Array.isArray(content)) {\n    return content.map((part) => {\n      if (typeof part === 'string') return part;\n      if (part && typeof part.text === 'string') return part.text;\n      return '';\n    }).join('').trim();\n  }\n  return '';\n}\nconst item = $input.first().json || {};\nif (item.error) {\n  return [{ json: { ok: false, error: (item.error.message || item.error.description || 'GLM request failed'), openrouterMessages: $('Prepare Messages').first().json.openrouterMessages } }];\n}\nconst answer = messageText(item.choices && item.choices[0] && item.choices[0].message);\nif (!answer) {\n  return [{ json: { ok: false, error: 'GLM returned empty answer', openrouterMessages: $('Prepare Messages').first().json.openrouterMessages } }];\n}\nreturn [{ json: { ok: true, answer, model: 'glm_53' } }];"
-      },
-      "id": "chat-validate-glm-001",
-      "name": "Validate GLM",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-320, 0]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
-          "conditions": [
-            {
-              "id": "glm-ok",
-              "leftValue": "={{ $json.ok }}",
-              "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "chat-if-glm-001",
-      "name": "GLM OK?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [-80, 0]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "HTTP-Referer", "value": "https://neshastyar.com" },
-            { "name": "X-OpenRouter-Title", "value": "Neshastyar Chat" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: \"google/gemma-4-31b-it\",\n  messages: $json.openrouterMessages || $('Prepare Messages').first().json.openrouterMessages,\n  temperature: 0.3,\n  max_tokens: 4096\n}) }}",
-        "options": { "timeout": 90000 }
-      },
-      "id": "chat-gemma-001",
-      "name": "Call Gemma 4 31B",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [160, 160],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "OrNvdaHeaderAuth",
-          "name": "OpenRouter account"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "function messageText(message) {\n  if (!message) return '';\n  const content = message.content;\n  if (typeof content === 'string') return content.trim();\n  if (Array.isArray(content)) {\n    return content.map((part) => {\n      if (typeof part === 'string') return part;\n      if (part && typeof part.text === 'string') return part.text;\n      return '';\n    }).join('').trim();\n  }\n  return '';\n}\nconst item = $input.first().json || {};\nif (item.error) {\n  return [{ json: { ok: false, error: (item.error.message || item.error.description || 'Gemma request failed'), openrouterMessages: $('Prepare Messages').first().json.openrouterMessages } }];\n}\nconst answer = messageText(item.choices && item.choices[0] && item.choices[0].message);\nif (!answer) {\n  return [{ json: { ok: false, error: 'Gemma returned empty answer', openrouterMessages: $('Prepare Messages').first().json.openrouterMessages } }];\n}\nreturn [{ json: { ok: true, answer, model: 'gemma4_31b_free' } }];"
-      },
-      "id": "chat-validate-gemma-001",
-      "name": "Validate Gemma",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [400, 160]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
-          "conditions": [
-            {
-              "id": "gemma-ok",
-              "leftValue": "={{ $json.ok }}",
-              "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "chat-if-gemma-001",
-      "name": "Gemma OK?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [640, 160]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "HTTP-Referer", "value": "https://neshastyar.com" },
-            { "name": "X-OpenRouter-Title", "value": "Neshastyar Chat" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: \"nvidia/nemotron-3-ultra-550b-a55b:free\",\n  messages: $json.openrouterMessages || $('Prepare Messages').first().json.openrouterMessages,\n  temperature: 0.3,\n  max_tokens: 4096\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"nvidia/nemotron-3-ultra-550b-a55b:free\",\n  messages: $json.openrouterMessages,\n  temperature: 0.3,\n  max_tokens: 4096\n}) }}",
         "options": { "timeout": 90000 }
       },
       "id": "chat-nvidia-001",
-      "name": "Call NVIDIA Nemotron",
+      "name": "Call NVIDIA Nemotron Ultra",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 320],
+      "position": [-240, 0],
       "credentials": {
         "httpHeaderAuth": {
           "id": "OrNvdaHeaderAuth",
@@ -186,13 +60,13 @@
     },
     {
       "parameters": {
-        "jsCode": "function messageText(message) {\n  if (!message) return '';\n  const content = message.content;\n  if (typeof content === 'string') return content.trim();\n  if (Array.isArray(content)) {\n    return content.map((part) => {\n      if (typeof part === 'string') return part;\n      if (part && typeof part.text === 'string') return part.text;\n      return '';\n    }).join('').trim();\n  }\n  return '';\n}\nconst item = $input.first().json || {};\nif (item.error) {\n  return [{ json: { ok: false, error: (item.error.message || item.error.description || 'NVIDIA request failed') } }];\n}\nconst answer = messageText(item.choices && item.choices[0] && item.choices[0].message);\nif (!answer) {\n  return [{ json: { ok: false, error: 'NVIDIA returned empty answer' } }];\n}\nreturn [{ json: { ok: true, answer, model: 'nvidia' } }];"
+        "jsCode": "function messageText(message) {\n  if (!message) return '';\n  const content = message.content;\n  if (typeof content === 'string') return content.trim();\n  if (Array.isArray(content)) {\n    return content.map((part) => {\n      if (typeof part === 'string') return part;\n      if (part && typeof part.text === 'string') return part.text;\n      return '';\n    }).join('').trim();\n  }\n  return '';\n}\nconst item = $input.first().json || {};\nif (item.error) {\n  return [{ json: { ok: false, error: (item.error.message || item.error.description || 'NVIDIA Nemotron Ultra request failed') } }];\n}\nconst answer = messageText(item.choices && item.choices[0] && item.choices[0].message);\nif (!answer) {\n  return [{ json: { ok: false, error: 'NVIDIA Nemotron Ultra returned empty answer' } }];\n}\nreturn [{ json: { ok: true, answer, model: 'nvidia' } }];"
       },
       "id": "chat-validate-nvidia-001",
       "name": "Validate NVIDIA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 320]
+      "position": [0, 0]
     },
     {
       "parameters": {
@@ -214,7 +88,7 @@
       "name": "NVIDIA OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1360, 320]
+      "position": [240, 0]
     },
     {
       "parameters": {
@@ -226,19 +100,19 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [160, -160]
+      "position": [480, -120]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: false, error: $json.error || 'All chat models failed' }) }}",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: $json.error || 'NVIDIA Nemotron Ultra failed' }) }}",
         "options": { "responseCode": 502 }
       },
       "id": "chat-respond-fail-001",
       "name": "Respond Failure",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1600, 400]
+      "position": [480, 120]
     }
   ],
   "connections": {
@@ -246,39 +120,9 @@
       "main": [[{ "node": "Prepare Messages", "type": "main", "index": 0 }]]
     },
     "Prepare Messages": {
-      "main": [[{ "node": "Call GLM-5.3", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Call NVIDIA Nemotron Ultra", "type": "main", "index": 0 }]]
     },
-    "Call GLM-5.3": {
-      "main": [
-        [{ "node": "Validate GLM", "type": "main", "index": 0 }],
-        [{ "node": "Validate GLM", "type": "main", "index": 0 }]
-      ]
-    },
-    "Validate GLM": {
-      "main": [[{ "node": "GLM OK?", "type": "main", "index": 0 }]]
-    },
-    "GLM OK?": {
-      "main": [
-        [{ "node": "Respond Success", "type": "main", "index": 0 }],
-        [{ "node": "Call Gemma 4 31B", "type": "main", "index": 0 }]
-      ]
-    },
-    "Call Gemma 4 31B": {
-      "main": [
-        [{ "node": "Validate Gemma", "type": "main", "index": 0 }],
-        [{ "node": "Validate Gemma", "type": "main", "index": 0 }]
-      ]
-    },
-    "Validate Gemma": {
-      "main": [[{ "node": "Gemma OK?", "type": "main", "index": 0 }]]
-    },
-    "Gemma OK?": {
-      "main": [
-        [{ "node": "Respond Success", "type": "main", "index": 0 }],
-        [{ "node": "Call NVIDIA Nemotron", "type": "main", "index": 0 }]
-      ]
-    },
-    "Call NVIDIA Nemotron": {
+    "Call NVIDIA Nemotron Ultra": {
       "main": [
         [{ "node": "Validate NVIDIA", "type": "main", "index": 0 }],
         [{ "node": "Validate NVIDIA", "type": "main", "index": 0 }]

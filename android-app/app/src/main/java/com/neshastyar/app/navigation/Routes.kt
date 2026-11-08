@@ -51,11 +51,11 @@ sealed class Routes(val route: String) {
         fun create(id: String) = "meeting/$id/delete"
     }
     data object Account : Routes("account")
-    data object Chat : Routes("chat?meetingId={meetingId}&sessionId={sessionId}") {
+    data object Chat : Routes("chat/{sessionKey}?meetingId={meetingId}") {
         fun create(meetingId: String? = null, sessionId: String? = null): String {
-            val meeting = meetingId?.takeIf { it.isNotBlank() } ?: ""
-            val session = sessionId?.takeIf { it.isNotBlank() } ?: ""
-            return "chat?meetingId=$meeting&sessionId=$session"
+            val key = sessionId?.takeIf { it.isNotBlank() } ?: "new"
+            val meeting = meetingId?.takeIf { it.isNotBlank() }.orEmpty()
+            return "chat/$key?meetingId=$meeting"
         }
     }
     data object ChatHistory : Routes("chat-history?meetingId={meetingId}") {

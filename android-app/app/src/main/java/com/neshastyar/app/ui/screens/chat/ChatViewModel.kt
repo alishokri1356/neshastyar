@@ -33,8 +33,8 @@ class ChatViewModel @Inject constructor(
 ) : ViewModel() {
     private val initialMeetingId: String? = savedStateHandle.get<String>("meetingId")
         ?.takeIf { it.isNotBlank() && it != "null" }
-    private val initialSessionId: String? = savedStateHandle.get<String>("sessionId")
-        ?.takeIf { it.isNotBlank() && it != "null" }
+    private val initialSessionId: String? = savedStateHandle.get<String>("sessionKey")
+        ?.takeIf { it.isNotBlank() && it != "null" && it != "new" }
 
     private val _ui = MutableStateFlow(
         ChatUiState(

@@ -18,7 +18,7 @@
 - **Neshastyar-AI V1** — sync chat answers for `/api/chats`
   - Local export: `neshastyar_ai_v1.workflow.json`
   - Webhook path: `c8f3a91e-4d2b-4e7a-9c1f-6b8e5d0a3f27`
-  - Models: GLM-5.3 → Gemma 4 31B → NVIDIA Nemotron (OpenRouter)
+  - Model: NVIDIA Nemotron Ultra only (`nvidia/nemotron-3-ultra-550b-a55b:free` via OpenRouter)
   - Auth header: `x-internal-secret` (must match backend `INTERNAL_WEBHOOK_SECRET`)
   - n8n compose needs `INTERNAL_WEBHOOK_SECRET` and `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` so the Code node can validate the secret
 

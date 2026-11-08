@@ -87,7 +87,7 @@ Requires Bearer token.
 
 Requires Bearer token and verified email.
 
-Chat answers are produced by the n8n workflow **Neshastyar-AI V1** (GLM-5.3 → Gemma 4 31B → NVIDIA Nemotron).
+Chat answers are produced by the n8n workflow **Neshastyar-AI V1** (NVIDIA Nemotron Ultra only).
 
 | Method | Endpoint | Request / Query Params | Description |
 |---|---|---|---|
