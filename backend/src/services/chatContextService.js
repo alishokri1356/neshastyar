@@ -4,7 +4,6 @@ const {
   getBulletPointsFromSummaryJson,
 } = require('../utils/summaryUtils');
 
-const MEETING_TRANSCRIPT_LIMIT = 100_000;
 const ALL_MEETINGS_CONTEXT_LIMIT = 80_000;
 const HISTORY_WINDOW = 12;
 const RECENT_MEETINGS_LIMIT = 40;
@@ -49,7 +48,7 @@ function summarizeMeetingRow(meeting) {
 
 async function getMeetingOwned(userId, meetingId) {
   const rows = await db.query(
-    `SELECT id, title, meeting_date, created_at, status, summary, transcription, CommentText
+    `SELECT id, title, meeting_date, created_at, status, summary, CommentText
      FROM meetings
      WHERE id = ? AND user_id = ?
      LIMIT 1`,
@@ -93,9 +92,6 @@ async function buildMeetingContext(userId, meetingId) {
     info.subject ? `موضوع: ${info.subject}` : null,
     info.summary ? `خلاصه:\n${info.summary}` : null,
     info.bullets.length ? `نکات کلیدی:\n${info.bullets.map((b) => `- ${b}`).join('\n')}` : null,
-    meeting.transcription
-      ? `متن پیاده‌سازی شده جلسه:\n${truncate(meeting.transcription, MEETING_TRANSCRIPT_LIMIT)}`
-      : 'متن پیاده‌سازی شده جلسه در دسترس نیست.',
   ].filter(Boolean);
 
   return {
@@ -189,6 +185,5 @@ module.exports = {
   buildPrompt,
   truncate,
   HISTORY_WINDOW,
-  MEETING_TRANSCRIPT_LIMIT,
   ALL_MEETINGS_CONTEXT_LIMIT,
 };

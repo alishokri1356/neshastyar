@@ -1,7 +1,6 @@
 const {
   buildPrompt,
   truncate,
-  MEETING_TRANSCRIPT_LIMIT,
 } = require('./chatContextService');
 
 describe('chatContextService helpers', () => {
@@ -10,8 +9,8 @@ describe('chatContextService helpers', () => {
   });
 
   test('truncate shortens long text', () => {
-    const long = 'الف'.repeat(MEETING_TRANSCRIPT_LIMIT + 20);
-    const result = truncate(long, MEETING_TRANSCRIPT_LIMIT);
+    const long = 'الف'.repeat(120);
+    const result = truncate(long, 40);
     expect(result.length).toBeLessThan(long.length);
     expect(result).toContain('[...متن کوتاه شد...]');
   });

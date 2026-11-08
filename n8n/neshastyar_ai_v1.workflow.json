@@ -1,5 +1,7 @@
 {
+  "id": "NeshastyarAiV1",
   "name": "Neshastyar-AI V1",
+  "active": false,
   "nodes": [
     {
       "parameters": {
