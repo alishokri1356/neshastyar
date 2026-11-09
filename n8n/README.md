@@ -22,6 +22,16 @@
   - Auth header: `x-internal-secret` (must match backend `INTERNAL_WEBHOOK_SECRET`)
   - n8n compose needs `INTERNAL_WEBHOOK_SECRET` and `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` so the Code node can validate the secret
 
+## AI Editor
+
+- **AI Editor V1** (`AiEditorV1`) — sync meeting edits for `POST /api/meetings/:id/ai-edit`
+  - Local export: `ai_editor_v1.workflow.json`
+  - Webhook path: `d53a1a3c-062a-4ac6-a84d-44cd3578cc52`
+  - Input: `{ system, user }` built by the backend (meeting details, tags, participants, transcript, instruction)
+  - Models: NVIDIA Nemotron Ultra (`nvidia/nemotron-3-ultra-550b-a55b:free`), on failure Gemma 4 31B (`google/gemma-4-31b-it`), both via OpenRouter
+  - Output: `{ ok: true, edited: {...}, model }` or HTTP 502 `{ ok: false, error }`
+  - Auth header: `x-internal-secret` (same as chat)
+
 ## Notes
 
 - Prefer the **live published** workflow in n8n over local JSON exports.

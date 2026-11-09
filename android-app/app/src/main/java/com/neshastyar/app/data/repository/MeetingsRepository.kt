@@ -1,12 +1,16 @@
 package com.neshastyar.app.data.repository
 
+import com.neshastyar.app.data.api.AiEditMeetingRequest
+import com.neshastyar.app.data.api.AiEditMeetingResponse
 import com.neshastyar.app.data.api.AudioFileDto
 import com.neshastyar.app.data.api.MeetingDto
 import com.neshastyar.app.data.api.NeshastyarApi
 import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.UpdateMeetingRequest
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.json.JSONObject
 
 sealed class MeetingsResult<out T> {
     data class Ok<T>(val data: T) : MeetingsResult<T>()
@@ -56,6 +60,29 @@ class MeetingsRepository @Inject constructor(
         val r = api.updateMeeting(id, body)
         if (!r.isSuccessful) error("ذخیره ناموفق (${r.code()})")
         r.body() ?: error("پاسخ خالی")
+    }
+
+    suspend fun aiEdit(id: String, prompt: String): Result<AiEditMeetingResponse> = runCatching {
+        val r = try {
+            api.aiEditMeeting(id, AiEditMeetingRequest(prompt = prompt))
+        } catch (e: Exception) {
+            if (NetworkErrors.isUnreachable(e)) error(NetworkErrors.CANNOT_CONNECT)
+            if (e is SocketTimeoutException) error("ویرایش هوشمند طولانی شد، دوباره تلاش کنید")
+            throw e
+        }
+        val body = r.body()
+        if (r.isSuccessful && body?.meeting != null) return@runCatching body
+        val serverMessage = r.errorBody()?.string()?.let { raw ->
+            runCatching { JSONObject(raw).optString("message") }.getOrNull()
+        }?.takeIf { it.isNotBlank() }
+        error(
+            serverMessage ?: when (r.code()) {
+                401, 403 -> "نشست منقضی شده؛ دوباره وارد شوید"
+                404 -> "جلسه پیدا نشد"
+                409 -> "ویرایش قبلی این جلسه هنوز در حال انجام است"
+                else -> "ویرایش هوشمند ناموفق بود (${r.code()})"
+            },
+        )
     }
 
     suspend fun analyze(id: String): Result<Unit> = runCatching {

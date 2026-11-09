@@ -35,6 +35,7 @@ Requires Bearer token in the `Authorization` header.
 | `POST` | `/meetings` | `{ "title", "meeting_date", "status", "summary", "CommentText" }` | Create a new meeting. |
 | `PUT` | `/meetings/:id` | `{ "title", "meeting_date", "status", "summary", "CommentText" }` | Update an existing meeting. |
 | `POST` | `/meetings/:id/analyze` | None | Trigger AI processing for the meeting. |
+| `POST` | `/meetings/:id/ai-edit` | `{ prompt }` | Apply a natural-language edit via n8n "AI Editor V1" (title, date, location, summary, bullet points, approved participants and tags) and save it. Returns `{ meeting, participants, tags, model_used, changes_summary }`. Can take up to ~4 minutes. |
 | `DELETE` | `/meetings/:id` | None | Delete a meeting. |
 
 ## Audio Files / Uploads (`/api`)

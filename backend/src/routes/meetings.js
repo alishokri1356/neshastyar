@@ -30,6 +30,9 @@ router.put('/:id', meetingController.updateMeeting);
 // POST /api/meetings/:id/analyze
 router.post('/:id/analyze', meetingController.triggerAnalyze);
 
+// POST /api/meetings/:id/ai-edit
+router.post('/:id/ai-edit', meetingController.aiEditMeeting);
+
 // POST /api/meetings/:id/share
 router.post('/:id/share', meetingController.enableShare);
 

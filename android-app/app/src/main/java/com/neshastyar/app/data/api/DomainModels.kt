@@ -18,6 +18,18 @@ data class UpdateMeetingRequest(
     @Json(name = "CommentText") val commentText: String? = null,
 )
 
+data class AiEditMeetingRequest(
+    val prompt: String,
+)
+
+data class AiEditMeetingResponse(
+    val meeting: MeetingDto? = null,
+    val participants: List<ParticipantDto>? = null,
+    val tags: List<TagDto>? = null,
+    val model_used: String? = null,
+    val changes_summary: String? = null,
+)
+
 data class UploadAudioData(
     val path: String? = null,
     val relativePath: String? = null,

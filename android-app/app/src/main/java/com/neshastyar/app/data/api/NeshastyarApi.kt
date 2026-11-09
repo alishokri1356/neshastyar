@@ -74,6 +74,12 @@ interface NeshastyarApi {
     @POST("meetings/{id}/analyze")
     suspend fun analyzeMeeting(@Path("id") id: String): Response<AnalyzeResponse>
 
+    @POST("meetings/{id}/ai-edit")
+    suspend fun aiEditMeeting(
+        @Path("id") id: String,
+        @Body body: AiEditMeetingRequest,
+    ): Response<AiEditMeetingResponse>
+
     @DELETE("meetings/{id}")
     suspend fun deleteMeeting(@Path("id") id: String): Response<SuccessResponse>
 

@@ -143,7 +143,12 @@ fun NeshastyarNavHost(
                     onParticipants = { openMeetingSection(Routes.MeetingParticipants.create(id)) },
                     onTags = { openMeetingSection(Routes.MeetingTags.create(id)) },
                     onBulletPoints = { openMeetingSection(Routes.MeetingBulletPoints.create(id)) },
-                    onAsk = { openChat(meetingId = id) },
+                    onAiEdit = {
+                        if (route != Routes.MeetingDetail.route) {
+                            navController.popBackStack(Routes.MeetingDetail.route, inclusive = false)
+                        }
+                        detailVm.openAiEditSheet()
+                    },
                     onMenu = { openMeetingSection(Routes.MeetingOptions.create(id)) },
                     showProcessedSections = showProcessedSections,
                 )

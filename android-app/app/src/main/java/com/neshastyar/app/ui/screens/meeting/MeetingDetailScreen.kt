@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,12 +27,16 @@ import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,6 +56,7 @@ import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.components.StatusChip
+import com.neshastyar.app.ui.screens.chat.rememberSpeechInputLauncher
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
 import com.neshastyar.app.util.StatusStyle
@@ -243,6 +249,107 @@ fun MeetingDetailScreen(
             }
         }
     }
+
+    if (state.showAiEditSheet) {
+        AiEditBottomSheet(
+            prompt = state.aiPrompt,
+            loading = state.aiEditing,
+            error = state.aiEditError,
+            onPromptChange = viewModel::onAiPromptChange,
+            onDictation = viewModel::appendAiDictation,
+            onSubmit = viewModel::submitAiEdit,
+            onDismiss = viewModel::dismissAiEditSheet,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiEditBottomSheet(
+    prompt: String,
+    loading: Boolean,
+    error: String?,
+    onPromptChange: (String) -> Unit,
+    onDictation: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { !loading || it != SheetValue.Hidden },
+    )
+    val startSpeech = rememberSpeechInputLauncher(
+        prompt = "تغییرات مورد نظر را بگویید",
+        onResult = onDictation,
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = NeshastyarColors.Background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+                .imePadding(),
+        ) {
+            SectionHeader(
+                title = "ویرایش با هوش مصنوعی",
+                icon = Icons.Default.AutoAwesome,
+                iconTint = NeshastyarColors.Secondary,
+            )
+            Text(
+                text = "بنویسید یا بگویید چه چیزی تغییر کند؛ مثلاً تاریخ یا عنوان جلسه، محل، خلاصه، نکات، حاضرین یا برچسب‌ها. تغییرات مستقیم روی جلسه ذخیره می‌شود.",
+                color = NeshastyarColors.TextMuted,
+                fontSize = 13.sp,
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
+            )
+            NeshastyarTextField(
+                value = prompt,
+                onValueChange = onPromptChange,
+                label = "درخواست ویرایش",
+                placeholder = "مثلاً: رضا احمدی را به حاضرین اضافه کن و تاریخ را ۱۵ آبان بگذار",
+                singleLine = false,
+                minLines = 3,
+                enabled = !loading,
+                trailingIcon = {
+                    IconButton(onClick = startSpeech, enabled = !loading) {
+                        Icon(
+                            Icons.Outlined.Mic,
+                            contentDescription = "ورودی صوتی",
+                            tint = NeshastyarColors.Primary,
+                        )
+                    }
+                },
+            )
+            if (loading) {
+                Text(
+                    text = "در حال اعمال تغییرات… ممکن است تا دو دقیقه طول بکشد",
+                    color = NeshastyarColors.TextMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            if (error != null) {
+                Text(
+                    text = error,
+                    color = NeshastyarColors.Error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            NeshastyarPrimaryButton(
+                text = "اعمال تغییرات",
+                onClick = onSubmit,
+                enabled = prompt.isNotBlank() && !loading,
+                loading = loading,
+            )
+        }
+    }
 }
 
 @Composable
@@ -283,7 +390,7 @@ fun MeetingDetailBottomBar(
     onParticipants: () -> Unit,
     onTags: () -> Unit,
     onBulletPoints: () -> Unit,
-    onAsk: () -> Unit,
+    onAiEdit: () -> Unit,
     onMenu: () -> Unit,
     showProcessedSections: Boolean = true,
 ) {
@@ -311,7 +418,7 @@ fun MeetingDetailBottomBar(
             MeetingDetailBarAction(Icons.Default.Label, "برچسب‌ها", onTags)
             if (showProcessedSections) {
                 MeetingDetailBarAction(Icons.AutoMirrored.Filled.FormatListBulleted, "نکات", onBulletPoints)
-                MeetingDetailBarAction(Icons.Outlined.ChatBubbleOutline, "بپرس", onAsk)
+                MeetingDetailBarAction(Icons.Default.AutoAwesome, "ویرایش هوشمند", onAiEdit)
             }
             MeetingDetailBarAction(Icons.Default.Menu, "گزینه‌ها", onMenu)
         }

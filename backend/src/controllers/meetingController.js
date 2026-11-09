@@ -1,5 +1,6 @@
 const meetingService = require('../services/meetingService');
 const reportService = require('../services/reportService');
+const aiEditorService = require('../services/aiEditorService');
 
 class MeetingController {
   // GET /api/meetings
@@ -204,6 +205,27 @@ class MeetingController {
       res.status(500).json({
         error: 'Failed to trigger analysis',
         message: error.message || 'An error occurred while requesting meeting analysis',
+      });
+    }
+  }
+
+  // POST /api/meetings/:id/ai-edit
+  async aiEditMeeting(req, res) {
+    try {
+      const result = await aiEditorService.editMeeting(
+        req.user.sub,
+        req.params.id,
+        req.body?.prompt
+      );
+      res.json(result);
+    } catch (error) {
+      const status = error.status || 500;
+      if (status >= 500) console.error('AI edit meeting error:', error);
+      res.status(status).json({
+        error: 'Failed to edit meeting with AI',
+        message: status >= 500 && !error.status
+          ? 'ویرایش هوشمند ناموفق بود. دوباره تلاش کنید.'
+          : error.message,
       });
     }
   }

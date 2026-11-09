@@ -47,6 +47,10 @@ data class MeetingDetailUiState(
     val summarySuppressed: Boolean = false,
     /** Linked tags and participants have been fetched at least once. */
     val tagsReady: Boolean = false,
+    val showAiEditSheet: Boolean = false,
+    val aiPrompt: String = "",
+    val aiEditing: Boolean = false,
+    val aiEditError: String? = null,
 )
 
 @HiltViewModel
@@ -162,6 +166,69 @@ class MeetingDetailViewModel @Inject constructor(
                     it.copy(
                         reprocessing = false,
                         error = e.message ?: "درخواست پردازش ناموفق بود",
+                    )
+                }
+            },
+        )
+    }
+
+    fun openAiEditSheet() = _ui.update {
+        it.copy(showAiEditSheet = true, aiEditError = null, message = null, error = null)
+    }
+
+    fun dismissAiEditSheet() {
+        if (_ui.value.aiEditing) return
+        _ui.update { it.copy(showAiEditSheet = false, aiEditError = null) }
+    }
+
+    fun onAiPromptChange(v: String) = _ui.update { it.copy(aiPrompt = v, aiEditError = null) }
+
+    fun appendAiDictation(text: String) {
+        val cleaned = text.trim()
+        if (cleaned.isBlank()) return
+        _ui.update { state ->
+            val merged = listOf(state.aiPrompt.trim(), cleaned)
+                .filter { it.isNotBlank() }
+                .joinToString(" ")
+            state.copy(aiPrompt = merged, aiEditError = null)
+        }
+    }
+
+    fun submitAiEdit() = viewModelScope.launch {
+        val prompt = _ui.value.aiPrompt.trim()
+        if (prompt.isBlank() || _ui.value.aiEditing) return@launch
+        _ui.update { it.copy(aiEditing = true, aiEditError = null) }
+        meetingsRepository.aiEdit(meetingId, prompt).fold(
+            onSuccess = { result ->
+                val meeting = result.meeting ?: return@fold
+                val parsed = MeetingSummaryParser.parse(meeting.summary, meeting.people)
+                _ui.update {
+                    it.copy(
+                        aiEditing = false,
+                        showAiEditSheet = false,
+                        aiPrompt = "",
+                        meeting = meeting,
+                        summary = parsed,
+                        summarySuppressed = false,
+                        editing = false,
+                        editTitle = meeting.title.orEmpty(),
+                        editSubject = parsed.subject,
+                        editLocation = parsed.location,
+                        editSummaryText = parsed.summaryText,
+                        participants = result.participants ?: it.participants,
+                        tags = result.tags ?: it.tags,
+                        message = result.changes_summary?.takeIf { s -> s.isNotBlank() }
+                            ?: "ویرایش هوشمند انجام و ذخیره شد",
+                        error = null,
+                    )
+                }
+                reloadMeta()
+            },
+            onFailure = { e ->
+                _ui.update {
+                    it.copy(
+                        aiEditing = false,
+                        aiEditError = e.message ?: "ویرایش هوشمند ناموفق بود",
                     )
                 }
             },
