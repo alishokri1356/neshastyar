@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.neshastyar.app.data.api.NeshastyarApi
+import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.ProfileUpdateRequest
 import com.neshastyar.app.data.repository.AuthRepository
 
@@ -70,7 +71,7 @@ class AccountViewModel @Inject constructor(
                 _ui.update {
                     it.copy(
                         loading = false,
-                        error = e.message ?: "خطا در بارگذاری پروفایل",
+                        error = NetworkErrors.userMessage(e, "خطا در بارگذاری پروفایل"),
                         email = authRepository.currentEmail().orEmpty(),
                         name = authRepository.currentName().orEmpty(),
                     )
@@ -106,7 +107,12 @@ class AccountViewModel @Inject constructor(
                     _ui.update { it.copy(saving = false, error = "ذخیره ناموفق (${r.code()})") }
                 }
             } catch (e: Exception) {
-                _ui.update { it.copy(saving = false, error = e.message ?: "ذخیره ناموفق") }
+                _ui.update {
+                    it.copy(
+                        saving = false,
+                        error = NetworkErrors.userMessage(e, "ذخیره ناموفق"),
+                    )
+                }
             }
         }
     }

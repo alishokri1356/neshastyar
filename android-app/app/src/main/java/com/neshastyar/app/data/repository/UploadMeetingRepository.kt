@@ -9,6 +9,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import com.neshastyar.app.data.api.CreateAudioFileRequest
+import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.CreateMeetingRequest
 import com.neshastyar.app.data.api.CreateMeetingTagRequest
 import com.neshastyar.app.data.local.DraftSelectionStore
@@ -320,6 +321,7 @@ class UploadMeetingRepository @Inject constructor(
             try {
                 return block()
             } catch (e: Exception) {
+                if (NetworkErrors.alreadyRetried(e)) throw e
                 last = e
                 val transient = isTransientNetwork(e)
                 val limit = if (transient) 8 else 4

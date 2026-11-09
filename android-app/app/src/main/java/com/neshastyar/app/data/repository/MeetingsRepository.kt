@@ -3,6 +3,7 @@ package com.neshastyar.app.data.repository
 import com.neshastyar.app.data.api.AudioFileDto
 import com.neshastyar.app.data.api.MeetingDto
 import com.neshastyar.app.data.api.NeshastyarApi
+import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.UpdateMeetingRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,7 +39,7 @@ class MeetingsRepository @Inject constructor(
             if (response.isSuccessful && body != null) MeetingsResult.Ok(body)
             else MeetingsResult.Err(if (response.code() == 404) "جلسه پیدا نشد" else errorMessage(response.code()))
         } catch (e: Exception) {
-            MeetingsResult.Err(e.message ?: "خطا در بارگذاری جلسه")
+            MeetingsResult.Err(friendlyError(e).ifBlank { "خطا در بارگذاری جلسه" })
         }
     }
 
@@ -87,6 +88,7 @@ class MeetingsRepository @Inject constructor(
     }
 
     private fun friendlyError(error: Exception): String {
+        if (NetworkErrors.isUnreachable(error)) return NetworkErrors.CANNOT_CONNECT
         val raw = error.message.orEmpty()
         if (raw.contains("connection closed", ignoreCase = true) ||
             raw.contains("unexpected end of stream", ignoreCase = true) ||

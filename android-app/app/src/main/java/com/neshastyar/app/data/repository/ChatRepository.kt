@@ -3,6 +3,7 @@ package com.neshastyar.app.data.repository
 import com.neshastyar.app.data.api.ChatSessionDto
 import com.neshastyar.app.data.api.CreateChatSessionRequest
 import com.neshastyar.app.data.api.NeshastyarApi
+import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.SendChatMessageRequest
 import com.neshastyar.app.data.api.SendChatMessageResponse
 import java.net.SocketTimeoutException
@@ -75,6 +76,7 @@ class ChatRepository @Inject constructor(
     }
 
     private fun friendlyError(error: Exception): String {
+        if (NetworkErrors.isUnreachable(error)) return NetworkErrors.CANNOT_CONNECT
         if (error is SocketTimeoutException ||
             error.message.orEmpty().contains("timeout", ignoreCase = true)
         ) {

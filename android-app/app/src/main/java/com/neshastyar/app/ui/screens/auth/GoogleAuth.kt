@@ -14,6 +14,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.neshastyar.app.R
+import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.ui.theme.CredentialWindowGuard
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -124,6 +125,7 @@ private fun extractGoogleIdToken(result: androidx.credentials.GetCredentialRespo
 
 fun googleAuthErrorMessage(error: Throwable, fallback: String): String {
     if (error is GoogleSignInCancelledException) return ""
+    if (NetworkErrors.isUnreachable(error)) return NetworkErrors.CANNOT_CONNECT
     val raw = error.message?.trim().orEmpty()
     if (raw.contains("No credentials available", ignoreCase = true)) {
         return "حساب گوگلی روی این دستگاه پیدا نشد. یک حساب گوگل اضافه کنید و دوباره تلاش کنید."

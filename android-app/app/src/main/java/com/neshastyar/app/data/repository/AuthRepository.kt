@@ -2,6 +2,7 @@ package com.neshastyar.app.data.repository
 
 import com.squareup.moshi.Moshi
 import com.neshastyar.app.data.api.AuthResponse
+import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.EmailOnlyRequest
 import com.neshastyar.app.data.api.GoogleAuthRequest
 import com.neshastyar.app.data.api.LoginRequest
@@ -39,7 +40,7 @@ class AuthRepository @Inject constructor(
             val response = api.login(LoginRequest(email.trim(), password))
             handleAuthResponse(response)
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
         }
     }
 
@@ -48,7 +49,7 @@ class AuthRepository @Inject constructor(
             val response = api.googleAuth(GoogleAuthRequest(idToken))
             handleAuthResponse(response)
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
         }
     }
 
@@ -66,7 +67,7 @@ class AuthRepository @Inject constructor(
                 parseError(response)
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
         }
     }
 
@@ -140,7 +141,7 @@ class AuthRepository @Inject constructor(
                 parseError(response)
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
         }
     }
 
@@ -153,7 +154,7 @@ class AuthRepository @Inject constructor(
                 parseError(response)
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "خطا در ارتباط با سرور")
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
         }
     }
 

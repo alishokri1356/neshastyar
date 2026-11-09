@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import com.neshastyar.app.BuildConfig
 import com.neshastyar.app.data.api.AuthInterceptor
+import com.neshastyar.app.data.api.ConnectRetryInterceptor
 import com.neshastyar.app.data.api.NeshastyarApi
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -37,6 +38,7 @@ object NetworkModule {
             }
         }
         return OkHttpClient.Builder()
+            .addInterceptor(ConnectRetryInterceptor())
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)

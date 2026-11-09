@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "type": "http",
+      "url": "https://n8nnew.teraxr.com/mcp-server/http",
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmEyNjc1Mi0zODBhLTQ3ODktYWE2My0zMjk4Y2Y1Njg2MDMiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6IjllZDc4ZDU3LTQxZTctNDgzZi04NGNkLWNlZTMyYjk1YmFhNyIsImlhdCI6MTc5NDA2NzY2Mn0.Ltky_H6i_IcVY55hGqr-UN2KD62oydjKL3hgIUyYNbA"
+      }
+    }
+  }
+}
+
