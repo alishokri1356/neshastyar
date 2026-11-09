@@ -80,13 +80,16 @@ class UserService {
       normalizeAnalyzeModelKey,
       AUTO_KEY,
     } = require('../config/analyzeModels');
-    const allowedFields = ['name', 'email', 'baleID', 'default_analyze_model'];
+    const allowedFields = ['name', 'email', 'baleID', 'default_analyze_model', 'org_name'];
     const updateFields = [];
     const values = [];
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
         let nextValue = value === '' ? null : value;
+        if (key === 'org_name' && typeof nextValue === 'string' && nextValue.length > 255) {
+          throw new Error('Organization name is too long');
+        }
         if (key === 'default_analyze_model') {
           if (nextValue === null) {
             nextValue = null;
@@ -115,6 +118,34 @@ class UserService {
     await db.query(sql, values);
 
     return await this.findById(id);
+  }
+
+  async setOrgLogo(userId, relativePath) {
+    const current = await this.findById(userId);
+    if (!current) {
+      throw new Error('User not found');
+    }
+
+    const previous = current.org_logo_path;
+    await db.query(
+      'UPDATE users SET org_logo_path = ?, updated_at = ? WHERE id = ?',
+      [relativePath, new Date(), userId]
+    );
+
+    if (previous && previous !== relativePath) {
+      const resolved = this.resolveStoredFilePath(previous);
+      if (resolved) {
+        try {
+          await fs.unlink(resolved);
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            console.warn('Failed to delete previous organization logo:', error.message);
+          }
+        }
+      }
+    }
+
+    return await this.findById(userId);
   }
 
   async schemaHasTable(connection, tableName) {

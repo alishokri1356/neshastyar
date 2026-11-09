@@ -1,4 +1,5 @@
 const meetingService = require('../services/meetingService');
+const reportService = require('../services/reportService');
 
 class MeetingController {
   // GET /api/meetings
@@ -242,6 +243,36 @@ class MeetingController {
       return res.status(status).json({
         error: 'Failed to rename participant',
         message: error.message || 'An unexpected error occurred while renaming the participant',
+      });
+    }
+  }
+
+  // POST /api/meetings/:id/share
+  async enableShare(req, res) {
+    try {
+      const result = await reportService.enableShare(req.params.id, req.user.sub);
+      res.json(result);
+    } catch (error) {
+      const missing = error.message && error.message.includes('not found');
+      console.error('Enable share error:', error);
+      res.status(missing ? 404 : 500).json({
+        error: 'Failed to create share link',
+        message: error.message || 'An error occurred while creating the share link',
+      });
+    }
+  }
+
+  // DELETE /api/meetings/:id/share
+  async disableShare(req, res) {
+    try {
+      const result = await reportService.disableShare(req.params.id, req.user.sub);
+      res.json(result);
+    } catch (error) {
+      const missing = error.message && error.message.includes('not found');
+      console.error('Disable share error:', error);
+      res.status(missing ? 404 : 500).json({
+        error: 'Failed to disable share link',
+        message: error.message || 'An error occurred while disabling the share link',
       });
     }
   }

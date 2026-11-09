@@ -1,4 +1,7 @@
 const BULLET_KEYS = ['Bolet Points', 'Bullet Points'];
+const PEOPLE_KEYS = ['People in meetings', 'People in Meetings', 'participants', 'Participants'];
+const DECISION_KEYS = ['تصمیم اتخاذ شده', 'تصمیم', 'decision', 'text', 'title'];
+const ASSIGNEE_KEY_PATTERN = /مسئول|assignee|owner/i;
 
 const stripMarkdownFences = (text) => {
   const trimmed = text.trim();
@@ -141,9 +144,98 @@ const getBulletPointsFromSummaryJson = (jsonData) => {
   return [];
 };
 
+const asStringList = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+};
+
+const toPlainText = (value) => {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
+const firstPeople = (json) => {
+  for (const key of PEOPLE_KEYS) {
+    const values = asStringList(json[key]);
+    if (values.length > 0) return values;
+  }
+  return [];
+};
+
+const rawBulletItems = (json) => {
+  if (!json || typeof json !== 'object') return [];
+  for (const key of BULLET_KEYS) {
+    if (Array.isArray(json[key]) && json[key].length > 0) return json[key];
+  }
+  return [];
+};
+
+const extractDecisions = (json) => {
+  return rawBulletItems(json)
+    .map((item) => {
+      if (typeof item === 'string') return { text: item.trim(), assignee: '' };
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        return { text: formatBulletPoint(item), assignee: '' };
+      }
+
+      let assignee = '';
+      for (const [key, value] of Object.entries(item)) {
+        if (ASSIGNEE_KEY_PATTERN.test(key) && value != null && String(value).trim()) {
+          assignee = String(value).trim();
+          break;
+        }
+      }
+
+      let text = '';
+      for (const key of DECISION_KEYS) {
+        if (item[key] != null && String(item[key]).trim()) {
+          text = String(item[key]).trim();
+          break;
+        }
+      }
+      if (!text) {
+        text = Object.entries(item)
+          .filter(([key]) => !ASSIGNEE_KEY_PATTERN.test(key))
+          .map(([key, value]) => `${key}: ${value ?? ''}`)
+          .join(' — ')
+          .trim();
+      }
+      return { text, assignee };
+    })
+    .filter((item) => item.text);
+};
+
+const buildReportContent = (summaryText, fallbackTitle) => {
+  const json = parseMeetingSummaryJson(summaryText) || {};
+  const subject = typeof json.Subject === 'string' ? json.Subject.trim() : '';
+  const summary = toPlainText(typeof json.Summary === 'string' ? json.Summary : '');
+  return {
+    title: (fallbackTitle && String(fallbackTitle).trim()) || subject || 'صورتجلسه',
+    summaryText: summary,
+    suggestedParticipants: firstPeople(json),
+    decisions: extractDecisions(json),
+  };
+};
+
 module.exports = {
   formatBulletPoint,
   normalizeBulletPoints,
   getBulletPointsFromSummaryJson,
   parseMeetingSummaryJson,
+  toPlainText,
+  extractDecisions,
+  buildReportContent,
 };

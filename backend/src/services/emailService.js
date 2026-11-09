@@ -194,7 +194,8 @@ class EmailService {
     meetingTitle,
     summary,
     approvedParticipants = [],
-    analyzedBy = null
+    analyzedBy = null,
+    reportUrl = null
   ) {
     const { getModelLabel } = require('../config/analyzeModels');
     const escapeHtml = (value) =>
@@ -205,6 +206,9 @@ class EmailService {
         .replace(/"/g, '&quot;');
     const formattedSummary = this.formatSummaryForEmail(summary, approvedParticipants);
     const siteUrl = this.frontendUrl.replace(/\/$/, '') || 'https://www.neshastyar.com';
+    const safeReportUrl = typeof reportUrl === 'string' && /^https?:\/\//i.test(reportUrl)
+      ? reportUrl
+      : null;
     const modelLabel = analyzedBy ? escapeHtml(getModelLabel(analyzedBy)) : null;
     const createdByLine = modelLabel
       ? `این خلاصه توسط نشست یار با مدل ${modelLabel} ایجاد شده است.`
@@ -221,6 +225,15 @@ class EmailService {
             <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 0;">
               ${formattedSummary}
             </div>
+            ${safeReportUrl ? `
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="${escapeHtml(safeReportUrl)}" style="display: inline-block; background: #0f6b5c; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 22px; border-radius: 8px;">
+                مشاهده و اشتراک‌گذاری صورتجلسه
+              </a>
+              <p style="margin: 10px 0 0 0; color: #666; font-size: 12px; line-height: 1.6; word-break: break-all;">
+                ${escapeHtml(safeReportUrl)}
+              </p>
+            </div>` : ''}
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6; text-align: center;">
               <p style="margin: 0 0 8px 0; color: #666; font-size: 13px; line-height: 1.6;">
                 ${createdByLine}

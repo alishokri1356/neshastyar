@@ -19,6 +19,7 @@ const fileRoutes = require('./routes/files');
 const adminRoutes = require('./routes/admin');
 const androidRoutes = require('./routes/android');
 const chatRoutes = require('./routes/chats');
+const publicReportRoutes = require('./routes/publicReports');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -127,6 +128,7 @@ app.get('/health', (req, res) => {
 app.use('/', webhookRoutes);
 
 // API routes
+app.use('/api/public', publicReportRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', emailRoutes);
 app.use('/api/email', emailRoutes);

@@ -1,4 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
+const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 
@@ -92,5 +95,46 @@ router.get('/profile', authenticateToken, authController.getProfile);
 
 // PUT /api/auth/profile - Update user profile (requires authentication)
 router.put('/profile', authenticateToken, authController.updateProfile);
+
+const logoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, callback) => {
+      const dir = path.join(process.cwd(), 'uploads', 'logos');
+      fs.mkdirSync(dir, { recursive: true });
+      callback(null, dir);
+    },
+    filename: (req, file, callback) => {
+      const allowed = {
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'image/webp': '.webp',
+        'image/svg+xml': '.svg',
+      };
+      const ext = allowed[file.mimetype] || path.extname(file.originalname).toLowerCase();
+      callback(null, `${req.user.sub}${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+    if (!allowed.includes(file.mimetype)) {
+      callback(new Error('فقط تصویر PNG، JPG، WEBP یا SVG مجاز است'));
+      return;
+    }
+    callback(null, true);
+  },
+});
+
+// POST /api/auth/profile/logo
+router.post('/profile/logo', authenticateToken, (req, res, next) => {
+  logoUpload.single('logo')(req, res, (error) => {
+    if (!error) return next();
+    const tooLarge = error.code === 'LIMIT_FILE_SIZE';
+    res.status(400).json({
+      error: 'Invalid logo',
+      message: tooLarge ? 'حجم نشان باید کمتر از ۲ مگابایت باشد' : error.message,
+    });
+  });
+}, authController.uploadLogo);
 
 module.exports = router;

@@ -30,6 +30,12 @@ router.put('/:id', meetingController.updateMeeting);
 // POST /api/meetings/:id/analyze
 router.post('/:id/analyze', meetingController.triggerAnalyze);
 
+// POST /api/meetings/:id/share
+router.post('/:id/share', meetingController.enableShare);
+
+// DELETE /api/meetings/:id/share
+router.delete('/:id/share', meetingController.disableShare);
+
 // PUT /api/meetings/:id/participants/rename-suggested
 router.put('/:id/participants/rename-suggested', meetingController.renameSuggestedParticipantInMeeting);
 

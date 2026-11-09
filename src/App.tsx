@@ -29,6 +29,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ParticipantsManager from "./pages/ParticipantsManager";
 import TagManager from "./pages/TagManager";
 import AccountManagement from "./pages/AccountManagement";
+import MeetingReport from "./pages/MeetingReport";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminUsers from "./pages/admin/AdminUsers";
 
@@ -64,6 +65,7 @@ const App = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/report/:token" element={<MeetingReport />} />
 
             {/* Admin panel */}
             <Route path="/admin" element={<AdminLogin />} />

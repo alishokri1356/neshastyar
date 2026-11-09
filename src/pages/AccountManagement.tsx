@@ -10,6 +10,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { Save, LogOut } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
+import { absoluteFromApiPath } from "@/lib/meetingReport";
 
 const AccountManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,9 @@ const AccountManagement: React.FC = () => {
   const [baleID, setBaleID] = useState("");
   const [name, setName] = useState("");
   const [defaultAnalyzeModel, setDefaultAnalyzeModel] = useState("auto");
+  const [orgName, setOrgName] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -40,6 +44,12 @@ const AccountManagement: React.FC = () => {
         setName(data.name || "");
         setBaleID(data.baleID ?? "");
         setDefaultAnalyzeModel(data.default_analyze_model || "auto");
+        setOrgName(data.org_name || "");
+        setLogoUrl(
+          data.org_logo_path
+            ? absoluteFromApiPath(`/api/public/logos/${data.id}?v=${Date.now()}`)
+            : null
+        );
       }
     } catch (error: any) {
       console.error("Error loading profile:", error);
@@ -60,6 +70,7 @@ const AccountManagement: React.FC = () => {
         name?: string;
         baleID?: string | null;
         default_analyze_model?: string | null;
+        org_name?: string | null;
       } = {};
       
       if (name !== undefined) {
@@ -71,6 +82,7 @@ const AccountManagement: React.FC = () => {
       }
 
       updates.default_analyze_model = defaultAnalyzeModel || "auto";
+      updates.org_name = orgName.trim() || null;
 
       const { data, error } = await mysqlClient.auth.updateProfile(updates);
 
@@ -146,6 +158,61 @@ const AccountManagement: React.FC = () => {
             </div>
 
             {/* BaleID Field */}
+            <div className="space-y-2">
+              <Label htmlFor="orgName">نام سازمان</Label>
+              <Input
+                id="orgName"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                placeholder="نام سازمان برای سربرگ صورتجلسه"
+              />
+              <p className="text-xs text-muted-foreground">
+                این نام در صورتجلسه قابل اشتراک نمایش داده می‌شود
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="orgLogo">نشان سازمان</Label>
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="نشان سازمان"
+                  className="h-16 w-auto rounded border bg-white object-contain p-1"
+                />
+              ) : null}
+              <Input
+                id="orgLogo"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                disabled={uploadingLogo}
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  setUploadingLogo(true);
+                  try {
+                    const { data, error } = await mysqlClient.uploadOrgLogo(file);
+                    if (error || !data?.org_logo_path) {
+                      throw new Error(error?.message || "بارگذاری نشان ناموفق بود");
+                    }
+                    setLogoUrl(absoluteFromApiPath(`/api/public/logos/${data.id}?v=${Date.now()}`));
+                    toast({ title: "موفق", description: "نشان سازمان ذخیره شد." });
+                  } catch (error: any) {
+                    toast({
+                      title: "خطا",
+                      description: error.message || "بارگذاری نشان ناموفق بود",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setUploadingLogo(false);
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                PNG، JPG، WEBP یا SVG، حداکثر ۲ مگابایت
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="baleID">شناسه Bale</Label>
               <Input

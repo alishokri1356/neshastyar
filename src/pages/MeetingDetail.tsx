@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, ExternalLink, FileText } from 'lucide-react';
+import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, ExternalLink, FileText, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AppShell from '@/components/layout/AppShell';
 import RichTextEditor from '@/components/RichTextEditor';
@@ -84,6 +84,9 @@ const MeetingDetail = () => {
   );
   const [googleDocsDialogOpen, setGoogleDocsDialogOpen] = useState(false);
   const [googleDocsCopied, setGoogleDocsCopied] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
   const [analyzeModel, setAnalyzeModel] = useState('auto');
   const { data: analyzeModelsData } = useAnalyzeModels();
   const [suggestedParticipantDialogOpen, setSuggestedParticipantDialogOpen] = useState(false);
@@ -1087,6 +1090,47 @@ const MeetingDetail = () => {
     .map((participant) => (typeof participant?.name === 'string' ? participant.name : ''))
     .filter((name) => name.trim().length > 0);
 
+  const handleOpenShare = async () => {
+    if (!meetingId) return;
+    setShareDialogOpen(true);
+    setShareLoading(true);
+    setShareUrl(null);
+    try {
+      const { data, error } = await mysqlClient.shareMeeting(meetingId);
+      if (error || !data?.url) {
+        throw new Error(error?.message || 'ساخت لینک صورتجلسه ناموفق بود');
+      }
+      setShareUrl(data.url);
+    } catch (error: any) {
+      toast({
+        title: 'خطا',
+        description: error.message || 'ساخت لینک صورتجلسه ناموفق بود',
+        variant: 'destructive',
+      });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleDisableShare = async () => {
+    if (!meetingId) return;
+    setShareLoading(true);
+    try {
+      const { error } = await mysqlClient.disableMeetingShare(meetingId);
+      if (error) throw new Error(error.message || 'غیرفعال کردن لینک ناموفق بود');
+      setShareUrl(null);
+      toast({ title: 'انجام شد', description: 'لینک اشتراک‌گذاری غیرفعال شد.' });
+    } catch (error: any) {
+      toast({
+        title: 'خطا',
+        description: error.message || 'غیرفعال کردن لینک ناموفق بود',
+        variant: 'destructive',
+      });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   const handleCopySummary = async () => {
     let text: string | null;
 
@@ -1553,6 +1597,17 @@ const MeetingDetail = () => {
                       <ExternalLink className="h-4 w-4" />
                       Google Docs
                     </Button>
+                    {isProcessed && (
+                      <Button
+                        onClick={handleOpenShare}
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      >
+                        <Share2 className="h-4 w-4" />
+                        صورتجلسه
+                      </Button>
+                    )}
                     <Button
                       onClick={handleStartEditSummary}
                       variant="outline"
@@ -2003,6 +2058,46 @@ const MeetingDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+          <DialogContent className="text-right" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>صورتجلسه</DialogTitle>
+              <DialogDescription>
+                این لینک را برای دیگران بفرستید. آن‌ها صورتجلسه را می‌بینند و می‌توانند آن را چاپ یا دانلود کنند.
+              </DialogDescription>
+            </DialogHeader>
+            {shareLoading ? (
+              <p className="text-sm text-muted-foreground">در حال ساخت لینک...</p>
+            ) : shareUrl ? (
+              <div className="space-y-3">
+                <Input readOnly value={shareUrl} onFocus={(event) => event.target.select()} />
+                <DialogFooter className="gap-2 sm:justify-start">
+                  <Button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(shareUrl);
+                      toast({ title: 'کپی شد', description: 'لینک صورتجلسه کپی شد.' });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                    کپی لینک
+                  </Button>
+                  <Button variant="outline" onClick={() => window.open(shareUrl, '_blank', 'noopener')}>
+                    <ExternalLink className="h-4 w-4" />
+                    باز کردن
+                  </Button>
+                  <Button variant="ghost" onClick={handleDisableShare} disabled={shareLoading}>
+                    غیرفعال کردن لینک
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <DialogFooter className="sm:justify-start">
+                <Button onClick={handleOpenShare}>ساخت لینک جدید</Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={googleDocsDialogOpen} onOpenChange={setGoogleDocsDialogOpen}>
           <DialogContent className="text-right" dir="rtl">

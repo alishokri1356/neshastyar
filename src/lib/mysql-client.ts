@@ -205,6 +205,7 @@ class MySQLClient {
         name?: string;
         baleID?: string;
         default_analyze_model?: string | null;
+        org_name?: string | null;
       }) => {
         try {
           const response = await fetch(`${API_BASE_URL}/auth/profile`, {
@@ -900,6 +901,54 @@ class MySQLClient {
 
     return baseQuery;
   }
+
+  shareMeeting = async (meetingId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/share`, {
+        method: 'POST',
+        headers: {
+          ...this.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) return { data: null, error: data };
+      return { data: data as { token: string; url: string; enabled: boolean }, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
+  disableMeetingShare = async (meetingId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/share`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders(),
+      });
+      const data = await response.json();
+      if (!response.ok) return { data: null, error: data };
+      return { data: data as { enabled: boolean }, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
+  uploadOrgLogo = async (file: File) => {
+    try {
+      const body = new FormData();
+      body.append('logo', file);
+      const response = await fetch(`${API_BASE_URL}/auth/profile/logo`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body,
+      });
+      const data = await response.json();
+      if (!response.ok) return { data: null, error: data };
+      return { data: data.data.user, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
 }
 
 export const mysqlClient = new MySQLClient();

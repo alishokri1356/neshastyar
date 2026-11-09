@@ -1,7 +1,18 @@
 const userService = require('../services/userService');
 const emailService = require('../services/emailService');
 const meetingParticipantService = require('../services/meetingParticipantService');
+const reportService = require('../services/reportService');
 const mysqlClient = require('../config/database');
+
+async function reportUrlForMeeting(meetingId) {
+  try {
+    const token = await reportService.ensureShareToken(meetingId);
+    return reportService.shareReportUrl(token);
+  } catch (error) {
+    console.warn('Could not create report link for email:', error.message);
+    return null;
+  }
+}
 
 class EmailController {
   // GET /api/auth/verify-email
@@ -190,7 +201,8 @@ class EmailController {
         meetingTitle,
         summary,
         approvedParticipants,
-        analyzedBy
+        analyzedBy,
+        await reportUrlForMeeting(meetingId)
       );
 
       // Update lastTimeEmailSent timestamp
@@ -334,7 +346,8 @@ class EmailController {
         meetingTitle,
         meeting.summary,
         approvedParticipants,
-        meeting.analyzed_by || null
+        meeting.analyzed_by || null,
+        await reportUrlForMeeting(meetingId)
       );
 
       // Update lastTimeEmailSent timestamp (handle case where field might not exist)

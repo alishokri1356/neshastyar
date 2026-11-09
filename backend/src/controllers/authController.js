@@ -1,3 +1,4 @@
+const path = require('path');
 const userService = require('../services/userService');
 const authService = require('../services/authService');
 const { OAuth2Client } = require('google-auth-library');
@@ -326,6 +327,11 @@ class AuthController {
       if (updates.default_analyze_model !== undefined) {
         allowedUpdates.default_analyze_model = updates.default_analyze_model;
       }
+      if (updates.org_name !== undefined) {
+        allowedUpdates.org_name = typeof updates.org_name === 'string'
+          ? updates.org_name.trim()
+          : updates.org_name;
+      }
 
       if (Object.keys(allowedUpdates).length === 0) {
         return res.status(400).json({
@@ -355,6 +361,34 @@ class AuthController {
       res.status(500).json({
         error: 'Failed to update profile',
         message: error.message || 'An error occurred while updating the profile'
+      });
+    }
+  }
+
+  // POST /api/auth/profile/logo
+  async uploadLogo(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'Logo required',
+          message: 'یک تصویر برای نشان سازمان انتخاب کنید',
+        });
+      }
+
+      const relativePath = path.join('uploads', 'logos', req.file.filename);
+      const updatedUser = await userService.setOrgLogo(req.user.sub, relativePath);
+      const { password_hash, email_verification_token, email_verification_expires,
+              password_reset_token, password_reset_expires, ...userResponse } = updatedUser;
+
+      res.json({
+        data: { user: userResponse },
+        error: null,
+      });
+    } catch (error) {
+      console.error('Upload logo error:', error);
+      res.status(500).json({
+        error: 'Failed to upload logo',
+        message: error.message || 'ذخیره نشان سازمان ناموفق بود',
       });
     }
   }
