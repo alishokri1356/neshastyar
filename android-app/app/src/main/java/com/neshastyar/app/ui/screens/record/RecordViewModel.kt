@@ -116,6 +116,15 @@ class RecordViewModel @Inject constructor(
         viewModelScope.launch { draftRepository.updateComment(id, value) }
     }
 
+    fun appendNoteDictation(text: String) {
+        val cleaned = text.trim()
+        if (cleaned.isBlank()) return
+        val merged = listOf(_ui.value.comment.trimEnd(), cleaned)
+            .filter { it.isNotBlank() }
+            .joinToString("\n")
+        onComment(merged)
+    }
+
     fun startRecording() {
         _ui.update { it.copy(error = null, message = null) }
         recordingController.startService()

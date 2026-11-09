@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -49,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +70,7 @@ import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
+import com.neshastyar.app.ui.screens.chat.rememberSpeechInputLauncher
 import com.neshastyar.app.ui.theme.NeshastyarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,6 +99,27 @@ fun RecordScreen(
         val id = ui.resumeDraftId ?: return@LaunchedEffect
         viewModel.consumeResume()
         onContinue(id)
+    }
+
+    var resumeAfterDictation by remember { mutableStateOf(false) }
+    val startNoteSpeech = rememberSpeechInputLauncher(
+        prompt = "یادداشت خود را بگویید",
+        onFinished = {
+            if (resumeAfterDictation) {
+                resumeAfterDictation = false
+                viewModel.resumeRecording()
+            }
+        },
+        onResult = viewModel::appendNoteDictation,
+    )
+
+    // The recognizer and the meeting recorder can't share the mic, so pause recording while dictating.
+    fun startNoteDictation() {
+        if (live.phase == RecorderPhase.Recording) {
+            resumeAfterDictation = true
+            viewModel.pauseRecording()
+        }
+        startNoteSpeech()
     }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -264,6 +289,21 @@ fun RecordScreen(
                             color = NeshastyarColors.TextPrimary,
                             modifier = Modifier.padding(start = 8.dp),
                         )
+                        Spacer(Modifier.weight(1f))
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, NeshastyarColors.Outline, CircleShape)
+                                .clickable { startNoteDictation() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.Mic,
+                                contentDescription = "یادداشت صوتی",
+                                tint = NeshastyarColors.TextPrimary,
+                            )
+                        }
                     }
                     Spacer(Modifier.height(10.dp))
                     NeshastyarTextField(
