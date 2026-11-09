@@ -7,6 +7,7 @@ import org.json.JSONTokener
 data class ParsedMeetingSummary(
     val subject: String = "",
     val summaryText: String = "",
+    val location: String = "",
     val people: List<String> = emptyList(),
     val bulletPoints: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
@@ -37,6 +38,7 @@ object MeetingSummaryParser {
         return ParsedMeetingSummary(
             subject = obj.optString("Subject").ifBlank { obj.optString("subject") },
             summaryText = obj.optString("Summary").ifBlank { obj.optString("summary") },
+            location = firstLocation(obj),
             people = mergePeople(fromSummary, fromPeopleColumn),
             bulletPoints = firstBulletList(obj, bulletKeys),
             tags = firstStringList(obj, tagKeys),
@@ -243,6 +245,17 @@ object MeetingSummaryParser {
             result.append(ch)
         }
         return result.toString()
+    }
+
+    private val locationKeys = listOf("Location", "location", "محل تشکیل جلسه", "محل")
+
+    private fun firstLocation(obj: JSONObject): String {
+        for (key in locationKeys) {
+            if (!obj.has(key) || obj.isNull(key)) continue
+            val text = obj.optString(key).trim()
+            if (text.isNotEmpty() && !text.equals("null", ignoreCase = true)) return text
+        }
+        return ""
     }
 
     private fun firstStringList(obj: JSONObject, keys: List<String>, depth: Int = 0): List<String> {

@@ -3,6 +3,7 @@ import moment from 'moment-jalaali';
 export interface MeetingDecision {
   text: string;
   assignee: string;
+  deadline: string;
 }
 
 export interface MeetingReportData {
@@ -11,6 +12,7 @@ export interface MeetingReportData {
   participants: string[];
   decisions: MeetingDecision[];
   summaryText: string;
+  location: string;
   orgName: string | null;
   logoUrl: string | null;
 }
@@ -40,6 +42,50 @@ export async function fetchPublicReport(token: string): Promise<MeetingReportDat
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(data?.message || 'صورتجلسه پیدا نشد');
+  }
+  return withAbsoluteLogo(data as MeetingReportData);
+}
+
+export type ReportEdit =
+  | { field: 'title' | 'location' | 'participants' | 'orgName' | 'date'; value: string }
+  | { field: 'decision'; index: number; part: 'text' | 'assignee' | 'deadline'; value: string };
+
+const toAsciiDigits = (value: string) => value
+  .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+  .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+
+/** Empty input clears the date. Invalid input returns null. */
+export function parseReportDateInput(value: string): string | null {
+  const digits = toAsciiDigits(value).trim();
+  if (!digits) return '';
+  const parsed = moment(digits, ['jYYYY/jMM/jDD - HH:mm', 'jYYYY/jM/jD - H:mm'], true);
+  if (!parsed.isValid()) return null;
+  return parsed.toDate().toISOString();
+}
+
+export async function uploadReportLogo(token: string, file: File): Promise<MeetingReportData> {
+  const body = new FormData();
+  body.append('logo', file);
+  const response = await fetch(`${API_BASE_URL}/public/reports/${encodeURIComponent(token)}/logo`, {
+    method: 'POST',
+    body,
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.message || 'ذخیره لوگو انجام نشد');
+  }
+  return withAbsoluteLogo(data as MeetingReportData);
+}
+
+export async function updatePublicReport(token: string, edit: ReportEdit): Promise<MeetingReportData> {
+  const response = await fetch(`${API_BASE_URL}/public/reports/${encodeURIComponent(token)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(edit),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.message || 'ذخیره صورتجلسه انجام نشد');
   }
   return withAbsoluteLogo(data as MeetingReportData);
 }

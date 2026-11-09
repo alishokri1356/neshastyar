@@ -186,6 +186,16 @@ fun MeetingDetailScreen(
                                     editing = state.editing,
                                     onValueChange = viewModel::onSubject,
                                 )
+                                if (state.editing || state.summary.location.isNotBlank() || state.editLocation.isNotBlank()) {
+                                    Spacer(Modifier.height(12.dp))
+                                    DetailTextPart(
+                                        label = "محل تشکیل جلسه",
+                                        value = state.summary.location,
+                                        draft = state.editLocation,
+                                        editing = state.editing,
+                                        onValueChange = viewModel::onLocation,
+                                    )
+                                }
                                 Spacer(Modifier.height(12.dp))
                                 DetailTextPart(
                                     label = "خلاصه",

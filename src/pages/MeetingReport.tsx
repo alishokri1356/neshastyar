@@ -4,7 +4,14 @@ import { Copy, Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MeetingMinutesReport from '@/components/report/MeetingMinutesReport';
 import { downloadMeetingDocx } from '@/lib/exportMeetingDocx';
-import { fetchPublicReport, type MeetingReportData } from '@/lib/meetingReport';
+import {
+  fetchPublicReport,
+  parseReportDateInput,
+  updatePublicReport,
+  uploadReportLogo,
+  type MeetingReportData,
+  type ReportEdit,
+} from '@/lib/meetingReport';
 
 const MeetingReport: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -36,6 +43,31 @@ const MeetingReport: React.FC = () => {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (!report?.title) return;
+    document.title = `${report.title} | صورتجلسه`;
+  }, [report]);
+
+  const saveCell = async (edit: ReportEdit) => {
+    if (!token) return;
+    let payload = edit;
+    if (edit.field === 'date') {
+      const parsed = parseReportDateInput(edit.value);
+      if (parsed == null) {
+        throw new Error('تاریخ را مثل 1405/08/11 - 16:54 وارد کنید');
+      }
+      payload = { field: 'date', value: parsed };
+    }
+    const updated = await updatePublicReport(token, payload);
+    setReport(updated);
+  };
+
+  const uploadLogo = async (file: File) => {
+    if (!token) return;
+    const updated = await uploadReportLogo(token, file);
+    setReport(updated);
+  };
 
   const copyLink = async () => {
     try {
@@ -82,7 +114,7 @@ const MeetingReport: React.FC = () => {
         <p className="py-16 text-center text-destructive">{error || 'صورتجلسه پیدا نشد'}</p>
       ) : (
         <div className="px-4 pb-10 print:p-0">
-          <MeetingMinutesReport report={report} />
+          <MeetingMinutesReport report={report} onSave={saveCell} onUploadLogo={uploadLogo} />
         </div>
       )}
     </div>

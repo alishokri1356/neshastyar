@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const db = require('../config/database');
+const { parseMeetingSummaryJson, extractLocation } = require('../utils/summaryUtils');
 const authService = require('./authService');
 const participantService = require('./participantService');
 const analyzeService = require('./analyzeService');
@@ -255,6 +256,15 @@ class MeetingService {
       if (allowedFields.includes(key) && value !== undefined) {
         updateFields.push(`${key} = ?`);
         values.push(value);
+      }
+    }
+
+    if (typeof updates.summary === 'string') {
+      const parsed = parseMeetingSummaryJson(updates.summary);
+      const location = parsed ? extractLocation(parsed) : null;
+      if (location != null) {
+        updateFields.push('location = ?');
+        values.push(location || null);
       }
     }
 

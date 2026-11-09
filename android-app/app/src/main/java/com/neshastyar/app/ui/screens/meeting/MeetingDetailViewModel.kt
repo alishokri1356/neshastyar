@@ -39,6 +39,7 @@ data class MeetingDetailUiState(
     val allParticipants: List<ParticipantDto> = emptyList(),
     val editTitle: String = "",
     val editSubject: String = "",
+    val editLocation: String = "",
     val editSummaryText: String = "",
     val editing: Boolean = false,
     val reprocessing: Boolean = false,
@@ -69,6 +70,7 @@ class MeetingDetailViewModel @Inject constructor(
 
     fun onTitle(v: String) = _ui.update { it.copy(editTitle = v) }
     fun onSubject(v: String) = _ui.update { it.copy(editSubject = v) }
+    fun onLocation(v: String) = _ui.update { it.copy(editLocation = v) }
     fun onSummaryText(v: String) = _ui.update { it.copy(editSummaryText = v) }
 
     fun startEditing() = _ui.update {
@@ -76,6 +78,7 @@ class MeetingDetailViewModel @Inject constructor(
             editing = true,
             editTitle = it.meeting?.title.orEmpty(),
             editSubject = it.summary.subject,
+            editLocation = it.summary.location,
             editSummaryText = it.summary.summaryText,
             error = null,
         )
@@ -96,7 +99,19 @@ class MeetingDetailViewModel @Inject constructor(
     private suspend fun saveSummaryAndFinish() {
         val snapshot = _ui.value
         val json = JSONObject().apply {
+            if (snapshot.summary.isJson && snapshot.summary.rawText.isNotBlank()) {
+                try {
+                    val existing = JSONObject(snapshot.summary.rawText)
+                    val keys = existing.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        put(key, existing.opt(key))
+                    }
+                } catch (_: Exception) {
+                }
+            }
             put("Subject", snapshot.editSubject)
+            put("Location", snapshot.editLocation.trim())
             put("Summary", snapshot.editSummaryText)
             put("People in meetings", JSONArray(snapshot.summary.people))
             put("Bolet Points", JSONArray(snapshot.summary.bulletPoints))
@@ -111,6 +126,7 @@ class MeetingDetailViewModel @Inject constructor(
                         summary = parsed,
                         editing = false,
                         editSubject = parsed.subject,
+                        editLocation = parsed.location,
                         editSummaryText = parsed.summaryText,
                         message = "ذخیره شد",
                         error = null,
@@ -134,6 +150,7 @@ class MeetingDetailViewModel @Inject constructor(
                         error = null,
                         summary = ParsedMeetingSummary(),
                         editSubject = "",
+                        editLocation = "",
                         editSummaryText = "",
                         editing = false,
                         meeting = current.meeting?.copy(status = "ارسال درخواست پردازش"),
@@ -164,6 +181,8 @@ class MeetingDetailViewModel @Inject constructor(
         val parts = buildList {
             val subject = state.editSubject.trim()
             if (subject.isNotEmpty()) add("موضوع:\n$subject")
+            val location = state.editLocation.trim()
+            if (location.isNotEmpty()) add("محل تشکیل جلسه:\n$location")
             val summary = state.editSummaryText.trim()
             if (summary.isNotEmpty()) add("خلاصه:\n$summary")
             val approvedParticipants = state.participants
@@ -313,6 +332,11 @@ class MeetingDetailViewModel @Inject constructor(
                                 suppress -> ""
                                 else -> parsed.subject
                             },
+                            editLocation = when {
+                                current.editing -> current.editLocation
+                                suppress -> ""
+                                else -> parsed.location
+                            },
                             editSummaryText = when {
                                 current.editing -> current.editSummaryText
                                 suppress -> ""
@@ -342,6 +366,7 @@ class MeetingDetailViewModel @Inject constructor(
                         summary = parsed,
                         editTitle = if (current.editing) current.editTitle else result.data.title.orEmpty(),
                         editSubject = if (current.editing) current.editSubject else parsed.subject,
+                        editLocation = if (current.editing) current.editLocation else parsed.location,
                         editSummaryText = if (current.editing) current.editSummaryText else parsed.summaryText,
                         message = message,
                         error = null,

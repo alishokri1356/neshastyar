@@ -209,7 +209,7 @@ const AccountManagement: React.FC = () => {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                PNG، JPG، WEBP یا SVG، حداکثر ۲ مگابایت
+                PNG، JPG، WEBP یا SVG، حداکثر ۲ مگابایت. این نشان در خانه سمت چپ سربرگ صورتجلسه نمایش داده می‌شود.
               </p>
             </div>
 

@@ -1,6 +1,51 @@
 const crypto = require('crypto');
 const db = require('../config/database');
-const { buildReportContent } = require('../utils/summaryUtils');
+const authService = require('./authService');
+const participantService = require('./participantService');
+const {
+  buildReportContent,
+  parseMeetingSummaryJson,
+  applyDecisionEdit,
+  setPeople,
+  setLocation,
+} = require('../utils/summaryUtils');
+
+const badRequest = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
+
+const cleanText = (value, max) => {
+  const text = String(value ?? '').replace(/\u0000/g, '').trim();
+  if (text.length > max) {
+    throw badRequest(`متن نباید بیشتر از ${max} نویسه باشد`);
+  }
+  return text;
+};
+
+const splitParticipantNames = (value) => {
+  const seen = new Set();
+  const names = [];
+  for (const part of String(value ?? '').split(/[،,\n]+/)) {
+    const name = part.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    if (name.length > 200) throw badRequest('نام حاضرین بیش از حد طولانی است');
+    seen.add(key);
+    names.push(name);
+    if (names.length > 80) throw badRequest('تعداد حاضرین بیش از حد مجاز است');
+  }
+  return names;
+};
+
+const sameNameSet = (left, right) => {
+  const norm = (list) => list.map((name) => name.trim().toLowerCase()).filter(Boolean).sort();
+  const a = norm(left);
+  const b = norm(right);
+  return a.length === b.length && a.every((name, index) => name === b[index]);
+};
 
 class ReportService {
   shareReportUrl(token) {
@@ -66,8 +111,8 @@ class ReportService {
     if (!token || typeof token !== 'string' || token.length > 64) return null;
 
     const rows = await db.query(
-      `SELECT m.id, m.title, m.meeting_date, m.summary, m.user_id,
-              u.org_name, u.org_logo_path
+      `SELECT m.id, m.title, m.meeting_date, m.summary, m.location, m.user_id,
+              u.org_name, u.org_logo_path, u.updated_at AS user_updated_at
        FROM meetings m
        INNER JOIN users u ON u.id = m.user_id
        WHERE m.share_token = ? AND m.share_enabled = 1
@@ -94,6 +139,8 @@ class ReportService {
     }
     if (participants.length === 0) {
       participants = content.suggestedParticipants;
+    } else if (sameNameSet(participants, content.suggestedParticipants)) {
+      participants = content.suggestedParticipants;
     }
 
     return {
@@ -102,9 +149,140 @@ class ReportService {
       participants,
       decisions: content.decisions,
       summaryText: content.summaryText,
+      location: content.location != null ? content.location : (meeting.location || ''),
       orgName: meeting.org_name || null,
-      logoUrl: meeting.org_logo_path ? `/api/public/logos/${meeting.user_id}` : null,
+      logoUrl: meeting.org_logo_path
+        ? `/api/public/logos/${meeting.user_id}?v=${new Date(meeting.user_updated_at || 0).getTime()}`
+        : null,
     };
+  }
+
+  async loadEditableMeeting(token) {
+    if (!token || typeof token !== 'string' || token.length > 64) return null;
+    const rows = await db.query(
+      `SELECT id, user_id, title, summary, location
+       FROM meetings
+       WHERE share_token = ? AND share_enabled = 1
+       LIMIT 1`,
+      [token]
+    );
+    return rows[0] || null;
+  }
+
+  async syncParticipantLinks(userId, meetingId, names) {
+    const current = await db.query(
+      `SELECT p.id, p.name
+       FROM participants p
+       INNER JOIN meeting_participants mp ON p.id = mp.participant_id
+       WHERE mp.meeting_id = ?`,
+      [meetingId]
+    );
+    const wanted = new Set(names.map((name) => name.toLowerCase()));
+    for (const row of current) {
+      if (!wanted.has(String(row.name || '').trim().toLowerCase())) {
+        await db.query(
+          'DELETE FROM meeting_participants WHERE meeting_id = ? AND participant_id = ?',
+          [meetingId, row.id]
+        );
+      }
+    }
+
+    const linked = new Set(current.map((row) => String(row.name || '').trim().toLowerCase()));
+    for (const name of names) {
+      if (linked.has(name.toLowerCase())) continue;
+      const participant = await participantService.upsertParticipantByName(userId, name);
+      if (!participant) continue;
+      const existing = await db.query(
+        'SELECT id FROM meeting_participants WHERE meeting_id = ? AND participant_id = ? LIMIT 1',
+        [meetingId, participant.id]
+      );
+      if (existing.length > 0) continue;
+      await db.query(
+        'INSERT INTO meeting_participants (id, meeting_id, participant_id) VALUES (?, ?, ?)',
+        [authService.generateId(), meetingId, participant.id]
+      );
+      linked.add(name.toLowerCase());
+    }
+  }
+
+  async updatePublicReport(token, edit) {
+    const meeting = await this.loadEditableMeeting(token);
+    if (!meeting) return null;
+
+    const field = edit && edit.field;
+    const parsed = parseMeetingSummaryJson(meeting.summary);
+    const json = parsed || {
+      Summary: typeof meeting.summary === 'string' ? meeting.summary.trim() : '',
+    };
+    let title = meeting.title;
+    let location = meeting.location || '';
+    let meetingDateSql;
+    let writeSummary = false;
+
+    if (field === 'title') {
+      title = cleanText(edit.value, 300);
+      if (!title) throw badRequest('عنوان جلسه نمی‌تواند خالی باشد');
+      json.Subject = title;
+      writeSummary = true;
+    } else if (field === 'date') {
+      const raw = String(edit.value ?? '').trim();
+      if (!raw) {
+        meetingDateSql = null;
+      } else {
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) throw badRequest('تاریخ جلسه معتبر نیست');
+        meetingDateSql = parsed.toISOString().slice(0, 19).replace('T', ' ');
+      }
+    } else if (field === 'location') {
+      location = cleanText(edit.value, 500);
+      setLocation(json, location);
+      writeSummary = true;
+    } else if (field === 'participants') {
+      const names = splitParticipantNames(edit.value);
+      setPeople(json, names);
+      writeSummary = true;
+      await this.syncParticipantLinks(meeting.user_id, meeting.id, names);
+      await db.query(
+        'UPDATE meetings SET people = ?, updated_at = NOW() WHERE id = ?',
+        [names.length ? JSON.stringify(names) : null, meeting.id]
+      );
+    } else if (field === 'orgName') {
+      const orgName = cleanText(edit.value, 255);
+      await db.query(
+        'UPDATE users SET org_name = ?, updated_at = NOW() WHERE id = ?',
+        [orgName || null, meeting.user_id]
+      );
+    } else if (field === 'decision') {
+      const index = Number(edit.index);
+      const part = edit.part;
+      if (!Number.isInteger(index) || index < 0) throw badRequest('ردیف تصمیم معتبر نیست');
+      if (part !== 'text' && part !== 'assignee' && part !== 'deadline') {
+        throw badRequest('بخش تصمیم معتبر نیست');
+      }
+      const updated = applyDecisionEdit(json, index, part, cleanText(edit.value, 2000));
+      if (!updated) throw badRequest('این تصمیم پیدا نشد');
+      writeSummary = true;
+    } else {
+      throw badRequest('این بخش قابل ویرایش نیست');
+    }
+
+    const fields = ['title = ?', 'updated_at = NOW()'];
+    const params = [title || null];
+    if (writeSummary) {
+      fields.push('summary = ?');
+      params.push(JSON.stringify(json));
+    }
+    if (field === 'location') {
+      fields.push('location = ?');
+      params.push(location || null);
+    }
+    if (meetingDateSql !== undefined) {
+      fields.push('meeting_date = ?');
+      params.push(meetingDateSql);
+    }
+    params.push(meeting.id);
+    await db.query(`UPDATE meetings SET ${fields.join(', ')} WHERE id = ?`, params);
+    return this.getPublicReport(token);
   }
 }
 

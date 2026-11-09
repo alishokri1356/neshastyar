@@ -1336,6 +1336,13 @@ const MeetingDetail = () => {
           </div>
         )}
 
+        {(jsonData.Location || jsonData.location) && (
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground mb-2">محل تشکیل جلسه:</h3>
+            <p className="text-foreground leading-relaxed">{jsonData.Location || jsonData.location}</p>
+          </div>
+        )}
+
         {/* Summary */}
         {jsonData.Summary && (
           <div>
@@ -1643,6 +1650,21 @@ const MeetingDetail = () => {
                             }))
                           }
                           placeholder="موضوع جلسه"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="summary-location">محل تشکیل جلسه</Label>
+                        <Input
+                          id="summary-location"
+                          value={editedSummaryFields.location}
+                          onChange={(e) =>
+                            setEditedSummaryFields((prev) => ({
+                              ...prev,
+                              location: e.target.value,
+                            }))
+                          }
+                          placeholder="اگر در جلسه گفته شده باشد"
                         />
                       </div>
 

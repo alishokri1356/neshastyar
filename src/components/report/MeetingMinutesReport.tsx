@@ -1,40 +1,485 @@
-import type { MeetingReportData } from '@/lib/meetingReport';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { MeetingReportData, ReportEdit } from '@/lib/meetingReport';
 import { formatReportDate } from '@/lib/meetingReport';
-
-const CODE_ROWS = ['کد سند', 'ویرایش', 'تاریخ ایجاد', 'تاریخ بازنگری'];
 
 interface MeetingMinutesReportProps {
   report: MeetingReportData;
+  onSave?: (edit: ReportEdit) => Promise<void>;
+  onUploadLogo?: (file: File) => Promise<void>;
 }
 
-const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report }) => {
-  const dateText = formatReportDate(report.meetingDate);
-  const filled = report.decisions.filter((item) => item.text.trim());
-  const blankCount = Math.max(2, 4 - filled.length);
-  const rows = [
-    ...filled,
-    ...Array.from({ length: blankCount }, () => ({ text: '', assignee: '' })),
-  ];
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M11.7 1.3a1.5 1.5 0 0 1 2.1 2.1l-8.2 8.2-2.8.7.7-2.8 8.2-8.2Zm1.4 1.4-.7.7 1.4 1.4.7-.7a.5.5 0 0 0-.7-.7l-.7-.7ZM10.6 4.1 3.6 11.1l-.3 1.4 1.4-.3 7-7-1.1-1.1Z"
+      />
+    </svg>
+  );
+}
+
+function EditableCell({
+  value,
+  onSave,
+  children,
+  colSpan,
+  className,
+  style,
+  rows = 2,
+  placeholder,
+}: {
+  value: string;
+  onSave?: (value: string) => Promise<void>;
+  children: React.ReactNode;
+  colSpan?: number;
+  className?: string;
+  style?: React.CSSProperties;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const start = () => {
+    setDraft(value);
+    setError('');
+    setOpen(true);
+  };
+
+  const save = async () => {
+    if (!onSave || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onSave(draft);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ذخیره انجام نشد');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <article className="meeting-minutes" dir="rtl">
-      <style>{`
-        .meeting-minutes {
-          width: 210mm;
-          max-width: 100%;
-          margin: 0 auto;
-          background: #fff;
-          color: #111;
-          padding: 10mm;
-          box-sizing: border-box;
-          font-family: Vazirmatn, Tahoma, sans-serif;
+    <td className={className ? `${className} data-cell` : 'data-cell'} colSpan={colSpan} style={style}>
+      {onSave ? (
+        <button type="button" className="cell-edit" aria-label="ویرایش" onClick={start}>
+          <PencilIcon />
+        </button>
+      ) : null}
+      {open ? (
+        <div className="cell-editor">
+          <textarea
+            value={draft}
+            rows={rows}
+            placeholder={placeholder}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setOpen(false);
+            }}
+            autoFocus
+          />
+          {error ? <p className="cell-error">{error}</p> : null}
+          <div className="cell-actions">
+            <button type="button" onClick={save} disabled={saving}>{saving ? '...' : 'ذخیره'}</button>
+            <button type="button" onClick={() => setOpen(false)} disabled={saving}>انصراف</button>
+          </div>
+        </div>
+      ) : children}
+    </td>
+  );
+}
+
+type MinutesRow =
+  | { kind: 'decisions-title' }
+  | { kind: 'columns' }
+  | { kind: 'decision'; index: number; text: string; assignee: string; deadline: string };
+
+const COLS = (
+  <colgroup>
+    <col style={{ width: '7.4%' }} />
+    <col style={{ width: '5.5%' }} />
+    <col style={{ width: '12.8%' }} />
+    <col style={{ width: '24.3%' }} />
+    <col style={{ width: '10.1%' }} />
+    <col style={{ width: '12.9%' }} />
+    <col style={{ width: '1.3%' }} />
+    <col style={{ width: '12.2%' }} />
+    <col style={{ width: '13.5%' }} />
+  </colgroup>
+);
+
+function LogoCell({
+  logoUrl,
+  orgName,
+  onUpload,
+}: {
+  logoUrl: string | null;
+  orgName: string | null;
+  onUpload?: (file: File) => Promise<void>;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const pick = async (file?: File) => {
+    if (!file || !onUpload) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError('حجم لوگو باید کمتر از ۲ مگابایت باشد');
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      await onUpload(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ذخیره لوگو انجام نشد');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <td className="logo-cell" colSpan={2}>
+      {onUpload ? (
+        <>
+          <button
+            type="button"
+            className="cell-edit"
+            aria-label="بارگذاری لوگو"
+            onClick={() => inputRef.current?.click()}
+          >
+            <PencilIcon />
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              void pick(file);
+            }}
+          />
+        </>
+      ) : null}
+      {logoUrl ? <img src={logoUrl} alt={orgName || 'لوگوی سازمان'} /> : null}
+      {uploading ? <span className="logo-status">...</span> : null}
+      {error ? <p className="cell-error">{error}</p> : null}
+    </td>
+  );
+}
+
+function HeaderTable({
+  report,
+  onSave,
+  onUploadLogo,
+}: {
+  report: MeetingReportData;
+  onSave?: (edit: ReportEdit) => Promise<void>;
+  onUploadLogo?: (file: File) => Promise<void>;
+}) {
+  const dateText = formatReportDate(report.meetingDate);
+  return (
+    <table className="block">
+      {COLS}
+      <thead>
+        <tr>
+          <EditableCell
+            className="title-cell"
+            colSpan={7}
+            value={report.orgName || ''}
+            rows={1}
+            placeholder="نام سازمان"
+            onSave={onSave ? (value) => onSave({ field: 'orgName', value }) : undefined}
+          >
+            صورتجلسه سازمانی
+            {report.orgName ? <span className="org-name">{report.orgName}</span> : null}
+          </EditableCell>
+          <LogoCell logoUrl={report.logoUrl} orgName={report.orgName} onUpload={onUploadLogo} />
+        </tr>
+        <tr>
+          <td className="shade" colSpan={2}>عنوان جلسه</td>
+          <EditableCell
+            colSpan={7}
+            value={report.title}
+            rows={2}
+            onSave={onSave ? (value) => onSave({ field: 'title', value }) : undefined}
+          >
+            {report.title}
+          </EditableCell>
+        </tr>
+        <tr>
+          <td className="shade" colSpan={2}>تاریخ و ساعت تشکیل جلسه</td>
+          <EditableCell
+            colSpan={3}
+            value={dateText}
+            rows={1}
+            placeholder="1405/08/11 - 16:54"
+            onSave={onSave ? (value) => onSave({ field: 'date', value }) : undefined}
+          >
+            {dateText}
+          </EditableCell>
+          <td className="shade" colSpan={2}>محل تشکیل جلسه</td>
+          <EditableCell
+            colSpan={2}
+            value={report.location || ''}
+            rows={2}
+            onSave={onSave ? (value) => onSave({ field: 'location', value }) : undefined}
+          >
+            {report.location}
+          </EditableCell>
+        </tr>
+        <tr>
+          <td className="shade" colSpan={2}>اسامی حاضران</td>
+          <EditableCell
+            colSpan={7}
+            value={report.participants.join('، ')}
+            rows={3}
+            onSave={onSave ? (value) => onSave({ field: 'participants', value }) : undefined}
+          >
+            {report.participants.join('، ')}
+          </EditableCell>
+        </tr>
+      </thead>
+    </table>
+  );
+}
+
+function FooterTable() {
+  return (
+    <table className="block footer-table">
+      {COLS}
+      <tbody>
+        <tr>
+          <td className="shade" colSpan={2}>امضاء حاضران</td>
+          <td className="signature-space" colSpan={7} />
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function RowView({ row, report, onSave }: {
+  row: MinutesRow;
+  report: MeetingReportData;
+  onSave?: (edit: ReportEdit) => Promise<void>;
+}) {
+  if (row.kind === 'decisions-title') {
+    return (
+      <tr>
+        <td className="shade" colSpan={9}>خلاصه تصمیمات</td>
+      </tr>
+    );
+  }
+  if (row.kind === 'columns') {
+    return (
+      <tr>
+        <td className="shade">ردیف</td>
+        <td className="shade" colSpan={5}>تصمیم اتخاذ شده</td>
+        <td className="shade" colSpan={2}>مسئول اجرا</td>
+        <td className="shade">مهلت زمانی</td>
+      </tr>
+    );
+  }
+  const full = report.decisions[row.index - 1] || row;
+  const savePart = (part: 'text' | 'assignee' | 'deadline') => (
+    onSave ? (value: string) => onSave({ field: 'decision', index: row.index - 1, part, value }) : undefined
+  );
+  return (
+    <tr>
+      <td style={{ textAlign: 'center' }}>{row.index}</td>
+      <EditableCell colSpan={5} value={full.text} rows={3} onSave={savePart('text')}>{row.text}</EditableCell>
+      <EditableCell colSpan={2} value={full.assignee} rows={2} onSave={savePart('assignee')}>{row.assignee}</EditableCell>
+      <EditableCell value={full.deadline} rows={2} onSave={savePart('deadline')}>{row.deadline}</EditableCell>
+    </tr>
+  );
+}
+
+function cell(text: string, span: number, className?: string) {
+  const td = document.createElement('td');
+  if (span > 1) td.colSpan = span;
+  if (className) td.className = className;
+  td.textContent = text;
+  return td;
+}
+
+function buildTr(row: MinutesRow) {
+  const tr = document.createElement('tr');
+  if (row.kind === 'decisions-title') {
+    tr.appendChild(cell('خلاصه تصمیمات', 9, 'shade'));
+  } else if (row.kind === 'columns') {
+    tr.append(
+      cell('ردیف', 1, 'shade'),
+      cell('تصمیم اتخاذ شده', 5, 'shade'),
+      cell('مسئول اجرا', 2, 'shade'),
+      cell('مهلت زمانی', 1, 'shade'),
+    );
+  } else {
+    const index = cell(String(row.index), 1);
+    index.style.textAlign = 'center';
+    tr.append(index, cell(row.text, 5), cell(row.assignee, 2), cell(row.deadline, 1));
+  }
+  return tr;
+}
+
+function sourceRows(report: MeetingReportData): MinutesRow[] {
+  const rows: MinutesRow[] = [
+    { kind: 'decisions-title' },
+    { kind: 'columns' },
+  ];
+  report.decisions.forEach((decision) => {
+    if (!decision.text.trim()) return;
+    rows.push({
+      kind: 'decision',
+      index: rows.length - 1,
+      text: decision.text,
+      assignee: decision.assignee,
+      deadline: decision.deadline,
+    });
+  });
+  return rows;
+}
+
+function wordParts(text: string) {
+  return text.split(/(\s+)/).filter((part) => part.length > 0);
+}
+
+const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onSave, onUploadLogo }) => {
+  const headerRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const probeRef = useRef<HTMLTableSectionElement>(null);
+  const pageProbeRef = useRef<HTMLDivElement>(null);
+  const [pages, setPages] = useState<MinutesRow[][] | null>(null);
+  const contentKey = useMemo(() => JSON.stringify({
+    title: report.title,
+    meetingDate: report.meetingDate,
+    location: report.location,
+    orgName: report.orgName,
+    logoUrl: report.logoUrl,
+    participants: report.participants,
+    decisions: report.decisions,
+  }), [report]);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    const measure = () => {
+      const header = headerRef.current;
+      const footer = footerRef.current;
+      const probe = probeRef.current;
+      const pageProbe = pageProbeRef.current;
+      if (!header || !footer || !probe || !pageProbe || cancelled) return;
+      const table = probe.closest('table');
+      if (!table) return;
+
+      const pagePx = pageProbe.offsetHeight;
+      const sheet = header.closest('.sheet');
+      const sheetStyle = sheet ? getComputedStyle(sheet) : null;
+      const padTop = sheetStyle ? parseFloat(sheetStyle.paddingTop) || 0 : 0;
+      const padBottom = sheetStyle ? parseFloat(sheetStyle.paddingBottom) || 0 : 0;
+      const available = pagePx - padTop - padBottom - header.offsetHeight - footer.offsetHeight - 8;
+      const rows = sourceRows(report);
+
+      const heightOf = (group: MinutesRow[]) => {
+        probe.replaceChildren(...group.map(buildTr));
+        return table.offsetHeight;
+      };
+
+      if (available < 80) {
+        setPages([rows]);
+        probe.replaceChildren();
+        return;
+      }
+
+      const queue = rows.slice();
+      const nextPages: MinutesRow[][] = [];
+      while (queue.length && nextPages.length < 40) {
+        const page: MinutesRow[] = [];
+        while (queue.length) {
+          const row = queue[0];
+          if (row.kind === 'decisions-title' && page.length) {
+            const follow = queue.slice(0, Math.min(3, queue.length));
+            if (heightOf([...page, ...follow]) > available) break;
+          }
+          if (heightOf([...page, row]) <= available) {
+            page.push(row);
+            queue.shift();
+            continue;
+          }
+          const alone = heightOf([row]);
+          if (page.length && alone <= available) break;
+          if (row.kind !== 'decision') {
+            if (page.length) break;
+            page.push(queue.shift() as MinutesRow);
+            break;
+          }
+          const parts = wordParts(row.text);
+          let best = 1;
+          let lo = 1;
+          let hi = parts.length;
+          const fits = (count: number) => heightOf([
+            ...page,
+            { ...row, text: parts.slice(0, count).join('') },
+          ]) <= available;
+          if (fits(1)) {
+            while (lo <= hi) {
+              const mid = Math.ceil((lo + hi) / 2);
+              if (fits(mid)) {
+                best = mid;
+                lo = mid + 1;
+              } else {
+                hi = mid - 1;
+              }
+            }
+          }
+          const chunk = parts.slice(0, best).join('').trim();
+          const rest = parts.slice(best).join('').trim();
+          if (chunk) page.push({ ...row, text: chunk });
+          if (rest) queue[0] = { ...row, text: rest };
+          else queue.shift();
+          break;
         }
-        .meeting-minutes table {
+        if (!page.length && queue.length) page.push(queue.shift() as MinutesRow);
+        nextPages.push(page);
+      }
+      probe.replaceChildren();
+      if (!cancelled) setPages(nextPages.length ? nextPages : [rows]);
+    };
+
+    measure();
+    const fonts = document.fonts;
+    fonts?.ready.then(() => measure());
+    const image = headerRef.current?.querySelector('img');
+    if (image && !image.complete) image.addEventListener('load', measure, { once: true });
+    return () => {
+      cancelled = true;
+    };
+  }, [contentKey, report]);
+
+  const visiblePages = pages ?? [sourceRows(report)];
+
+  return (
+    <div className="minutes-root" dir="rtl" data-page-count={visiblePages.length}>
+      <style>{`
+        .minutes-root {
+          position: relative;
+          width: 210mm;
+          margin: 0 auto;
+          color: #111;
+          font-family: Vazirmatn, Tahoma, sans-serif;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .minutes-root table {
           width: 100%;
           border-collapse: collapse;
           table-layout: fixed;
         }
-        .meeting-minutes td {
+        .minutes-root td {
           border: 1px solid #111;
           padding: 6px 8px;
           vertical-align: middle;
@@ -42,149 +487,184 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report }) =
           line-height: 1.7;
           word-break: break-word;
         }
-        .meeting-minutes .shade {
+        .minutes-root .data-cell {
+          position: relative;
+          padding-left: 20px;
+        }
+        .minutes-root .cell-edit {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 16px;
+          height: 16px;
+          padding: 0;
+          border: 0;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.92);
+          color: #333;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .minutes-root .cell-edit svg {
+          width: 11px;
+          height: 11px;
+        }
+        .minutes-root .cell-editor textarea {
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid #666;
+          font: inherit;
+          line-height: 1.7;
+          padding: 2px 4px;
+          resize: vertical;
+          background: #fff;
+        }
+        .minutes-root .cell-actions {
+          display: flex;
+          gap: 6px;
+          margin-top: 4px;
+        }
+        .minutes-root .cell-actions button {
+          border: 1px solid #111;
+          background: #fff;
+          font: inherit;
+          font-size: 12px;
+          padding: 1px 8px;
+          cursor: pointer;
+        }
+        .minutes-root .cell-error {
+          margin: 4px 0 0;
+          color: #9b1c1c;
+          font-size: 11px;
+        }
+        .minutes-root .shade {
           background: #d9d9d9;
           font-weight: 700;
           text-align: center;
         }
-        .meeting-minutes .title-cell {
+        .minutes-root .title-cell {
           text-align: center;
           font-weight: 800;
           font-size: 22px;
           line-height: 1.5;
+          height: 96px;
         }
-        .meeting-minutes .org-name {
+        .minutes-root .org-name {
           display: block;
           margin-top: 4px;
           font-size: 13px;
           font-weight: 600;
         }
-        .meeting-minutes .logo-cell {
+        .minutes-root .logo-cell {
+          position: relative;
           text-align: center;
+          background: #fff;
         }
-        .meeting-minutes .logo-cell img {
+        .minutes-root .logo-cell img {
           max-width: 100%;
           max-height: 78px;
           object-fit: contain;
         }
-        .meeting-minutes .summary-block {
-          margin-top: 10px;
-          border: 1px solid #111;
+        .minutes-root .logo-status {
+          display: block;
+          font-size: 11px;
         }
-        .meeting-minutes .summary-block h2 {
+        .minutes-root .signature-space { height: 72px; }
+        .sheet {
+          width: 210mm;
+          height: 297mm;
+          box-sizing: border-box;
+          padding: 8mm;
+          display: flex;
+          flex-direction: column;
+          background: #fff;
+          margin: 0 auto 8mm;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+          overflow: hidden;
+          break-inside: avoid;
+          page-break-inside: avoid;
+          break-after: page;
+          page-break-after: always;
+        }
+        .sheet:last-child {
+          break-after: auto;
+          page-break-after: auto;
+        }
+        .sheet .grow { flex: 1 1 auto; }
+        .sheet > table + table,
+        .sheet .footer-table { margin-top: -1px; }
+        .measurer {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 210mm;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        .measurer .sheet {
+          height: auto;
+          min-height: 0;
           margin: 0;
-          background: #d9d9d9;
-          border-bottom: 1px solid #111;
-          padding: 6px 8px;
-          font-size: 14px;
-          font-weight: 700;
+          box-shadow: none;
+          overflow: visible;
         }
-        .meeting-minutes .summary-block p {
-          margin: 0;
-          padding: 8px;
-          white-space: pre-wrap;
-          line-height: 1.9;
-          min-height: 72px;
+        .page-probe {
+          position: absolute;
+          width: 210mm;
+          height: 297mm;
+          visibility: hidden;
+          pointer-events: none;
         }
-        @page { size: A4 portrait; margin: 10mm; }
+        @page { size: A4 portrait; margin: 0; }
         @media print {
-          .meeting-minutes {
-            width: auto;
-            max-width: none;
-            padding: 0;
+          .minutes-root { width: auto; margin: 0; }
+          .sheet {
+            margin: 0;
+            box-shadow: none;
           }
+          .measurer, .page-probe, .cell-edit, .cell-editor { display: none !important; }
         }
       `}</style>
 
-      <table>
-        <colgroup>
-          <col style={{ width: '7.4%' }} />
-          <col style={{ width: '5.5%' }} />
-          <col style={{ width: '12.8%' }} />
-          <col style={{ width: '24.3%' }} />
-          <col style={{ width: '10.1%' }} />
-          <col style={{ width: '12.9%' }} />
-          <col style={{ width: '1.3%' }} />
-          <col style={{ width: '12.2%' }} />
-          <col style={{ width: '13.5%' }} />
-        </colgroup>
-        <tbody>
-          <tr>
-            <td className="shade" colSpan={2}>{CODE_ROWS[0]}</td>
-            <td />
-            <td className="title-cell" rowSpan={4} colSpan={4}>
-              صورتجلسه سازمانی
-              {report.orgName ? <span className="org-name">{report.orgName}</span> : null}
-            </td>
-            <td className="logo-cell" rowSpan={4} colSpan={2}>
-              {report.logoUrl ? <img src={report.logoUrl} alt={report.orgName || 'نشان سازمان'} /> : null}
-            </td>
-          </tr>
-          {CODE_ROWS.slice(1).map((label) => (
-            <tr key={label}>
-              <td className="shade" colSpan={2}>{label}</td>
-              <td />
-            </tr>
-          ))}
-          <tr>
-            <td className="shade" colSpan={2}>عنوان جلسه</td>
-            <td colSpan={7}>{report.title}</td>
-          </tr>
-          <tr>
-            <td className="shade" colSpan={2}>تاریخ و ساعت تشکیل جلسه</td>
-            <td colSpan={3}>{dateText}</td>
-            <td className="shade" colSpan={2}>مدت زمان و ساعت اتمام جلسه</td>
-            <td colSpan={2} />
-          </tr>
-          <tr>
-            <td className="shade" colSpan={2}>محل تشکیل جلسه</td>
-            <td colSpan={3} />
-            <td className="shade" colSpan={2}>دبیر جلسه</td>
-            <td colSpan={2} />
-          </tr>
-          <tr>
-            <td className="shade" colSpan={2}>شماره جلسه</td>
-            <td colSpan={7} />
-          </tr>
-          <tr>
-            <td className="shade" colSpan={2}>اسامی حاضران</td>
-            <td colSpan={7}>{report.participants.join('، ')}</td>
-          </tr>
-          <tr>
-            <td className="shade" colSpan={9}>خلاصه تصمیمات</td>
-          </tr>
-          <tr>
-            <td className="shade">ردیف</td>
-            <td className="shade" colSpan={4}>تصمیم اتخاذ شده</td>
-            <td className="shade">مسئول اجرا</td>
-            <td className="shade" colSpan={2}>مسئول پیگیری</td>
-            <td className="shade">مهلت زمانی</td>
-          </tr>
-          {rows.map((decision, index) => (
-            <tr key={`${index}-${decision.text.slice(0, 12)}`}>
-              <td style={{ textAlign: 'center' }}>{filled[index] ? index + 1 : ''}</td>
-              <td colSpan={4}>{decision.text}</td>
-              <td>{decision.assignee}</td>
-              <td colSpan={2} />
-              <td />
-            </tr>
-          ))}
-          <tr>
-            <td className="shade" colSpan={2}>امضاء حاضران</td>
-            <td colSpan={4} style={{ height: 72 }} />
-            <td className="shade" colSpan={2}>امضاء رئیس جلسه</td>
-            <td />
-          </tr>
-        </tbody>
-      </table>
+      <div className="measurer" aria-hidden="true">
+        <div className="sheet">
+          <div ref={headerRef}>
+            <HeaderTable report={report} />
+          </div>
+          <table className="block">
+            {COLS}
+            <tbody ref={probeRef} />
+          </table>
+          <div ref={footerRef}>
+            <FooterTable />
+          </div>
+        </div>
+      </div>
+      <div className="page-probe" ref={pageProbeRef} />
 
-      {report.summaryText ? (
-        <section className="summary-block">
-          <h2>خلاصه جلسه</h2>
-          <p>{report.summaryText}</p>
+      {visiblePages.map((pageRows, pageIndex) => (
+        <section className="sheet" key={`page-${pageIndex}`} data-page={pageIndex + 1}>
+          <HeaderTable report={report} onSave={onSave} onUploadLogo={onUploadLogo} />
+          <table className="block">
+            {COLS}
+            <tbody>
+              {pageRows.map((row, rowIndex) => (
+                <RowView
+                  key={`${pageIndex}-${row.kind}-${rowIndex}`}
+                  row={row}
+                  report={report}
+                  onSave={onSave}
+                />
+              ))}
+            </tbody>
+          </table>
+          <div className="grow" />
+          <FooterTable />
         </section>
-      ) : null}
-    </article>
+      ))}
+    </div>
   );
 };
 

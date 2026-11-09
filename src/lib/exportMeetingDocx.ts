@@ -2,6 +2,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
   ImageRun,
   Packer,
   Paragraph,
@@ -10,7 +11,6 @@ import {
   TableRow,
   TextRun,
   VerticalAlign,
-  VerticalMergeType,
   WidthType,
 } from 'docx';
 import type { MeetingReportData } from '@/lib/meetingReport';
@@ -43,6 +43,18 @@ function paragraph(text: string, options: { bold?: boolean; size?: number; cente
 
 function spanWidth(start: number, span: number) {
   return COLUMN_WIDTHS.slice(start, start + span).reduce((sum, value) => sum + value, 0);
+}
+
+function sheetRow(
+  children: TableCell[],
+  options: { header?: boolean; height?: number; split?: boolean } = {},
+) {
+  return new TableRow({
+    ...(options.header ? { tableHeader: true } : {}),
+    cantSplit: options.split !== false,
+    ...(options.height ? { height: { value: options.height, rule: 'atLeast' as const } } : {}),
+    children,
+  });
 }
 
 function placedCell(
@@ -105,109 +117,60 @@ export async function downloadMeetingDocx(report: MeetingReportData) {
     titleChildren.push(paragraph(report.orgName, { bold: true, size: 22, center: true }));
   }
 
-  const codeLabels = ['کد سند', 'ویرایش', 'تاریخ ایجاد', 'تاریخ بازنگری'];
-  const headerRows = codeLabels.map((label, index) => new TableRow({
-    children: [
-      placedCell(label, 0, 2, { shade: true, bold: true, center: true }),
-      placedCell('', 2, 1),
-      placedCell('', 3, 4, {
-        merge: index === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE,
-        children: index === 0 ? titleChildren : [paragraph('')],
-      }),
-      placedCell('', 7, 2, {
-        merge: index === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE,
-        children: index === 0 ? [logo] : [paragraph('')],
-      }),
-    ],
-  }));
-
   const filled = report.decisions.filter((item) => item.text.trim());
-  const blankCount = Math.max(2, 4 - filled.length);
-  const decisionRows = [
-    ...filled,
-    ...Array.from({ length: blankCount }, () => ({ text: '', assignee: '' })),
-  ];
 
   const table = new Table({
     width: { size: CONTENT_WIDTH, type: WidthType.DXA },
     columnWidths: COLUMN_WIDTHS,
     visuallyRightToLeft: true,
     rows: [
-      ...headerRows,
-      new TableRow({
-        children: [
-          placedCell('عنوان جلسه', 0, 2, { shade: true, bold: true, center: true }),
-          placedCell(report.title, 2, 7),
-        ],
-      }),
-      new TableRow({
-        children: [
-          placedCell('تاریخ و ساعت تشکیل جلسه', 0, 2, { shade: true, bold: true, center: true }),
-          placedCell(formatReportDate(report.meetingDate), 2, 3),
-          placedCell('مدت زمان و ساعت اتمام جلسه', 5, 2, { shade: true, bold: true, center: true }),
-          placedCell('', 7, 2),
-        ],
-      }),
-      new TableRow({
-        children: [
-          placedCell('محل تشکیل جلسه', 0, 2, { shade: true, bold: true, center: true }),
-          placedCell('', 2, 3),
-          placedCell('دبیر جلسه', 5, 2, { shade: true, bold: true, center: true }),
-          placedCell('', 7, 2),
-        ],
-      }),
-      new TableRow({
-        children: [
-          placedCell('شماره جلسه', 0, 2, { shade: true, bold: true, center: true }),
-          placedCell('', 2, 7),
-        ],
-      }),
-      new TableRow({
-        children: [
-          placedCell('اسامی حاضران', 0, 2, { shade: true, bold: true, center: true }),
-          placedCell(report.participants.join('، '), 2, 7),
-        ],
-      }),
-      new TableRow({
-        children: [placedCell('خلاصه تصمیمات', 0, 9, { shade: true, bold: true, center: true })],
-      }),
-      new TableRow({
-        children: [
-          placedCell('ردیف', 0, 1, { shade: true, bold: true, center: true }),
-          placedCell('تصمیم اتخاذ شده', 1, 4, { shade: true, bold: true, center: true }),
-          placedCell('مسئول اجرا', 5, 1, { shade: true, bold: true, center: true }),
-          placedCell('مسئول پیگیری', 6, 2, { shade: true, bold: true, center: true }),
-          placedCell('مهلت زمانی', 8, 1, { shade: true, bold: true, center: true }),
-        ],
-      }),
-      ...decisionRows.map((decision, index) => new TableRow({
-        children: [
-          placedCell(filled[index] ? String(index + 1) : '', 0, 1, { center: true }),
-          placedCell(decision.text, 1, 4),
-          placedCell(decision.assignee, 5, 1),
-          placedCell('', 6, 2),
-          placedCell('', 8, 1),
-        ],
-      })),
-      new TableRow({
-        height: { value: 900, rule: 'atLeast' },
-        children: [
-          placedCell('امضاء حاضران', 0, 2, { shade: true, bold: true, center: true }),
-          placedCell('', 2, 4),
-          placedCell('امضاء رئیس جلسه', 6, 2, { shade: true, bold: true, center: true }),
-          placedCell('', 8, 1),
-        ],
-      }),
+      sheetRow([
+        placedCell('', 0, 7, { children: titleChildren }),
+        placedCell('', 7, 2, { children: [logo] }),
+      ], { header: true, height: 1400 }),
+      sheetRow([
+        placedCell('عنوان جلسه', 0, 2, { shade: true, bold: true, center: true }),
+        placedCell(report.title, 2, 7),
+      ], { header: true }),
+      sheetRow([
+        placedCell('تاریخ و ساعت تشکیل جلسه', 0, 2, { shade: true, bold: true, center: true }),
+        placedCell(formatReportDate(report.meetingDate), 2, 3),
+        placedCell('محل تشکیل جلسه', 5, 2, { shade: true, bold: true, center: true }),
+        placedCell(report.location || '', 7, 2),
+      ], { header: true }),
+      sheetRow([
+        placedCell('اسامی حاضران', 0, 2, { shade: true, bold: true, center: true }),
+        placedCell(report.participants.join('، '), 2, 7),
+      ], { header: true }),
+      sheetRow([
+        placedCell('خلاصه تصمیمات', 0, 9, { shade: true, bold: true, center: true }),
+      ]),
+      sheetRow([
+        placedCell('ردیف', 0, 1, { shade: true, bold: true, center: true }),
+        placedCell('تصمیم اتخاذ شده', 1, 5, { shade: true, bold: true, center: true }),
+        placedCell('مسئول اجرا', 6, 2, { shade: true, bold: true, center: true }),
+        placedCell('مهلت زمانی', 8, 1, { shade: true, bold: true, center: true }),
+      ]),
+      ...filled.map((decision, index) => sheetRow([
+        placedCell(String(index + 1), 0, 1, { center: true }),
+        placedCell(decision.text, 1, 5),
+        placedCell(decision.assignee, 6, 2),
+        placedCell(decision.deadline || '', 8, 1),
+      ])),
     ],
   });
 
-  const summaryBlocks = report.summaryText
-    ? [
-        new Paragraph({ spacing: { before: 200 } }),
-        paragraph('خلاصه جلسه', { bold: true, size: 24 }),
-        ...report.summaryText.split('\n').map((line) => paragraph(line)),
-      ]
-    : [];
+  const signature = new Table({
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: COLUMN_WIDTHS,
+    visuallyRightToLeft: true,
+    rows: [
+      sheetRow([
+        placedCell('امضاء حاضران', 0, 2, { shade: true, bold: true, center: true }),
+        placedCell('', 2, 7),
+      ], { height: 900 }),
+    ],
+  });
 
   const doc = new Document({
     sections: [
@@ -215,10 +178,13 @@ export async function downloadMeetingDocx(report: MeetingReportData) {
         properties: {
           page: {
             size: { width: 11906, height: 16838 },
-            margin: { top: 567, right: 567, bottom: 567, left: 567 },
+            margin: { top: 567, right: 567, bottom: 1500, left: 567, footer: 200 },
           },
         },
-        children: [table, ...summaryBlocks],
+        footers: {
+          default: new Footer({ children: [signature] }),
+        },
+        children: [table],
       },
     ],
   });

@@ -23,12 +23,10 @@ const FALLBACK_MODELS: AnalyzeModelsResponse = {
   autoKey: 'auto',
   autoOrder: [
     'gemini_flash',
+    'gemini_4_argon',
     'deepseek_v41_flash',
     'glm_53',
     'qwen38_27b',
-    'gemini_4_argon',
-    'gpt_61_sol',
-    'claude_sonnet_55',
     'gemma4_31b_free',
     'nvidia',
   ],

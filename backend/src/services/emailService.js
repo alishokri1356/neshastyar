@@ -286,6 +286,20 @@ class EmailService {
         `;
       }
 
+      const location = typeof jsonData.Location === 'string' ? jsonData.Location.trim() : '';
+      if (location) {
+        const safeLocation = location
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #555; margin: 0 0 10px 0; text-align: right; font-size: 16px;">محل تشکیل جلسه:</h4>
+            <p style="color: #333; line-height: 1.6; font-size: 15px; text-align: right; margin: 0;">${safeLocation}</p>
+          </div>
+        `;
+      }
+
       if (jsonData.Summary) {
         const summaryIsHtml = /<\/?[a-z][^>]*>/i.test(jsonData.Summary);
         const summaryBody = summaryIsHtml

@@ -1,12 +1,14 @@
 export interface EditableMeetingSummary {
   subject: string;
   summaryText: string;
+  location: string;
   people: string[];
   bulletPoints: string[];
   tags: string[];
 }
 
 const PEOPLE_KEYS = ['People in meetings', 'People in Meetings', 'participants', 'Participants'];
+const LOCATION_KEYS = ['Location', 'location', 'محل تشکیل جلسه', 'محل'];
 const BULLET_KEYS = ['Bolet Points', 'Bullet Points'];
 const TAG_KEYS = ['Tags', 'tags'];
 
@@ -176,9 +178,20 @@ export const parseMeetingSummaryJson = (summaryText: string): Record<string, unk
   return tryParseSummaryObject(sanitizeJsonControlChars(cleaned));
 };
 
+const firstLocation = (json: Record<string, unknown>): string => {
+  for (const key of LOCATION_KEYS) {
+    if (typeof json[key] === 'string' && json[key].trim()) return json[key].trim();
+  }
+  for (const key of LOCATION_KEYS) {
+    if (typeof json[key] === 'string') return json[key].trim();
+  }
+  return '';
+};
+
 export const jsonToEditableSummary = (json: Record<string, unknown>): EditableMeetingSummary => ({
   subject: firstString(json.Subject),
   summaryText: firstString(json.Summary),
+  location: firstLocation(json),
   people: firstArray(json, PEOPLE_KEYS),
   bulletPoints: firstBulletArray(json),
   tags: firstArray(json, TAG_KEYS),
@@ -192,10 +205,14 @@ export const editableSummaryToJson = (
 
   result.Subject = editable.subject.trim();
   result.Summary = editable.summaryText.trim();
+  result.Location = editable.location.trim();
   result['People in meetings'] = editable.people;
   result['Bolet Points'] = editable.bulletPoints;
   result.Tags = editable.tags;
 
+  LOCATION_KEYS.forEach((key) => {
+    if (key !== 'Location') delete result[key];
+  });
   PEOPLE_KEYS.forEach((key) => {
     if (key !== 'People in meetings') delete result[key];
   });
@@ -242,6 +259,7 @@ export const htmlToPlainText = (html: string): string => {
 export const emptyEditableSummary = (): EditableMeetingSummary => ({
   subject: '',
   summaryText: '',
+  location: '',
   people: [],
   bulletPoints: [],
   tags: [],
@@ -276,6 +294,9 @@ export const formatEditableSummaryForClipboard = (
 
   if (editable.subject.trim()) {
     parts.push(`موضوع:\n${editable.subject.trim()}`);
+  }
+  if (editable.location.trim()) {
+    parts.push(`محل تشکیل جلسه:\n${editable.location.trim()}`);
   }
   const plainSummary = htmlToPlainText(editable.summaryText).trim();
   if (plainSummary) {
@@ -324,6 +345,9 @@ export const formatSummaryAsHtml = (
     const editable = jsonToEditableSummary(json);
     if (editable.subject.trim()) {
       parts.push(`<h2>موضوع</h2>${toHtmlBlock(editable.subject.trim())}`);
+    }
+    if (editable.location.trim()) {
+      parts.push(`<h2>محل تشکیل جلسه</h2>${toHtmlBlock(editable.location.trim())}`);
     }
     if (editable.summaryText.trim()) {
       parts.push(`<h2>خلاصه</h2>${toHtmlBlock(editable.summaryText.trim())}`);

@@ -56,6 +56,15 @@ export function getSeoForPath(pathname: string): SeoRoute {
   const exact = (SEO_ROUTES as SeoRoute[]).find((route) => route.path === normalized);
   if (exact) return exact;
 
+  if (normalized === "/report" || normalized.startsWith("/report/")) {
+    return {
+      path: normalized,
+      title: `صورتجلسه | ${BRAND_NAME}`,
+      description: "صورتجلسه قابل اشتراک نشست یار",
+      indexable: false,
+    };
+  }
+
   if (
     PROTECTED_PREFIXES.some(
       (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),

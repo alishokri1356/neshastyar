@@ -1,7 +1,6 @@
 const BULLET_KEYS = ['Bolet Points', 'Bullet Points'];
 const PEOPLE_KEYS = ['People in meetings', 'People in Meetings', 'participants', 'Participants'];
-const DECISION_KEYS = ['تصمیم اتخاذ شده', 'تصمیم', 'decision', 'text', 'title'];
-const ASSIGNEE_KEY_PATTERN = /مسئول|assignee|owner/i;
+const LOCATION_KEYS = ['Location', 'location', 'محل تشکیل جلسه', 'محل'];
 
 const stripMarkdownFences = (text) => {
   const trimmed = text.trim();
@@ -183,39 +182,170 @@ const rawBulletItems = (json) => {
   return [];
 };
 
-const extractDecisions = (json) => {
-  return rawBulletItems(json)
-    .map((item) => {
-      if (typeof item === 'string') return { text: item.trim(), assignee: '' };
-      if (!item || typeof item !== 'object' || Array.isArray(item)) {
-        return { text: formatBulletPoint(item), assignee: '' };
-      }
+const DECISION_LABELS = [
+  'تصمیم اتخاذ شده',
+  'زمان انجام',
+  'مهلت زمانی',
+  'تاریخ انجام',
+  'مسئول پیگیری',
+  'مسئول اجرا',
+  'deadline',
+  'تصمیم',
+  'مسئول',
+  'مهلت',
+  'موعد',
+  'زمان',
+  'due',
+];
 
-      let assignee = '';
-      for (const [key, value] of Object.entries(item)) {
-        if (ASSIGNEE_KEY_PATTERN.test(key) && value != null && String(value).trim()) {
-          assignee = String(value).trim();
-          break;
-        }
-      }
+const decisionLabelPattern = new RegExp(
+  `(${DECISION_LABELS.join('|')})\\s*[:：]`,
+  'gi'
+);
 
-      let text = '';
-      for (const key of DECISION_KEYS) {
-        if (item[key] != null && String(item[key]).trim()) {
-          text = String(item[key]).trim();
-          break;
-        }
-      }
-      if (!text) {
-        text = Object.entries(item)
-          .filter(([key]) => !ASSIGNEE_KEY_PATTERN.test(key))
-          .map(([key, value]) => `${key}: ${value ?? ''}`)
-          .join(' — ')
-          .trim();
-      }
-      return { text, assignee };
-    })
-    .filter((item) => item.text);
+const decisionLabelKind = (label) => {
+  const key = String(label || '').trim().toLowerCase();
+  if (key === 'deadline' || key === 'due' || /زمان|مهلت|موعد|تاریخ انجام/.test(label)) return 'deadline';
+  if (/مسئول|assignee|owner/i.test(label)) return /پیگیری/.test(label) ? 'follower' : 'assignee';
+  return 'text';
+};
+
+const cleanDecisionValue = (value) => String(value || '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const splitDecisionLabels = (source) => {
+  const text = String(source || '');
+  const found = [];
+  decisionLabelPattern.lastIndex = 0;
+  let match = decisionLabelPattern.exec(text);
+  while (match) {
+    found.push({
+      label: match[1],
+      start: match.index,
+      valueStart: match.index + match[0].length,
+    });
+    match = decisionLabelPattern.exec(text);
+  }
+  if (!found.length) return [];
+
+  return found.map((field, index) => {
+    const end = index + 1 < found.length ? found[index + 1].start : text.length;
+    return {
+      kind: decisionLabelKind(field.label),
+      value: cleanDecisionValue(text.slice(field.valueStart, end).replace(/[\s.،؛\-—]+$/g, '')),
+    };
+  }).filter((field) => field.value);
+};
+
+const decisionFromFields = (fields, fallbackText) => {
+  let text = '';
+  let assignee = '';
+  let follower = '';
+  let deadline = '';
+  for (const field of fields) {
+    if (field.kind === 'deadline') deadline = deadline || field.value;
+    else if (field.kind === 'assignee') assignee = assignee || field.value;
+    else if (field.kind === 'follower') follower = follower || field.value;
+    else text = text || field.value;
+  }
+  if (!text) text = cleanDecisionValue(String(fallbackText || '').replace(/^\s*تصمیم(?:\s+اتخاذ\s+شده)?\s*[:：]\s*/, ''));
+  return {
+    text,
+    assignee: assignee || follower,
+    deadline,
+  };
+};
+
+const decisionFromItem = (item) => {
+  if (typeof item === 'string') {
+    return decisionFromFields(splitDecisionLabels(item), item);
+  }
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    const text = formatBulletPoint(item);
+    return decisionFromFields(splitDecisionLabels(text), text);
+  }
+
+  const fields = [];
+  for (const [key, value] of Object.entries(item)) {
+    const text = value == null ? '' : String(value).trim();
+    if (!text) continue;
+    fields.push({ kind: decisionLabelKind(key), value: cleanDecisionValue(text) });
+  }
+  const joined = Object.entries(item)
+    .map(([key, value]) => `${key}: ${value ?? ''}`)
+    .join(' — ');
+  const labeled = splitDecisionLabels(joined);
+  return decisionFromFields(labeled.length ? labeled : fields, joined);
+};
+
+const extractDecisions = (json) => rawBulletItems(json)
+  .map(decisionFromItem)
+  .filter((item) => item.text);
+
+const bulletArrayKey = (json) => {
+  for (const key of BULLET_KEYS) {
+    if (Array.isArray(json[key])) return key;
+  }
+  return BULLET_KEYS[0];
+};
+
+const canonicalDecision = ({ text, assignee, deadline }) => {
+  const parts = [];
+  if (text) parts.push(`تصمیم: ${text}`);
+  if (assignee) parts.push(`مسئول: ${assignee}`);
+  if (deadline) parts.push(`مهلت زمانی: ${deadline}`);
+  return parts.join(' ');
+};
+
+const applyDecisionEdit = (json, index, part, value) => {
+  const key = bulletArrayKey(json);
+  const items = Array.isArray(json[key]) ? json[key].slice() : [];
+  const visible = [];
+  items.forEach((item, rawIndex) => {
+    const decision = decisionFromItem(item);
+    if (decision.text) visible.push({ rawIndex, decision });
+  });
+  const slot = visible[index];
+  if (!slot) return false;
+
+  const next = {
+    text: slot.decision.text,
+    assignee: slot.decision.assignee,
+    deadline: slot.decision.deadline,
+  };
+  next[part] = cleanDecisionValue(value);
+  if (!next.text) items.splice(slot.rawIndex, 1);
+  else items[slot.rawIndex] = canonicalDecision(next);
+
+  json[key] = items;
+  for (const other of BULLET_KEYS) {
+    if (other !== key) delete json[other];
+  }
+  return true;
+};
+
+const setPeople = (json, names) => {
+  json['People in meetings'] = names;
+  for (const key of PEOPLE_KEYS) {
+    if (key !== 'People in meetings') delete json[key];
+  }
+};
+
+const setLocation = (json, location) => {
+  json.Location = location;
+  for (const key of LOCATION_KEYS) {
+    if (key !== 'Location') delete json[key];
+  }
+};
+
+const extractLocation = (json) => {
+  if (!json || typeof json !== 'object') return null;
+  for (const key of LOCATION_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(json, key) || json[key] == null) continue;
+    return String(json[key]).trim();
+  }
+  return null;
 };
 
 const buildReportContent = (summaryText, fallbackTitle) => {
@@ -227,6 +357,7 @@ const buildReportContent = (summaryText, fallbackTitle) => {
     summaryText: summary,
     suggestedParticipants: firstPeople(json),
     decisions: extractDecisions(json),
+    location: extractLocation(json),
   };
 };
 
@@ -237,5 +368,9 @@ module.exports = {
   parseMeetingSummaryJson,
   toPlainText,
   extractDecisions,
+  extractLocation,
   buildReportContent,
+  applyDecisionEdit,
+  setPeople,
+  setLocation,
 };
