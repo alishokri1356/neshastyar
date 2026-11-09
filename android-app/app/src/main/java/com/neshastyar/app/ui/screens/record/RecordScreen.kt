@@ -156,7 +156,28 @@ fun RecordScreen(
         }
     }
 
-    Scaffold(containerColor = NeshastyarColors.Background) { padding ->
+    Scaffold(
+        containerColor = NeshastyarColors.Background,
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(NeshastyarColors.Background)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                NeshastyarPrimaryButton(
+                    text = "ادامه و انتخاب برچسب‌ها",
+                    onClick = {
+                        val id = ui.draftId ?: return@NeshastyarPrimaryButton
+                        viewModel.markTagSelection()
+                        onContinue(id)
+                    },
+                    enabled = viewModel.canContinue(files),
+                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                )
+            }
+        },
+    ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -337,19 +358,6 @@ fun RecordScreen(
                 items(files, key = { it.id }) { file ->
                     FileRow(file = file, onDelete = { viewModel.deleteFile(file) })
                 }
-            }
-
-            item {
-                NeshastyarPrimaryButton(
-                    text = "ادامه و انتخاب برچسب‌ها",
-                    onClick = {
-                        val id = ui.draftId ?: return@NeshastyarPrimaryButton
-                        viewModel.markTagSelection()
-                        onContinue(id)
-                    },
-                    enabled = viewModel.canContinue(files),
-                    icon = Icons.AutoMirrored.Filled.ArrowForward,
-                )
             }
 
             if (live.phase != RecorderPhase.Idle) {
