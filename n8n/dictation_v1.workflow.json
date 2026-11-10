@@ -1,0 +1,190 @@
+{
+  "name": "Neshastyar Dictation V1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "0859818d-c960-4b83-bdd7-8cbebc247912",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "dictation-webhook-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, 0],
+      "webhookId": "0859818d-c960-4b83-bdd7-8cbebc247912"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nconst headers = item.headers || {};\nconst got = String(headers['x-internal-secret'] || '').trim();\nconst expected = String($env.INTERNAL_WEBHOOK_SECRET || '').trim();\nif (!expected || got !== expected) {\n  return [{ json: { valid: false, statusCode: 401, error: 'Unauthorized' } }];\n}\nconst body = item.body && typeof item.body === 'object' ? item.body : {};\nconst audio = String(body.audio || '');\nconst mimeType = String(body.mimeType || '').trim();\nif (!audio || !mimeType) {\n  return [{ json: { valid: false, statusCode: 400, error: 'audio and mimeType are required' } }];\n}\nreturn [{ json: { valid: true, audio, mimeType } }];"
+      },
+      "id": "dictation-validate-001",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dictation-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dictation-if-valid-001",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-transcribe:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ inlineData: { mimeType: $json.mimeType, data: $json.audio } }] }] }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "dictation-transcribe-001",
+      "name": "Gemini 3.5 Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, -100],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "oCeAT8fn3si1lZgk",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nif (item.error) {\n  const message = item.error.message || item.error.description || 'Gemini 3.5 Transcribe request failed';\n  return [{ json: { ok: false, statusCode: 502, error: String(message) } }];\n}\nconst candidate = item.candidates && item.candidates[0];\nif (!candidate) {\n  return [{ json: { ok: false, statusCode: 502, error: 'Gemini 3.5 Transcribe returned no result' } }];\n}\nconst parts = (candidate.content && candidate.content.parts) || [];\nconst text = parts\n  .map((p) => (p && p.audioTranscription && p.audioTranscription.text) || (p && p.text) || '')\n  .filter(Boolean)\n  .join(' ')\n  .trim();\nreturn [{ json: { ok: true, text, model: item.modelVersion || 'gemini-3.5-transcribe' } }];"
+      },
+      "id": "dictation-extract-001",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, -100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dictation-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dictation-if-ok-001",
+      "name": "Transcribed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, text: $json.text, model: $json.model }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "dictation-respond-ok-001",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, -200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: $json.error || 'Dictation failed' }) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 502 }}"
+        }
+      },
+      "id": "dictation-respond-fail-001",
+      "name": "Respond Failure",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 100]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Validate Request", "type": "main", "index": 0 }]]
+    },
+    "Validate Request": {
+      "main": [[{ "node": "Valid?", "type": "main", "index": 0 }]]
+    },
+    "Valid?": {
+      "main": [
+        [{ "node": "Gemini 3.5 Transcribe", "type": "main", "index": 0 }],
+        [{ "node": "Respond Failure", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gemini 3.5 Transcribe": {
+      "main": [
+        [{ "node": "Extract Text", "type": "main", "index": 0 }],
+        [{ "node": "Extract Text", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Text": {
+      "main": [[{ "node": "Transcribed?", "type": "main", "index": 0 }]]
+    },
+    "Transcribed?": {
+      "main": [
+        [{ "node": "Respond Success", "type": "main", "index": 0 }],
+        [{ "node": "Respond Failure", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

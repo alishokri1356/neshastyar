@@ -224,4 +224,9 @@ interface NeshastyarApi {
         @Path("id") id: String,
         @Body body: SendChatMessageRequest,
     ): Response<SendChatMessageResponse>
+
+    // Dictation
+    @Multipart
+    @POST("dictation/transcribe")
+    suspend fun transcribeDictation(@Part audio: MultipartBody.Part): Response<DictationResponse>
 }

@@ -113,7 +113,7 @@ fun RecordScreen(
         onResult = viewModel::appendNoteDictation,
     )
 
-    // The recognizer and the meeting recorder can't share the mic, so pause recording while dictating.
+    // Dictation and the meeting recorder can't share the mic, so pause recording while dictating.
     fun startNoteDictation() {
         if (live.phase == RecorderPhase.Recording) {
             resumeAfterDictation = true

@@ -19,6 +19,7 @@ const fileRoutes = require('./routes/files');
 const adminRoutes = require('./routes/admin');
 const androidRoutes = require('./routes/android');
 const chatRoutes = require('./routes/chats');
+const dictationRoutes = require('./routes/dictation');
 const publicReportRoutes = require('./routes/publicReports');
 
 const app = express();
@@ -140,6 +141,7 @@ app.use('/api/meeting-tags', meetingTagRoutes);
 app.use('/api/meeting-participants', meetingParticipantRoutes);
 app.use('/api/android', androidRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/dictation', dictationRoutes);
 app.use('/api', fileRoutes);
 
 // 404 handler

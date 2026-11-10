@@ -32,6 +32,17 @@
   - Output: `{ ok: true, edited: {...}, model }` or HTTP 502 `{ ok: false, error }`
   - Auth header: `x-internal-secret` (same as chat)
 
+## Dictation
+
+- **Neshastyar Dictation V1** (`DwBH1XaakRw0MIpU`) — sync speech-to-text for `POST /api/dictation/transcribe`
+  - Local export: `dictation_v1.workflow.json`
+  - Webhook path: `0859818d-c960-4b83-bdd7-8cbebc247912`
+  - Input: `{ mimeType, audio }` (base64 clip, max 2 minutes, recorded in the Android app)
+  - Model: `gemini-3.5-transcribe` via Google Gemini API directly (credential `Google Gemini(PaLM) Api account`), no OpenRouter
+  - Output: `{ ok: true, text, model }` or `{ ok: false, error }` (401 bad secret, 400 bad input, 502 model failure)
+  - Auth header: `x-internal-secret` (same as chat)
+  - Meeting transcription (`modiryar_googleTranscribe_v1`) is unchanged
+
 ## Notes
 
 - Prefer the **live published** workflow in n8n over local JSON exports.
