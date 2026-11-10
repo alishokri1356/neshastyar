@@ -3,6 +3,7 @@ package com.neshastyar.app.ui.screens.meeting
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -78,6 +80,8 @@ import com.neshastyar.app.util.StatusStyle
 @Composable
 fun MeetingDetailScreen(
     onBack: () -> Unit,
+    onParticipants: () -> Unit = {},
+    onTags: () -> Unit = {},
     onOpenReport: (token: String) -> Unit = {},
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
@@ -92,6 +96,10 @@ fun MeetingDetailScreen(
             viewModel.noteCopied()
         }
     }
+    val topMeeting = state.meeting
+    val showProcessedTop = topMeeting != null &&
+        !StatusStyle.isErrorStatus(topMeeting.status) &&
+        !state.summarySuppressed
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -101,14 +109,22 @@ fun MeetingDetailScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = NeshastyarColors.TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "بازگشت", tint = NeshastyarColors.TextPrimary)
             }
             Spacer(Modifier.weight(1f))
+            if (topMeeting != null) {
+                MeetingTopSectionActions(
+                    onParticipants = onParticipants,
+                    onTags = onTags,
+                    showParticipants = showProcessedTop,
+                )
+                Spacer(Modifier.width(4.dp))
+            }
             IconButton(
                 onClick = {
                     if (state.editing) viewModel.saveEditing() else viewModel.startEditing()
                 },
-                enabled = state.meeting != null,
+                enabled = topMeeting != null,
             ) {
                 Icon(
                     imageVector = if (state.editing) Icons.Default.Save else Icons.Default.Edit,
@@ -586,13 +602,87 @@ private fun DetailTextPart(
     }
 }
 
+enum class MeetingBottomTab {
+    Summary,
+    BulletPoints,
+    Options,
+}
+
 @Composable
-fun MeetingDetailBottomBar(
+fun MeetingTopSectionActions(
     onParticipants: () -> Unit,
     onTags: () -> Unit,
+    showParticipants: Boolean = true,
+    participantsSelected: Boolean = false,
+    tagsSelected: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showParticipants) {
+            MeetingTopActionChip(
+                icon = Icons.Default.People,
+                label = "حاضرین",
+                selected = participantsSelected,
+                onClick = onParticipants,
+            )
+        }
+        MeetingTopActionChip(
+            icon = Icons.Default.Label,
+            label = "برچسب‌ها",
+            selected = tagsSelected,
+            onClick = onTags,
+        )
+    }
+}
+
+@Composable
+private fun MeetingTopActionChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(999.dp)
+    val containerColor = if (selected) NeshastyarColors.PrimaryContainer else NeshastyarColors.Surface
+    val borderColor = if (selected) NeshastyarColors.Primary.copy(alpha = 0.5f) else NeshastyarColors.Outline
+    val contentColor = if (selected) NeshastyarColors.Primary else NeshastyarColors.TextPrimary
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(containerColor)
+            .border(1.dp, borderColor, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = NeshastyarColors.Primary,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = label,
+            color = contentColor,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+fun MeetingDetailBottomBar(
+    onSummary: () -> Unit,
     onBulletPoints: () -> Unit,
     onAiEdit: () -> Unit,
     onMenu: () -> Unit,
+    selectedTab: MeetingBottomTab? = null,
     showProcessedSections: Boolean = true,
 ) {
     Column(
@@ -610,18 +700,35 @@ fun MeetingDetailBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 2.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            MeetingDetailBarAction(
+                icon = Icons.Default.Description,
+                label = "خلاصه",
+                selected = selectedTab == MeetingBottomTab.Summary,
+                onClick = onSummary,
+            )
             if (showProcessedSections) {
-                MeetingDetailBarAction(Icons.Default.People, "حاضرین", onParticipants)
+                MeetingDetailBarAction(
+                    icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                    label = "نکات",
+                    selected = selectedTab == MeetingBottomTab.BulletPoints,
+                    onClick = onBulletPoints,
+                )
+                MeetingDetailBarAction(
+                    icon = Icons.Default.AutoAwesome,
+                    label = "ویرایش هوشمند",
+                    selected = false,
+                    onClick = onAiEdit,
+                )
             }
-            MeetingDetailBarAction(Icons.Default.Label, "برچسب‌ها", onTags)
-            if (showProcessedSections) {
-                MeetingDetailBarAction(Icons.AutoMirrored.Filled.FormatListBulleted, "نکات", onBulletPoints)
-                MeetingDetailBarAction(Icons.Default.AutoAwesome, "ویرایش هوشمند", onAiEdit)
-            }
-            MeetingDetailBarAction(Icons.Default.Menu, "گزینه‌ها", onMenu)
+            MeetingDetailBarAction(
+                icon = Icons.Default.Menu,
+                label = "گزینه‌ها",
+                selected = selectedTab == MeetingBottomTab.Options,
+                onClick = onMenu,
+            )
         }
     }
 }
@@ -630,26 +737,38 @@ fun MeetingDetailBottomBar(
 private fun RowScope.MeetingDetailBarAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    selected: Boolean,
     onClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .weight(1f)
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 2.dp),
+            .padding(vertical = 3.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = NeshastyarColors.Primary,
-            modifier = Modifier.size(20.dp),
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (selected) NeshastyarColors.PrimaryContainer else Color.Transparent)
+                .padding(horizontal = 12.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = NeshastyarColors.Primary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         Text(
             text = label,
-            color = NeshastyarColors.TextSecondary,
+            color = if (selected) NeshastyarColors.Primary else NeshastyarColors.TextSecondary,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             fontSize = 11.sp,
             lineHeight = 13.sp,
+            maxLines = 1,
         )
     }
 }

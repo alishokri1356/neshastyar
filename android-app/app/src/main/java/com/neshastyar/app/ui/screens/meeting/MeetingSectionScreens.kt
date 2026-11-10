@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,12 +51,14 @@ import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.MeetingSummaryParser
+import com.neshastyar.app.util.StatusStyle
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MeetingParticipantsScreen(
     onBack: () -> Unit,
     onAddParticipants: () -> Unit,
+    onTags: () -> Unit = {},
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
@@ -67,6 +70,14 @@ fun MeetingParticipantsScreen(
         loading = !state.tagsReady && state.error == null,
         error = if (state.meeting == null) state.error else null,
         onRetry = viewModel::retry,
+        trailingActions = {
+            MeetingTopSectionActions(
+                onParticipants = {},
+                onTags = onTags,
+                showParticipants = true,
+                participantsSelected = true,
+            )
+        },
     ) {
         NeshastyarCard {
             SectionHeader(
@@ -347,17 +358,29 @@ fun MeetingAddParticipantsScreen(
 fun MeetingTagsScreen(
     onBack: () -> Unit,
     onAddTags: () -> Unit,
+    onParticipants: () -> Unit = {},
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
     var selectedTagId by remember { mutableStateOf<String?>(null) }
     var draftName by remember { mutableStateOf("") }
+    val showParticipants = state.meeting != null &&
+        !StatusStyle.isErrorStatus(state.meeting?.status) &&
+        !state.summarySuppressed
     MeetingSectionScaffold(
         title = "برچسب‌ها",
         onBack = onBack,
         loading = !state.tagsReady && state.error == null,
         error = if (state.meeting == null) state.error else null,
         onRetry = viewModel::retry,
+        trailingActions = {
+            MeetingTopSectionActions(
+                onParticipants = onParticipants,
+                onTags = {},
+                showParticipants = showParticipants,
+                tagsSelected = true,
+            )
+        },
     ) {
         NeshastyarCard {
             SectionHeader(title = "برچسب‌های این جلسه", icon = Icons.Default.PlaylistAddCheck)
@@ -622,15 +645,27 @@ fun MeetingAddTagsScreen(
 @Composable
 fun MeetingBulletPointsScreen(
     onBack: () -> Unit,
+    onParticipants: () -> Unit = {},
+    onTags: () -> Unit = {},
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
+    val showParticipants = state.meeting != null &&
+        !StatusStyle.isErrorStatus(state.meeting?.status) &&
+        !state.summarySuppressed
     MeetingSectionScaffold(
         title = "نکات",
         onBack = onBack,
         loading = state.loading && state.meeting == null,
         error = if (state.meeting == null) state.error else null,
         onRetry = viewModel::retry,
+        trailingActions = {
+            MeetingTopSectionActions(
+                onParticipants = onParticipants,
+                onTags = onTags,
+                showParticipants = showParticipants,
+            )
+        },
     ) {
         NeshastyarCard {
             SectionHeader(
@@ -660,24 +695,29 @@ private fun MeetingSectionScaffold(
     loading: Boolean,
     error: String?,
     onRetry: () -> Unit,
+    trailingActions: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = NeshastyarColors.TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "بازگشت", tint = NeshastyarColors.TextPrimary)
             }
             Text(
                 title,
                 fontWeight = FontWeight.Bold,
                 color = NeshastyarColors.TextPrimary,
                 fontSize = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
+            trailingActions?.invoke()
         }
         when {
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

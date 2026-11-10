@@ -62,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -126,6 +127,7 @@ class MeetingOptionsViewModel @Inject constructor(
         val playbackError: String? = null,
         val reanalyzing: Boolean = false,
         val processed: Boolean = false,
+        val showParticipants: Boolean = false,
         val deleting: Boolean = false,
         val deleted: Boolean = false,
         val deleteError: String? = null,
@@ -150,6 +152,7 @@ class MeetingOptionsViewModel @Inject constructor(
                     analyzeModels = modelsResp.models,
                     files = files,
                     processed = StatusStyle.isProcessedStatus(meeting?.status),
+                    showParticipants = meeting != null && !StatusStyle.isErrorStatus(meeting.status),
                 )
             }
         }
@@ -393,6 +396,8 @@ class MeetingOptionsViewModel @Inject constructor(
 @Composable
 fun MeetingOptionsScreen(
     onBack: () -> Unit,
+    onParticipants: () -> Unit = {},
+    onTags: () -> Unit = {},
     onShowConversation: () -> Unit,
     onDeleted: () -> Unit,
     vm: MeetingOptionsViewModel = hiltViewModel(),
@@ -401,26 +406,37 @@ fun MeetingOptionsScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var deleteConfirmed by remember { mutableStateOf(false) }
     LaunchedEffect(state.deleted) { if (state.deleted) onDeleted() }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = NeshastyarColors.TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "بازگشت", tint = NeshastyarColors.TextPrimary)
             }
             Text(
                 "گزینه‌های جلسه",
                 fontWeight = FontWeight.Bold,
                 color = NeshastyarColors.TextPrimary,
+                fontSize = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            MeetingTopSectionActions(
+                onParticipants = onParticipants,
+                onTags = onTags,
+                showParticipants = state.showParticipants,
+            )
         }
-        Spacer(Modifier.height(12.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp, bottom = 16.dp),
+        ) {
         NeshastyarCard {
             NeshastyarTextField(
                 value = state.comment,
@@ -577,6 +593,7 @@ fun MeetingOptionsScreen(
                     }
                 }
             }
+        }
         }
     }
 

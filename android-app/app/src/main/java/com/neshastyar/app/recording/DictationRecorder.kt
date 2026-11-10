@@ -14,7 +14,7 @@ class DictationRecorder(private val context: Context) {
 
     val isRecording: Boolean get() = recorder != null
 
-    fun start(onMaxDurationReached: () -> Unit) {
+    fun start() {
         cancel()
         val out = File(context.cacheDir, "dictation-${System.currentTimeMillis()}.m4a")
         val descriptor = ParcelFileDescriptor.open(
@@ -36,10 +36,6 @@ class DictationRecorder(private val context: Context) {
             mr.setAudioChannels(1)
             mr.setAudioSamplingRate(16_000)
             mr.setAudioEncodingBitRate(32_000)
-            mr.setMaxDuration(MAX_DURATION_MS)
-            mr.setOnInfoListener { _, what, _ ->
-                if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) onMaxDurationReached()
-            }
             mr.setOutputFile(descriptor.fileDescriptor)
             mr.prepare()
             mr.start()
@@ -53,6 +49,13 @@ class DictationRecorder(private val context: Context) {
         pfd = descriptor
         file = out
     }
+
+    fun pause(): Boolean = recorder?.let { runCatching { it.pause() }.isSuccess } ?: false
+
+    fun resume(): Boolean = recorder?.let { runCatching { it.resume() }.isSuccess } ?: false
+
+    /** Peak input level since the previous call, 0..32767. */
+    fun amplitude(): Int = recorder?.let { runCatching { it.maxAmplitude }.getOrNull() } ?: 0
 
     /** Stops recording and returns the clip, or null when nothing usable was captured. */
     fun stop(): File? {
@@ -88,6 +91,6 @@ class DictationRecorder(private val context: Context) {
     }
 
     companion object {
-        const val MAX_DURATION_MS = 120_000
+        const val MAX_DURATION_MS = 120_000L
     }
 }
