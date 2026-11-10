@@ -19,6 +19,92 @@ function PencilIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M6 1.5h4l.5 1H13a.5.5 0 0 1 0 1h-.6l-.7 9.6a1.5 1.5 0 0 1-1.5 1.4H5.8a1.5 1.5 0 0 1-1.5-1.4L3.6 3.5H3a.5.5 0 0 1 0-1h2.5l.5-1Zm-1.4 2 .7 9.5c0 .3.2.5.5.5h4.4c.3 0 .5-.2.5-.5l.7-9.5H4.6ZM6.5 5.5a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 0a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Z"
+      />
+    </svg>
+  );
+}
+
+function DecisionIndexCell({
+  index,
+  hasContent,
+  onDelete,
+}: {
+  index: number;
+  hasContent: boolean;
+  onDelete?: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const remove = async () => {
+    if (!onDelete || busy) return;
+    if (hasContent && !window.confirm(`ردیف ${index} حذف شود؟`)) return;
+    setBusy(true);
+    setError('');
+    try {
+      await onDelete();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حذف ردیف انجام نشد');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <td className="index-cell">
+      {onDelete ? (
+        <button
+          type="button"
+          className="row-delete"
+          aria-label={`حذف ردیف ${index}`}
+          title="حذف ردیف"
+          onClick={remove}
+          disabled={busy}
+        >
+          <TrashIcon />
+        </button>
+      ) : null}
+      {index}
+      {error ? <p className="cell-error">{error}</p> : null}
+    </td>
+  );
+}
+
+const ADD_ROW_LABEL = '+ افزودن ردیف';
+
+function AddDecisionRow({ onAdd }: { onAdd: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const add = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await onAdd();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'افزودن ردیف انجام نشد');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <tr className="add-row">
+      <td colSpan={9}>
+        <button type="button" onClick={add} disabled={busy}>{busy ? '...' : ADD_ROW_LABEL}</button>
+        {error ? <p className="cell-error">{error}</p> : null}
+      </td>
+    </tr>
+  );
+}
+
 function EditableCell({
   value,
   onSave,
@@ -96,7 +182,8 @@ function EditableCell({
 type MinutesRow =
   | { kind: 'decisions-title' }
   | { kind: 'columns' }
-  | { kind: 'decision'; index: number; text: string; assignee: string; deadline: string };
+  | { kind: 'decision'; index: number; text: string; assignee: string; deadline: string; continued?: boolean }
+  | { kind: 'add-row' };
 
 const COLS = (
   <colgroup>
@@ -286,13 +373,22 @@ function RowView({ row, report, onSave }: {
       </tr>
     );
   }
+  if (row.kind === 'add-row') {
+    return onSave ? <AddDecisionRow onAdd={() => onSave({ field: 'addDecision' })} /> : null;
+  }
   const full = report.decisions[row.index - 1] || row;
   const savePart = (part: 'text' | 'assignee' | 'deadline') => (
     onSave ? (value: string) => onSave({ field: 'decision', index: row.index - 1, part, value }) : undefined
   );
   return (
     <tr>
-      <td style={{ textAlign: 'center' }}>{row.index}</td>
+      <DecisionIndexCell
+        index={row.index}
+        hasContent={Boolean(full.text || full.assignee || full.deadline)}
+        onDelete={onSave && !row.continued
+          ? () => onSave({ field: 'deleteDecision', index: row.index - 1 })
+          : undefined}
+      />
       <EditableCell colSpan={5} value={full.text} rows={3} onSave={savePart('text')}>{row.text}</EditableCell>
       <EditableCell colSpan={2} value={full.assignee} rows={2} onSave={savePart('assignee')}>{row.assignee}</EditableCell>
       <EditableCell value={full.deadline} rows={2} onSave={savePart('deadline')}>{row.deadline}</EditableCell>
@@ -319,6 +415,14 @@ function buildTr(row: MinutesRow) {
       cell('مسئول اجرا', 2, 'shade'),
       cell('مهلت زمانی', 1, 'shade'),
     );
+  } else if (row.kind === 'add-row') {
+    tr.className = 'add-row';
+    const td = cell('', 9);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = ADD_ROW_LABEL;
+    td.appendChild(button);
+    tr.appendChild(td);
   } else {
     const index = cell(String(row.index), 1);
     index.style.textAlign = 'center';
@@ -327,21 +431,21 @@ function buildTr(row: MinutesRow) {
   return tr;
 }
 
-function sourceRows(report: MeetingReportData): MinutesRow[] {
+function sourceRows(report: MeetingReportData, editable: boolean): MinutesRow[] {
   const rows: MinutesRow[] = [
     { kind: 'decisions-title' },
     { kind: 'columns' },
   ];
-  report.decisions.forEach((decision) => {
-    if (!decision.text.trim()) return;
+  report.decisions.forEach((decision, index) => {
     rows.push({
       kind: 'decision',
-      index: rows.length - 1,
+      index: index + 1,
       text: decision.text,
       assignee: decision.assignee,
       deadline: decision.deadline,
     });
   });
+  if (editable) rows.push({ kind: 'add-row' });
   return rows;
 }
 
@@ -355,6 +459,7 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onS
   const probeRef = useRef<HTMLTableSectionElement>(null);
   const pageProbeRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<MinutesRow[][] | null>(null);
+  const editable = Boolean(onSave);
   const contentKey = useMemo(() => JSON.stringify({
     title: report.title,
     meetingDate: report.meetingDate,
@@ -382,7 +487,7 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onS
       const padTop = sheetStyle ? parseFloat(sheetStyle.paddingTop) || 0 : 0;
       const padBottom = sheetStyle ? parseFloat(sheetStyle.paddingBottom) || 0 : 0;
       const available = pagePx - padTop - padBottom - header.offsetHeight - footer.offsetHeight - 8;
-      const rows = sourceRows(report);
+      const rows = sourceRows(report, editable);
 
       const heightOf = (group: MinutesRow[]) => {
         probe.replaceChildren(...group.map(buildTr));
@@ -439,7 +544,7 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onS
           const chunk = parts.slice(0, best).join('').trim();
           const rest = parts.slice(best).join('').trim();
           if (chunk) page.push({ ...row, text: chunk });
-          if (rest) queue[0] = { ...row, text: rest };
+          if (rest) queue[0] = { ...row, text: rest, continued: true };
           else queue.shift();
           break;
         }
@@ -458,9 +563,9 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onS
     return () => {
       cancelled = true;
     };
-  }, [contentKey, report]);
+  }, [contentKey, report, editable]);
 
-  const visiblePages = pages ?? [sourceRows(report)];
+  const visiblePages = pages ?? [sourceRows(report, editable)];
 
   return (
     <div className="minutes-root" dir="rtl" data-page-count={visiblePages.length}>
@@ -507,9 +612,43 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onS
           align-items: center;
           justify-content: center;
         }
-        .minutes-root .cell-edit svg {
+        .minutes-root .cell-edit svg,
+        .minutes-root .row-delete svg {
           width: 11px;
           height: 11px;
+        }
+        .minutes-root .index-cell {
+          position: relative;
+          text-align: center;
+        }
+        .minutes-root .row-delete {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 16px;
+          height: 16px;
+          padding: 0;
+          border: 0;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.92);
+          color: #9b1c1c;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .minutes-root .add-row td {
+          border: 0;
+          padding: 6px 0 0;
+          text-align: center;
+        }
+        .minutes-root .add-row button {
+          border: 1px dashed #666;
+          background: #fff;
+          font: inherit;
+          font-size: 12px;
+          padding: 2px 14px;
+          cursor: pointer;
         }
         .minutes-root .cell-editor textarea {
           width: 100%;
@@ -624,7 +763,7 @@ const MeetingMinutesReport: React.FC<MeetingMinutesReportProps> = ({ report, onS
             margin: 0;
             box-shadow: none;
           }
-          .measurer, .page-probe, .cell-edit, .cell-editor { display: none !important; }
+          .measurer, .page-probe, .cell-edit, .cell-editor, .row-delete, .add-row { display: none !important; }
         }
       `}</style>
 

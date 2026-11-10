@@ -48,7 +48,9 @@ export async function fetchPublicReport(token: string): Promise<MeetingReportDat
 
 export type ReportEdit =
   | { field: 'title' | 'location' | 'participants' | 'orgName' | 'date'; value: string }
-  | { field: 'decision'; index: number; part: 'text' | 'assignee' | 'deadline'; value: string };
+  | { field: 'decision'; index: number; part: 'text' | 'assignee' | 'deadline'; value: string }
+  | { field: 'addDecision' }
+  | { field: 'deleteDecision'; index: number };
 
 const toAsciiDigits = (value: string) => value
   .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))

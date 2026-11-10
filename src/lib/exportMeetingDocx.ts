@@ -117,8 +117,6 @@ export async function downloadMeetingDocx(report: MeetingReportData) {
     titleChildren.push(paragraph(report.orgName, { bold: true, size: 22, center: true }));
   }
 
-  const filled = report.decisions.filter((item) => item.text.trim());
-
   const table = new Table({
     width: { size: CONTENT_WIDTH, type: WidthType.DXA },
     columnWidths: COLUMN_WIDTHS,
@@ -151,7 +149,7 @@ export async function downloadMeetingDocx(report: MeetingReportData) {
         placedCell('مسئول اجرا', 6, 2, { shade: true, bold: true, center: true }),
         placedCell('مهلت زمانی', 8, 1, { shade: true, bold: true, center: true }),
       ]),
-      ...filled.map((decision, index) => sheetRow([
+      ...report.decisions.map((decision, index) => sheetRow([
         placedCell(String(index + 1), 0, 1, { center: true }),
         placedCell(decision.text, 1, 5),
         placedCell(decision.assignee, 6, 2),

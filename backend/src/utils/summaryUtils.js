@@ -174,12 +174,16 @@ const firstPeople = (json) => {
   return [];
 };
 
+const bulletArrayKey = (json) => (
+  BULLET_KEYS.find((key) => Array.isArray(json[key]) && json[key].length > 0)
+  || BULLET_KEYS.find((key) => Array.isArray(json[key]))
+  || BULLET_KEYS[0]
+);
+
 const rawBulletItems = (json) => {
   if (!json || typeof json !== 'object') return [];
-  for (const key of BULLET_KEYS) {
-    if (Array.isArray(json[key]) && json[key].length > 0) return json[key];
-  }
-  return [];
+  const items = json[bulletArrayKey(json)];
+  return Array.isArray(items) ? items : [];
 };
 
 const DECISION_LABELS = [
@@ -201,6 +205,11 @@ const DECISION_LABELS = [
 const decisionLabelPattern = new RegExp(
   `(${DECISION_LABELS.join('|')})\\s*[:：]`,
   'gi'
+);
+
+const decisionLabelStartPattern = new RegExp(
+  `^\\s*(${DECISION_LABELS.join('|')})\\s*[:：]`,
+  'i'
 );
 
 const decisionLabelKind = (label) => {
@@ -249,7 +258,11 @@ const decisionFromFields = (fields, fallbackText) => {
     else if (field.kind === 'follower') follower = follower || field.value;
     else text = text || field.value;
   }
-  if (!text) text = cleanDecisionValue(String(fallbackText || '').replace(/^\s*تصمیم(?:\s+اتخاذ\s+شده)?\s*[:：]\s*/, ''));
+  // "مسئول: X" with no decision text is a partially filled row, not a decision named "مسئول: X".
+  const onlyLabeledFields = fields.length > 0 && decisionLabelStartPattern.test(String(fallbackText || ''));
+  if (!text && !onlyLabeledFields) {
+    text = cleanDecisionValue(String(fallbackText || '').replace(/^\s*تصمیم(?:\s+اتخاذ\s+شده)?\s*[:：]\s*/, ''));
+  }
   return {
     text,
     assignee: assignee || follower,
@@ -279,15 +292,25 @@ const decisionFromItem = (item) => {
   return decisionFromFields(labeled.length ? labeled : fields, joined);
 };
 
-const extractDecisions = (json) => rawBulletItems(json)
-  .map(decisionFromItem)
-  .filter((item) => item.text);
+/** An empty string item is a blank row the user added to the report table. */
+const decisionSlots = (json) => {
+  const slots = [];
+  rawBulletItems(json).forEach((item, rawIndex) => {
+    const decision = decisionFromItem(item);
+    if (item === '' || decision.text || decision.assignee || decision.deadline) {
+      slots.push({ rawIndex, decision });
+    }
+  });
+  return slots;
+};
 
-const bulletArrayKey = (json) => {
-  for (const key of BULLET_KEYS) {
-    if (Array.isArray(json[key])) return key;
+const extractDecisions = (json) => decisionSlots(json).map((slot) => slot.decision);
+
+const writeDecisionItems = (json, key, items) => {
+  json[key] = items;
+  for (const other of BULLET_KEYS) {
+    if (other !== key) delete json[other];
   }
-  return BULLET_KEYS[0];
 };
 
 const canonicalDecision = ({ text, assignee, deadline }) => {
@@ -300,13 +323,8 @@ const canonicalDecision = ({ text, assignee, deadline }) => {
 
 const applyDecisionEdit = (json, index, part, value) => {
   const key = bulletArrayKey(json);
-  const items = Array.isArray(json[key]) ? json[key].slice() : [];
-  const visible = [];
-  items.forEach((item, rawIndex) => {
-    const decision = decisionFromItem(item);
-    if (decision.text) visible.push({ rawIndex, decision });
-  });
-  const slot = visible[index];
+  const items = rawBulletItems(json).slice();
+  const slot = decisionSlots(json)[index];
   if (!slot) return false;
 
   const next = {
@@ -315,13 +333,23 @@ const applyDecisionEdit = (json, index, part, value) => {
     deadline: slot.decision.deadline,
   };
   next[part] = cleanDecisionValue(value);
-  if (!next.text) items.splice(slot.rawIndex, 1);
-  else items[slot.rawIndex] = canonicalDecision(next);
+  items[slot.rawIndex] = canonicalDecision(next);
+  writeDecisionItems(json, key, items);
+  return true;
+};
 
-  json[key] = items;
-  for (const other of BULLET_KEYS) {
-    if (other !== key) delete json[other];
-  }
+const addDecisionRow = (json) => {
+  const key = bulletArrayKey(json);
+  writeDecisionItems(json, key, [...rawBulletItems(json), '']);
+};
+
+const deleteDecisionRow = (json, index) => {
+  const key = bulletArrayKey(json);
+  const items = rawBulletItems(json).slice();
+  const slot = decisionSlots(json)[index];
+  if (!slot) return false;
+  items.splice(slot.rawIndex, 1);
+  writeDecisionItems(json, key, items);
   return true;
 };
 
@@ -371,6 +399,8 @@ module.exports = {
   extractLocation,
   buildReportContent,
   applyDecisionEdit,
+  addDecisionRow,
+  deleteDecisionRow,
   setPeople,
   setLocation,
 };

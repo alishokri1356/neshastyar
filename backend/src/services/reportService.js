@@ -6,9 +6,14 @@ const {
   buildReportContent,
   parseMeetingSummaryJson,
   applyDecisionEdit,
+  addDecisionRow,
+  deleteDecisionRow,
+  extractDecisions,
   setPeople,
   setLocation,
 } = require('../utils/summaryUtils');
+
+const MAX_DECISION_ROWS = 100;
 
 const badRequest = (message) => {
   const error = new Error(message);
@@ -261,6 +266,17 @@ class ReportService {
       }
       const updated = applyDecisionEdit(json, index, part, cleanText(edit.value, 2000));
       if (!updated) throw badRequest('این تصمیم پیدا نشد');
+      writeSummary = true;
+    } else if (field === 'addDecision') {
+      if (extractDecisions(json).length >= MAX_DECISION_ROWS) {
+        throw badRequest(`حداکثر ${MAX_DECISION_ROWS} ردیف تصمیم مجاز است`);
+      }
+      addDecisionRow(json);
+      writeSummary = true;
+    } else if (field === 'deleteDecision') {
+      const index = Number(edit.index);
+      if (!Number.isInteger(index) || index < 0) throw badRequest('ردیف تصمیم معتبر نیست');
+      if (!deleteDecisionRow(json, index)) throw badRequest('این تصمیم پیدا نشد');
       writeSummary = true;
     } else {
       throw badRequest('این بخش قابل ویرایش نیست');
