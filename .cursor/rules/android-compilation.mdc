@@ -1,5 +1,5 @@
 ---
-description: Prevent Android compilation until the user requests a version update
+description: Android version updates include build, upload, and the web download link
 alwaysApply: true
 ---
 
@@ -8,3 +8,12 @@ alwaysApply: true
 - Do not compile, build, assemble, package, or run Gradle verification tasks for the Android app.
 - This restriction remains active until the user explicitly says **"update version"**.
 - Read-only inspection and IDE diagnostics are allowed.
+
+# Version update
+
+When the user says **"update version"**, follow `docs/android-version-update.md` through the end. Building the APK is not enough.
+
+1. Set `android-app/versioning.txt` to `major.minor.MMdd` for today.
+2. Build the debug APK with JDK 21 (`:app:assembleDebug`).
+3. Upload `neshastyar_<version>.apk` to `/var/www/neshastyar.com/download/apk/` on the VPS.
+4. Point the website download link at that file. The landing button reads `GET /api/android/latest` and must show the new `downloadUrl`. Confirm the live API response before finishing.

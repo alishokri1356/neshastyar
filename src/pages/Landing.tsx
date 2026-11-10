@@ -12,6 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 
 const GIS_SCRIPT = "https://accounts.google.com/gsi/client";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://www.neshastyar.com/api").replace(/\/$/, "");
+
+type LatestApk = {
+  version?: string;
+  filename?: string;
+  downloadUrl?: string;
+};
 
 function loadGisScript(): Promise<void> {
   if (window.google?.accounts?.id) {
@@ -50,6 +57,7 @@ const Landing = () => {
   const [googleReady, setGoogleReady] = useState(false);
   const [landingError, setLandingError] = useState<string | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
+  const [latestApk, setLatestApk] = useState<LatestApk | null>(null);
 
   const googleHostRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +85,27 @@ const Landing = () => {
   useEffect(() => {
     credentialCallbackRef.current = handleGoogleCredential;
   }, [handleGoogleCredential]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE_URL}/android/latest`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        const data = payload?.data;
+        if (cancelled || !data?.downloadUrl) return;
+        setLatestApk({
+          version: data.version,
+          filename: data.filename,
+          downloadUrl: data.downloadUrl,
+        });
+      })
+      .catch(() => {
+        // The static latest URL still downloads whichever APK the server publishes.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
@@ -161,6 +190,7 @@ const Landing = () => {
   };
 
   const busy = emailLoading || googleLoading;
+  const apkDownloadHref = latestApk?.downloadUrl || `${API_BASE_URL}/android/latest/download`;
 
   return (
     <div
@@ -262,6 +292,17 @@ const Landing = () => {
             </span>
             <span>ادامه با ایمیل</span>
           </button>
+
+          <a
+            href={apkDownloadHref}
+            download={latestApk?.filename}
+            className="mt-3 flex h-[58px] w-full flex-col items-center justify-center rounded-[30px] border border-white/80 bg-white/90 px-[22px] text-[#003535] shadow-[0_8px_24px_rgba(0,25,25,0.25)] transition hover:bg-white"
+          >
+            <span className="text-[16px] font-semibold leading-5">دانلود اپلیکیشن اندروید</span>
+            {latestApk?.version ? (
+              <span className="text-[12px] leading-4 text-[#404848]">نسخه {latestApk.version}</span>
+            ) : null}
+          </a>
 
           <p className="pb-5 pt-4 text-center text-[13px] leading-[22px] text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]">
             با ادامه، شرایط استفاده و حریم خصوصی نشست‌یار را می‌پذیرید.
