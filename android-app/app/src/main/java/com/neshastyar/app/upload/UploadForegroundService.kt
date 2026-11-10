@@ -65,11 +65,17 @@ class UploadForegroundService : android.app.Service() {
         acquireLocks()
         val tagIds = intent.getStringArrayListExtra(EXTRA_TAG_IDS).orEmpty()
         val participantIds = intent.getStringArrayListExtra(EXTRA_PARTICIPANT_IDS).orEmpty()
+        val analyzeModel = intent.getStringExtra(EXTRA_ANALYZE_MODEL)
         progressHub.begin(draftId)
         scope.launch {
             draftRepository.setStatus(draftId, DraftStatus.ON_UPLOADING)
             try {
-                val result = uploadMeetingRepository.uploadDraft(draftId, tagIds, participantIds) { progress ->
+                val result = uploadMeetingRepository.uploadDraft(
+                    draftId = draftId,
+                    selectedTagIds = tagIds,
+                    selectedParticipantIds = participantIds,
+                    analyzeModel = analyzeModel,
+                ) { progress ->
                     progressHub.progress(
                         draftId,
                         progress.percent,
@@ -200,16 +206,26 @@ class UploadForegroundService : android.app.Service() {
         const val EXTRA_DRAFT_ID = "draftId"
         const val EXTRA_TAG_IDS = "tagIds"
         const val EXTRA_PARTICIPANT_IDS = "participantIds"
+        const val EXTRA_ANALYZE_MODEL = "analyzeModel"
         private const val CHANNEL_ID = "upload_meeting"
         private const val NOTIFICATION_ID = 1002
         private const val MAX_LOCK_MS = 60L * 60L * 1000L
 
-        fun start(context: Context, draftId: String, tagIds: List<String>, participantIds: List<String>) {
+        fun start(
+            context: Context,
+            draftId: String,
+            tagIds: List<String>,
+            participantIds: List<String>,
+            analyzeModel: String? = null,
+        ) {
             val intent = Intent(context, UploadForegroundService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_DRAFT_ID, draftId)
                 putStringArrayListExtra(EXTRA_TAG_IDS, ArrayList(tagIds))
                 putStringArrayListExtra(EXTRA_PARTICIPANT_IDS, ArrayList(participantIds))
+                if (!analyzeModel.isNullOrBlank()) {
+                    putExtra(EXTRA_ANALYZE_MODEL, analyzeModel)
+                }
             }
             androidx.core.content.ContextCompat.startForegroundService(context, intent)
         }

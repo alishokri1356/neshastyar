@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import com.neshastyar.app.data.api.AnalyzeMeetingRequest
 import com.neshastyar.app.data.api.CreateAudioFileRequest
 import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.CreateMeetingRequest
@@ -57,6 +58,7 @@ class UploadMeetingRepository @Inject constructor(
         draftId: String,
         selectedTagIds: List<String>,
         selectedParticipantIds: List<String> = emptyList(),
+        analyzeModel: String? = null,
         onProgress: suspend (UploadProgress) -> Unit = {},
     ): Result<String> = runCatching {
         val draft = draftDao.getDraft(draftId) ?: error("پیش‌نویس پیدا نشد")
@@ -129,7 +131,10 @@ class UploadMeetingRepository @Inject constructor(
         }
 
         emit(onProgress, 97, "ارسال برای پردازش…", fileCount, fileCount)
-        val analyze = api.analyzeMeeting(meetingId)
+        val analyze = api.analyzeMeeting(
+            meetingId,
+            AnalyzeMeetingRequest(model = analyzeModel?.takeIf { it.isNotBlank() }),
+        )
         if (!analyze.isSuccessful) error("ارسال برای پردازش ناموفق (${analyze.code()})")
 
         val stored = draftDao.listFiles(draftId)

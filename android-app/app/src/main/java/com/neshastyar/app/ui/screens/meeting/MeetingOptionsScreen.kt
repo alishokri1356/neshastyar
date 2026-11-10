@@ -82,12 +82,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import com.neshastyar.app.BuildConfig
+import com.neshastyar.app.data.api.AnalyzeModelDto
 import com.neshastyar.app.data.api.AudioFileDto
 import com.neshastyar.app.data.api.UpdateMeetingRequest
 import com.neshastyar.app.data.local.SessionStore
 import com.neshastyar.app.data.repository.MeetingsRepository
 import com.neshastyar.app.data.repository.MeetingsResult
 import com.neshastyar.app.data.repository.TagsRepository
+import com.neshastyar.app.ui.components.AnalyzeModelPicker
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
@@ -111,6 +113,9 @@ class MeetingOptionsViewModel @Inject constructor(
 
     data class State(
         val comment: String = "",
+        val analyzeModel: String = "auto",
+        val autoKey: String = "auto",
+        val analyzeModels: List<AnalyzeModelDto> = MeetingsRepository.fallbackAnalyzeModels().models,
         val files: List<AudioFileDto> = emptyList(),
         val message: String? = null,
         val preparingFileId: String? = null,
@@ -136,9 +141,13 @@ class MeetingOptionsViewModel @Inject constructor(
                 else -> null
             }
             val files = meetingsRepository.getAudioFiles(meetingId)
+            val modelsResp = meetingsRepository.getAnalyzeModels()
             _ui.update {
                 it.copy(
                     comment = meeting?.commentText.orEmpty(),
+                    analyzeModel = meeting?.analyze_model?.ifBlank { modelsResp.autoKey } ?: modelsResp.autoKey,
+                    autoKey = modelsResp.autoKey,
+                    analyzeModels = modelsResp.models,
                     files = files,
                     processed = StatusStyle.isProcessedStatus(meeting?.status),
                 )
@@ -147,13 +156,15 @@ class MeetingOptionsViewModel @Inject constructor(
     }
 
     fun onComment(v: String) = _ui.update { it.copy(comment = v) }
+    fun onAnalyzeModel(v: String) = _ui.update { it.copy(analyzeModel = v) }
 
     fun reanalyze() = viewModelScope.launch {
         if (_ui.value.reanalyzing) return@launch
+        val selectedModel = _ui.value.analyzeModel.ifBlank { "auto" }
         _ui.update { it.copy(reanalyzing = true, message = null) }
         meetingsRepository.update(meetingId, UpdateMeetingRequest(commentText = _ui.value.comment)).fold(
             onSuccess = {
-                meetingsRepository.analyze(meetingId).fold(
+                meetingsRepository.analyze(meetingId, selectedModel).fold(
                     onSuccess = {
                         _ui.update { it.copy(reanalyzing = false, message = "درخواست پردازش ارسال شد") }
                     },
@@ -418,6 +429,15 @@ fun MeetingOptionsScreen(
                 placeholder = "توضیحات خاص خود را وارد کنید…",
                 singleLine = false,
                 minLines = 4,
+            )
+            Spacer(Modifier.height(10.dp))
+            AnalyzeModelPicker(
+                value = state.analyzeModel,
+                models = state.analyzeModels,
+                autoKey = state.autoKey,
+                label = "مدل هوش مصنوعی تحلیل",
+                enabled = !state.reanalyzing,
+                onValueChange = vm::onAnalyzeModel,
             )
             Spacer(Modifier.height(10.dp))
             NeshastyarPrimaryButton(

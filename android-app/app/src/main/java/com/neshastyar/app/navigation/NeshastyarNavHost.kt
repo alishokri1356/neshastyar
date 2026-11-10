@@ -23,7 +23,9 @@ import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.ui.screens.account.AccountScreen
 import com.neshastyar.app.ui.screens.auth.ForgotPasswordScreen
 import com.neshastyar.app.ui.screens.auth.LoginScreen
+import com.neshastyar.app.ui.screens.auth.ResetPasswordScreen
 import com.neshastyar.app.ui.screens.auth.SignUpScreen
+import com.neshastyar.app.ui.screens.auth.VerifyEmailScreen
 import com.neshastyar.app.ui.screens.chat.ChatHistoryScreen
 import com.neshastyar.app.ui.screens.chat.ChatScreen
 import com.neshastyar.app.ui.screens.home.HomeScreen
@@ -44,6 +46,7 @@ import com.neshastyar.app.ui.screens.participants.ParticipantDetailScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantsListScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantsManageScreen
 import com.neshastyar.app.ui.screens.record.RecordScreen
+import com.neshastyar.app.ui.screens.report.MeetingReportScreen
 import com.neshastyar.app.ui.screens.splash.SplashScreen
 import com.neshastyar.app.ui.screens.tags.TagDetailScreen
 import com.neshastyar.app.ui.screens.tags.TagListScreen
@@ -54,6 +57,8 @@ import com.neshastyar.app.ui.update.AppUpdateViewModel
 
 @Composable
 fun NeshastyarNavHost(
+    pendingLink: AppLink? = null,
+    onLinkConsumed: () -> Unit = {},
     updateViewModel: AppUpdateViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
@@ -108,10 +113,25 @@ fun NeshastyarNavHost(
         Routes.Login.route,
         Routes.SignUp.route,
         Routes.ForgotPassword.route,
+        Routes.VerifyEmail.route,
+        Routes.ResetPassword.route,
+        Routes.MeetingReport.route,
         Routes.Home.route,
         Routes.Chat.route,
         Routes.ChatHistory.route,
     )
+
+    LaunchedEffect(pendingLink, route) {
+        val link = pendingLink ?: return@LaunchedEffect
+        if (route == null || route == Routes.Splash.route) return@LaunchedEffect
+        onLinkConsumed()
+        val destination = when (link) {
+            is AppLink.VerifyEmail -> Routes.VerifyEmail.create(link.token)
+            is AppLink.ResetPassword -> Routes.ResetPassword.create(link.token)
+            is AppLink.Report -> Routes.MeetingReport.create(link.token)
+        }
+        navController.navigate(destination) { launchSingleTop = true }
+    }
     val showBottomBar = route == Routes.Search.route
     fun openChat(meetingId: String? = null, sessionId: String? = null) {
         navController.navigate(Routes.Chat.create(meetingId = meetingId, sessionId = sessionId)) {
@@ -189,6 +209,26 @@ fun NeshastyarNavHost(
             }
             composable(Routes.ForgotPassword.route) {
                 ForgotPasswordScreen(onBackToLogin = { navController.popBackStack() })
+            }
+            composable(
+                Routes.VerifyEmail.route,
+                arguments = listOf(navArgument("token") { type = NavType.StringType }),
+            ) {
+                VerifyEmailScreen(onGoLogin = { goLoginClear() })
+            }
+            composable(
+                Routes.ResetPassword.route,
+                arguments = listOf(navArgument("token") { type = NavType.StringType }),
+            ) {
+                ResetPasswordScreen(onGoLogin = { goLoginClear() })
+            }
+            composable(
+                Routes.MeetingReport.route,
+                arguments = listOf(navArgument("token") { type = NavType.StringType }),
+            ) {
+                MeetingReportScreen(onBack = {
+                    if (!navController.popBackStack()) goHomeClear()
+                })
             }
             composable(Routes.Home.route) {
                 HomeScreen(
@@ -335,6 +375,9 @@ fun NeshastyarNavHost(
             ) {
                 MeetingDetailScreen(
                     onBack = { navController.popBackStack() },
+                    onOpenReport = { token ->
+                        navController.navigate(Routes.MeetingReport.create(token))
+                    },
                 )
             }
             composable(

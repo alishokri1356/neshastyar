@@ -194,7 +194,7 @@ class ForgotPasswordViewModel @Inject constructor(
     fun submit() {
         val email = _ui.value.email
         if (email.isBlank()) {
-            _ui.update { it.copy(error = "Ø§ÛŒÙ…ÛŒÙ„ Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯") }
+            _ui.update { it.copy(error = "ایمیل را وارد کنید") }
             return
         }
         viewModelScope.launch {
@@ -203,14 +203,14 @@ class ForgotPasswordViewModel @Inject constructor(
                 is AuthResult.Success -> _ui.update {
                     it.copy(
                         loading = false,
-                        successMessage = "Ø§Ú¯Ø± Ø§ÛŒÙ† Ø§ÛŒÙ…ÛŒÙ„ Ø«Ø¨Øª Ø´Ø¯Ù‡ Ø¨Ø§Ø´Ø¯ØŒ Ù„ÛŒÙ†Ú© Ø¨Ø§Ø²ÛŒØ§Ø¨ÛŒ Ø§Ø±Ø³Ø§Ù„ Ù…ÛŒâ€ŒØ´ÙˆØ¯.",
+                        successMessage = "اگر این ایمیل ثبت شده باشد، لینک بازیابی ارسال می‌شود.",
                     )
                 }
                 is AuthResult.Error -> _ui.update { it.copy(loading = false, error = result.message) }
                 else -> _ui.update {
                     it.copy(
                         loading = false,
-                        successMessage = "Ø§Ú¯Ø± Ø§ÛŒÙ† Ø§ÛŒÙ…ÛŒÙ„ Ø«Ø¨Øª Ø´Ø¯Ù‡ Ø¨Ø§Ø´Ø¯ØŒ Ù„ÛŒÙ†Ú© Ø¨Ø§Ø²ÛŒØ§Ø¨ÛŒ Ø§Ø±Ø³Ø§Ù„ Ù…ÛŒâ€ŒØ´ÙˆØ¯.",
+                        successMessage = "اگر این ایمیل ثبت شده باشد، لینک بازیابی ارسال می‌شود.",
                     )
                 }
             }

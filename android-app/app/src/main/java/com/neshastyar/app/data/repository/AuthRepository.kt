@@ -7,6 +7,7 @@ import com.neshastyar.app.data.api.EmailOnlyRequest
 import com.neshastyar.app.data.api.GoogleAuthRequest
 import com.neshastyar.app.data.api.LoginRequest
 import com.neshastyar.app.data.api.NeshastyarApi
+import com.neshastyar.app.data.api.ResetPasswordRequest
 import com.neshastyar.app.data.api.SessionDto
 import com.neshastyar.app.data.api.SignupRequest
 import com.neshastyar.app.data.api.UserDto
@@ -148,6 +149,32 @@ class AuthRepository @Inject constructor(
     suspend fun resendVerification(email: String): AuthResult {
         return try {
             val response = api.resendVerification(EmailOnlyRequest(email.trim()))
+            if (response.isSuccessful) {
+                AuthResult.Success(null, null)
+            } else {
+                parseError(response)
+            }
+        } catch (e: Exception) {
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
+        }
+    }
+
+    suspend fun verifyEmailToken(token: String): AuthResult {
+        return try {
+            val response = api.verifyEmail(token.trim())
+            if (response.isSuccessful) {
+                AuthResult.Success(null, null)
+            } else {
+                parseError(response)
+            }
+        } catch (e: Exception) {
+            AuthResult.Error(NetworkErrors.userMessage(e, "خطا در ارتباط با سرور"))
+        }
+    }
+
+    suspend fun resetPassword(token: String, newPassword: String): AuthResult {
+        return try {
+            val response = api.resetPassword(ResetPasswordRequest(token = token.trim(), newPassword = newPassword))
             if (response.isSuccessful) {
                 AuthResult.Success(null, null)
             } else {

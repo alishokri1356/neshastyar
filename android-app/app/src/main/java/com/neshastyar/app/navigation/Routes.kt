@@ -1,11 +1,22 @@
 package com.neshastyar.app.navigation
 
+import android.net.Uri
+
 /** Mirrors web routes from src/App.tsx */
 sealed class Routes(val route: String) {
     data object Splash : Routes("splash")
     data object Login : Routes("login")
     data object SignUp : Routes("signup")
     data object ForgotPassword : Routes("forgot_password")
+    data object VerifyEmail : Routes("verify-email/{token}") {
+        fun create(token: String) = "verify-email/${Uri.encode(token)}"
+    }
+    data object ResetPassword : Routes("reset-password/{token}") {
+        fun create(token: String) = "reset-password/${Uri.encode(token)}"
+    }
+    data object MeetingReport : Routes("report/{token}") {
+        fun create(token: String) = "report/${Uri.encode(token)}"
+    }
     data object Home : Routes("home")
     data object Search : Routes("search")
     data object MeetingsByDate : Routes("meetings_by_date")

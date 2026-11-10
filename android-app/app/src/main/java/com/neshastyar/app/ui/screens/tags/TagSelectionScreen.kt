@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.neshastyar.app.ui.components.AnalyzeModelPicker
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
@@ -216,6 +217,17 @@ fun TagSelectionScreen(
         if (state.error != null) {
             Text(state.error!!, color = NeshastyarColors.Error, modifier = Modifier.padding(bottom = 8.dp))
         }
+
+        Spacer(Modifier.height(8.dp))
+        AnalyzeModelPicker(
+            value = state.analyzeModel,
+            models = state.analyzeModels,
+            autoKey = state.autoKey,
+            label = "مدل هوش مصنوعی تحلیل",
+            enabled = !state.uploading,
+            onValueChange = viewModel::onAnalyzeModel,
+            modifier = Modifier.padding(bottom = 10.dp),
+        )
 
         if (state.uploading) {
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {

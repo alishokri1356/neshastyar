@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.neshastyar.app.data.api.AnalyzeModelDto
 import com.neshastyar.app.data.api.MeetingDto
 import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.ParticipantsListResponse
@@ -51,6 +52,14 @@ data class MeetingDetailUiState(
     val aiPrompt: String = "",
     val aiEditing: Boolean = false,
     val aiEditError: String? = null,
+    val analyzeModel: String = "auto",
+    val autoKey: String = "auto",
+    val analyzeModels: List<AnalyzeModelDto> = MeetingsRepository.fallbackAnalyzeModels().models,
+    val showShareSheet: Boolean = false,
+    val shareLoading: Boolean = false,
+    val shareUrl: String? = null,
+    val shareToken: String? = null,
+    val shareError: String? = null,
 )
 
 @HiltViewModel
@@ -67,8 +76,21 @@ class MeetingDetailViewModel @Inject constructor(
 
     init {
         load(initial = true)
+        loadAnalyzeModels()
         startPolling()
     }
+
+    private fun loadAnalyzeModels() = viewModelScope.launch {
+        val resp = meetingsRepository.getAnalyzeModels()
+        _ui.update {
+            it.copy(
+                autoKey = resp.autoKey,
+                analyzeModels = resp.models,
+            )
+        }
+    }
+
+    fun onAnalyzeModel(model: String) = _ui.update { it.copy(analyzeModel = model) }
 
     fun retry() = load(initial = true)
 
@@ -143,8 +165,9 @@ class MeetingDetailViewModel @Inject constructor(
 
     fun requestReprocess() = viewModelScope.launch {
         if (_ui.value.reprocessing) return@launch
+        val selectedModel = _ui.value.analyzeModel.ifBlank { "auto" }
         _ui.update { it.copy(reprocessing = true, error = null, message = null) }
-        meetingsRepository.analyze(meetingId).fold(
+        meetingsRepository.analyze(meetingId, selectedModel).fold(
             onSuccess = {
                 _ui.update { current ->
                     current.copy(
@@ -157,7 +180,10 @@ class MeetingDetailViewModel @Inject constructor(
                         editLocation = "",
                         editSummaryText = "",
                         editing = false,
-                        meeting = current.meeting?.copy(status = "ارسال درخواست پردازش"),
+                        meeting = current.meeting?.copy(
+                            status = "ارسال درخواست پردازش",
+                            analyze_model = selectedModel,
+                        ),
                     )
                 }
             },
@@ -166,6 +192,75 @@ class MeetingDetailViewModel @Inject constructor(
                     it.copy(
                         reprocessing = false,
                         error = e.message ?: "درخواست پردازش ناموفق بود",
+                    )
+                }
+            },
+        )
+    }
+
+    fun openShareSheet() {
+        _ui.update {
+            it.copy(
+                showShareSheet = true,
+                shareLoading = true,
+                shareError = null,
+            )
+        }
+        ensureShareLink()
+    }
+
+    fun dismissShareSheet() {
+        if (_ui.value.shareLoading) return
+        _ui.update { it.copy(showShareSheet = false, shareError = null) }
+    }
+
+    fun ensureShareLink() = viewModelScope.launch {
+        _ui.update { it.copy(shareLoading = true, shareError = null) }
+        meetingsRepository.shareMeeting(meetingId).fold(
+            onSuccess = { result ->
+                val url = result.url.orEmpty()
+                val token = result.token?.takeIf { it.isNotBlank() }
+                    ?: url.substringAfterLast("/report/", "").substringBefore('?').takeIf { it.isNotBlank() }
+                _ui.update {
+                    it.copy(
+                        shareLoading = false,
+                        shareUrl = url,
+                        shareToken = token,
+                        shareError = null,
+                    )
+                }
+            },
+            onFailure = { e ->
+                _ui.update {
+                    it.copy(
+                        shareLoading = false,
+                        shareError = e.message ?: "ساخت لینک صورتجلسه ناموفق بود",
+                    )
+                }
+            },
+        )
+    }
+
+    fun disableShareLink() = viewModelScope.launch {
+        if (_ui.value.shareLoading) return@launch
+        _ui.update { it.copy(shareLoading = true, shareError = null) }
+        meetingsRepository.disableMeetingShare(meetingId).fold(
+            onSuccess = {
+                _ui.update {
+                    it.copy(
+                        shareLoading = false,
+                        shareUrl = null,
+                        shareToken = null,
+                        message = "لینک صورتجلسه غیرفعال شد",
+                        error = null,
+                    )
+                }
+            },
+            onFailure = { e ->
+                _ui.update {
+                    it.copy(
+                        shareLoading = false,
+                        shareError = e.message ?: "غیرفعال کردن لینک ناموفق بود",
                     )
                 }
             },
@@ -393,6 +488,7 @@ class MeetingDetailViewModel @Inject constructor(
                             meeting = result.data,
                             summary = if (suppress) ParsedMeetingSummary() else parsed,
                             summarySuppressed = current.summarySuppressed && !processed && !failed,
+                            analyzeModel = result.data.analyze_model?.ifBlank { null } ?: current.analyzeModel,
                             editTitle = if (current.editing) current.editTitle else result.data.title.orEmpty(),
                             editSubject = when {
                                 current.editing -> current.editSubject

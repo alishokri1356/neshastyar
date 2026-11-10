@@ -38,6 +38,13 @@ interface NeshastyarApi {
     @PUT("auth/profile")
     suspend fun updateProfile(@Body body: ProfileUpdateRequest): Response<ProfileResponse>
 
+    @Multipart
+    @POST("auth/profile/logo")
+    suspend fun uploadProfileLogo(@Part logo: MultipartBody.Part): Response<ProfileResponse>
+
+    @GET("auth/verify-email")
+    suspend fun verifyEmail(@Query("token") token: String): Response<SimpleSuccessResponse>
+
     @POST("auth/request-password-reset")
     suspend fun requestPasswordReset(@Body body: EmailOnlyRequest): Response<SimpleSuccessResponse>
 
@@ -59,6 +66,9 @@ interface NeshastyarApi {
         @Query("compact") compact: String? = null,
     ): Response<List<MeetingDto>>
 
+    @GET("meetings/analyze-models")
+    suspend fun getAnalyzeModels(): Response<AnalyzeModelsResponse>
+
     @GET("meetings/untagged")
     suspend fun getUntaggedMeetings(): Response<List<MeetingDto>>
 
@@ -72,7 +82,16 @@ interface NeshastyarApi {
     suspend fun updateMeeting(@Path("id") id: String, @Body body: UpdateMeetingRequest): Response<MeetingDto>
 
     @POST("meetings/{id}/analyze")
-    suspend fun analyzeMeeting(@Path("id") id: String): Response<AnalyzeResponse>
+    suspend fun analyzeMeeting(
+        @Path("id") id: String,
+        @Body body: AnalyzeMeetingRequest = AnalyzeMeetingRequest(),
+    ): Response<AnalyzeResponse>
+
+    @POST("meetings/{id}/share")
+    suspend fun shareMeeting(@Path("id") id: String): Response<ShareMeetingResponse>
+
+    @DELETE("meetings/{id}/share")
+    suspend fun disableMeetingShare(@Path("id") id: String): Response<ShareMeetingResponse>
 
     @POST("meetings/{id}/ai-edit")
     suspend fun aiEditMeeting(
@@ -229,4 +248,21 @@ interface NeshastyarApi {
     @Multipart
     @POST("dictation/transcribe")
     suspend fun transcribeDictation(@Part audio: MultipartBody.Part): Response<DictationResponse>
+
+    // Public Shareable Minutes Report (صورتجلسه)
+    @GET("public/reports/{token}")
+    suspend fun getPublicReport(@Path("token") token: String): Response<PublicReportDto>
+
+    @PATCH("public/reports/{token}")
+    suspend fun updatePublicReport(
+        @Path("token") token: String,
+        @Body body: PublicReportEditRequest,
+    ): Response<PublicReportDto>
+
+    @Multipart
+    @POST("public/reports/{token}/logo")
+    suspend fun uploadPublicReportLogo(
+        @Path("token") token: String,
+        @Part logo: MultipartBody.Part,
+    ): Response<PublicReportDto>
 }

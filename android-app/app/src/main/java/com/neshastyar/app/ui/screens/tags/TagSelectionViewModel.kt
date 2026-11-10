@@ -13,11 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.neshastyar.app.data.api.AnalyzeModelDto
+import com.neshastyar.app.data.api.NeshastyarApi
 import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.TagDto
 import com.neshastyar.app.data.local.DraftSelectionStore
 import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.data.repository.DraftRepository
+import com.neshastyar.app.data.repository.MeetingsRepository
 import com.neshastyar.app.data.repository.ParticipantsRepository
 import com.neshastyar.app.data.repository.TagsRepository
 import com.neshastyar.app.upload.CreateMeetingWorker
@@ -29,6 +32,9 @@ data class TagSelectionUiState(
     val participants: List<ParticipantDto> = emptyList(),
     val selected: Set<String> = emptySet(),
     val selectedParticipants: Set<String> = emptySet(),
+    val analyzeModel: String = "auto",
+    val autoKey: String = "auto",
+    val analyzeModels: List<AnalyzeModelDto> = MeetingsRepository.fallbackAnalyzeModels().models,
     val loading: Boolean = true,
     val uploading: Boolean = false,
     val progress: Int = 0,
@@ -44,6 +50,8 @@ data class TagSelectionUiState(
 @HiltViewModel
 class TagSelectionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    private val api: NeshastyarApi,
+    private val meetingsRepository: MeetingsRepository,
     private val tagsRepository: TagsRepository,
     private val participantsRepository: ParticipantsRepository,
     private val draftRepository: DraftRepository,
@@ -99,22 +107,37 @@ class TagSelectionViewModel @Inject constructor(
             _ui.update { it.copy(loading = true, error = null) }
             val tagsResult = tagsRepository.list()
             val peopleResult = participantsRepository.list()
-            val (savedTags, savedPeople) = DraftSelectionStore.load(context, draftId)
+            val modelsResp = meetingsRepository.getAnalyzeModels()
+            val profileDefaultModel = runCatching {
+                api.getProfile().body()?.data?.user?.default_analyze_model
+            }.getOrNull()
+            val saved = DraftSelectionStore.load(context, draftId)
             _ui.update { current ->
                 val tags = tagsResult.getOrDefault(emptyList())
                 val people = peopleResult.getOrNull()?.participants.orEmpty()
+                val chosenModel = saved.analyzeModel?.takeIf { it.isNotBlank() }
+                    ?: profileDefaultModel?.takeIf { it.isNotBlank() }
+                    ?: modelsResp.autoKey
                 current.copy(
                     loading = false,
                     tags = tags,
                     participants = people,
-                    selected = (current.selected + savedTags).intersect(tags.map { tag -> tag.id }.toSet()),
-                    selectedParticipants = (current.selectedParticipants + savedPeople)
+                    selected = (current.selected + saved.tagIds).intersect(tags.map { tag -> tag.id }.toSet()),
+                    selectedParticipants = (current.selectedParticipants + saved.participantIds)
                         .intersect(people.map { person -> person.id }.toSet()),
+                    analyzeModel = chosenModel,
+                    autoKey = modelsResp.autoKey,
+                    analyzeModels = modelsResp.models,
                     error = tagsResult.exceptionOrNull()?.message
                         ?: peopleResult.exceptionOrNull()?.message,
                 )
             }
         }
+    }
+
+    fun onAnalyzeModel(model: String) {
+        _ui.update { it.copy(analyzeModel = model) }
+        persistSelection()
     }
 
     fun selectTag(tagId: String) {
@@ -191,6 +214,7 @@ class TagSelectionViewModel @Inject constructor(
         if (_ui.value.uploading) return
         val tagIds = _ui.value.selected.toList()
         val participantIds = _ui.value.selectedParticipants.toList()
+        val model = _ui.value.analyzeModel.ifBlank { "auto" }
         _ui.update {
             it.copy(
                 uploading = true,
@@ -203,7 +227,7 @@ class TagSelectionViewModel @Inject constructor(
         WorkManager.getInstance(context).cancelUniqueWork(CreateMeetingWorker.UNIQUE_PREFIX + draftId)
         viewModelScope.launch { draftRepository.setStatus(draftId, DraftStatus.ON_UPLOADING) }
         try {
-            UploadForegroundService.start(context, draftId, tagIds, participantIds)
+            UploadForegroundService.start(context, draftId, tagIds, participantIds, model)
         } catch (error: Exception) {
             viewModelScope.launch { draftRepository.setStatus(draftId, DraftStatus.ON_TAG_SELECTION) }
             _ui.update {
@@ -218,14 +242,15 @@ class TagSelectionViewModel @Inject constructor(
 
     private fun persistSelection() {
         val state = _ui.value
-        DraftSelectionStore.save(context, draftId, state.selected, state.selectedParticipants)
+        DraftSelectionStore.save(
+            context = context,
+            draftId = draftId,
+            tagIds = state.selected,
+            participantIds = state.selectedParticipants,
+            analyzeModel = state.analyzeModel,
+        )
     }
 }
 
-internal fun normalizeCatalogQuery(value: String): String {
-    return value.trim()
-        .replace('ي', 'ی')
-        .replace('ك', 'ک')
-        .replace("\u200c", "")
-        .lowercase()
-}
+internal fun normalizeCatalogQuery(value: String): String =
+    value.trim().lowercase().replace('ي', 'ی').replace('ك', 'ک')

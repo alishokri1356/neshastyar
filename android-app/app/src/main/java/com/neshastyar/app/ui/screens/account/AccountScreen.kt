@@ -1,5 +1,7 @@
 package com.neshastyar.app.ui.screens.account
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -7,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.neshastyar.app.ui.components.AnalyzeModelPicker
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
@@ -39,9 +44,16 @@ fun AccountScreen(
     val state by viewModel.ui.collectAsStateWithLifecycle()
     LaunchedEffect(state.loggedOut) { if (state.loggedOut) onLoggedOut() }
 
+    val logoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) viewModel.uploadLogo(uri)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
         Row(
@@ -87,6 +99,32 @@ fun AccountScreen(
                 label = "شناسه بله",
                 placeholder = "شناسه بله خود را وارد کنید",
             )
+            Spacer(Modifier.height(12.dp))
+            AnalyzeModelPicker(
+                value = state.defaultAnalyzeModel,
+                models = state.analyzeModels,
+                autoKey = state.autoKey,
+                label = "مدل تحلیل پیش‌فرض",
+                enabled = !state.saving,
+                onValueChange = viewModel::onDefaultModel,
+            )
+            Spacer(Modifier.height(12.dp))
+            NeshastyarTextField(
+                value = state.orgName,
+                onValueChange = viewModel::onOrgName,
+                label = "نام سازمان (سربرگ صورتجلسه)",
+                placeholder = "نام سازمان برای سربرگ صورتجلسه",
+            )
+            Spacer(Modifier.height(10.dp))
+            NeshastyarSecondaryButton(
+                text = when {
+                    state.uploadingLogo -> "در حال بارگذاری نشان…"
+                    state.hasLogo -> "تغییر نشان سازمان (ثبت شده)"
+                    else -> "انتخاب نشان سازمان برای صورتجلسه"
+                },
+                enabled = !state.uploadingLogo && !state.saving,
+                onClick = { logoPicker.launch("image/*") },
+            )
 
             if (state.message != null) {
                 Text(state.message!!, color = NeshastyarColors.PrimaryBright, modifier = Modifier.padding(top = 12.dp))
@@ -108,13 +146,13 @@ fun AccountScreen(
             )
         }
 
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(20.dp))
         Text(
             text = "نسخه برنامه: ${com.neshastyar.app.BuildConfig.VERSION_NAME}",
             color = NeshastyarColors.TextMuted,
             fontSize = 12.sp,
             modifier = Modifier
-                .align(androidx.compose.ui.Alignment.CenterHorizontally)
+                .align(Alignment.CenterHorizontally)
                 .padding(bottom = 16.dp),
         )
     }

@@ -188,6 +188,55 @@ data class MeetingParticipantCreateResponse(
     val participants: List<ParticipantDto>? = null,
 )
 
+data class AnalyzeMeetingRequest(
+    val model: String? = null,
+)
+
+data class AnalyzeModelDto(
+    val key: String,
+    val label: String,
+    val kind: String? = null,
+    val provider: String? = null,
+)
+
+data class AnalyzeModelsResponse(
+    val autoKey: String = "auto",
+    val autoOrder: List<String> = emptyList(),
+    val manualFallback: List<String> = emptyList(),
+    val models: List<AnalyzeModelDto> = emptyList(),
+)
+
+data class ShareMeetingResponse(
+    val token: String? = null,
+    val url: String? = null,
+    val enabled: Boolean? = null,
+)
+
+data class MeetingDecisionDto(
+    val text: String = "",
+    val assignee: String = "",
+    val deadline: String = "",
+)
+
+data class PublicReportDto(
+    val title: String = "",
+    val meetingDate: String? = null,
+    val participants: List<String> = emptyList(),
+    val decisions: List<MeetingDecisionDto> = emptyList(),
+    val summaryText: String = "",
+    val location: String = "",
+    val orgName: String? = null,
+    val logoUrl: String? = null,
+    val message: String? = null,
+)
+
+data class PublicReportEditRequest(
+    val field: String,
+    val value: String? = null,
+    val index: Int? = null,
+    val part: String? = null,
+)
+
 data class SendMailResponse(
     val data: Any? = null,
     val error: String? = null,

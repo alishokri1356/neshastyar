@@ -2,10 +2,14 @@ package com.neshastyar.app.data.repository
 
 import com.neshastyar.app.data.api.AiEditMeetingRequest
 import com.neshastyar.app.data.api.AiEditMeetingResponse
+import com.neshastyar.app.data.api.AnalyzeMeetingRequest
+import com.neshastyar.app.data.api.AnalyzeModelDto
+import com.neshastyar.app.data.api.AnalyzeModelsResponse
 import com.neshastyar.app.data.api.AudioFileDto
 import com.neshastyar.app.data.api.MeetingDto
 import com.neshastyar.app.data.api.NeshastyarApi
 import com.neshastyar.app.data.api.NetworkErrors
+import com.neshastyar.app.data.api.ShareMeetingResponse
 import com.neshastyar.app.data.api.UpdateMeetingRequest
 import java.net.SocketTimeoutException
 import javax.inject.Inject
@@ -85,9 +89,69 @@ class MeetingsRepository @Inject constructor(
         )
     }
 
-    suspend fun analyze(id: String): Result<Unit> = runCatching {
-        val r = api.analyzeMeeting(id)
+    suspend fun analyze(id: String, model: String? = null): Result<Unit> = runCatching {
+        val body = AnalyzeMeetingRequest(model = model?.takeIf { it.isNotBlank() })
+        val r = api.analyzeMeeting(id, body)
         if (!r.isSuccessful) error("درخواست پردازش ناموفق (${r.code()})")
+    }
+
+    suspend fun getAnalyzeModels(): AnalyzeModelsResponse {
+        return try {
+            val r = api.getAnalyzeModels()
+            r.body()?.takeIf { r.isSuccessful && it.models.isNotEmpty() } ?: fallbackAnalyzeModels()
+        } catch (_: Exception) {
+            fallbackAnalyzeModels()
+        }
+    }
+
+    suspend fun shareMeeting(id: String): Result<ShareMeetingResponse> = runCatching {
+        val r = api.shareMeeting(id)
+        val body = r.body()
+        if (!r.isSuccessful || body?.url.isNullOrBlank()) {
+            error("ساخت لینک صورتجلسه ناموفق (${r.code()})")
+        }
+        body!!
+    }
+
+    suspend fun disableMeetingShare(id: String): Result<Unit> = runCatching {
+        val r = api.disableMeetingShare(id)
+        if (!r.isSuccessful) error("غیرفعال کردن لینک ناموفق (${r.code()})")
+    }
+
+    companion object {
+        fun fallbackAnalyzeModels(): AnalyzeModelsResponse = AnalyzeModelsResponse(
+            autoKey = "auto",
+            autoOrder = listOf(
+                "gemini_flash",
+                "gemini_4_argon",
+                "deepseek_v41_flash",
+                "glm_53",
+                "qwen38_27b",
+                "gemma4_31b_free",
+                "nvidia",
+            ),
+            manualFallback = listOf("gemma4_31b_free", "nvidia"),
+            models = listOf(
+                AnalyzeModelDto(key = "gemini_flash", label = "Gemini Flash", kind = "major", provider = "google"),
+                AnalyzeModelDto(key = "gemini_4_argon", label = "Gemini 4 Argon", kind = "major", provider = "openrouter"),
+                AnalyzeModelDto(key = "gpt_61_sol", label = "GPT-6.1 Sol", kind = "major", provider = "openrouter"),
+                AnalyzeModelDto(key = "claude_sonnet_55", label = "Claude Sonnet 5.5", kind = "major", provider = "openrouter"),
+                AnalyzeModelDto(key = "nvidia", label = "NVIDIA Nemotron", kind = "open_weight", provider = "nvidia"),
+                AnalyzeModelDto(key = "deepseek_v41_flash", label = "DeepSeek V4.1 Flash", kind = "open_weight", provider = "openrouter"),
+                AnalyzeModelDto(key = "qwen38_27b", label = "Qwen3.8 27B", kind = "open_weight", provider = "openrouter"),
+                AnalyzeModelDto(key = "glm_53", label = "GLM-5.3", kind = "open_weight", provider = "openrouter"),
+                AnalyzeModelDto(key = "gemma4_31b_free", label = "Gemma 4 31B", kind = "open_weight", provider = "openrouter"),
+            ),
+        )
+
+        fun modelLabel(
+            key: String?,
+            models: List<AnalyzeModelDto> = fallbackAnalyzeModels().models,
+            autoKey: String = "auto",
+        ): String {
+            if (key.isNullOrBlank() || key == autoKey) return "Auto (پیشنهادی)"
+            return models.firstOrNull { it.key == key }?.label ?: key
+        }
     }
 
     suspend fun delete(id: String): Result<Unit> = runCatching {

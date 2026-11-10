@@ -27,6 +27,8 @@ data class ResetPasswordRequest(
 data class ProfileUpdateRequest(
     val name: String? = null,
     val baleID: String? = null,
+    val default_analyze_model: String? = null,
+    val org_name: String? = null,
 )
 
 data class AuthResponse(
@@ -57,6 +59,9 @@ data class UserDto(
     val email: String? = null,
     val name: String? = null,
     val baleID: String? = null,
+    val default_analyze_model: String? = null,
+    val org_name: String? = null,
+    val org_logo_path: String? = null,
     val created_at: String? = null,
     val updated_at: String? = null,
 )

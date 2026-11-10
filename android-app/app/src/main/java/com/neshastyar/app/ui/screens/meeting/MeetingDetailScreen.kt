@@ -1,11 +1,14 @@
 package com.neshastyar.app.ui.screens.meeting
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -18,20 +21,25 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -44,12 +52,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.neshastyar.app.data.repository.MeetingsRepository
+import com.neshastyar.app.ui.components.AnalyzeModelPicker
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
@@ -61,9 +74,11 @@ import com.neshastyar.app.ui.theme.NeshastyarColors
 import com.neshastyar.app.util.JalaliDates
 import com.neshastyar.app.util.StatusStyle
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MeetingDetailScreen(
     onBack: () -> Unit,
+    onOpenReport: (token: String) -> Unit = {},
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
@@ -118,7 +133,16 @@ fun MeetingDetailScreen(
             state.meeting != null -> {
                 val meeting = state.meeting!!
                 val processingFailed = StatusStyle.isErrorStatus(meeting.status)
+                val isProcessed = StatusStyle.isProcessedStatus(meeting.status)
                 val showProcessed = !processingFailed && !state.summarySuppressed
+
+                val analyzingLabel = meeting.analyzing_model?.takeIf { it.isNotBlank() }?.let {
+                    MeetingsRepository.modelLabel(it, state.analyzeModels, state.autoKey)
+                }
+                val analyzedByLabel = meeting.analyzed_by?.takeIf { it.isNotBlank() }?.let {
+                    MeetingsRepository.modelLabel(it, state.analyzeModels, state.autoKey)
+                }
+
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
@@ -141,17 +165,37 @@ fun MeetingDetailScreen(
                                 color = NeshastyarColors.TextPrimary,
                             )
                         }
-                        Row(
+                        FlowRow(
                             modifier = Modifier.padding(top = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             val date = JalaliDates.parseApiDate(meeting.meeting_date)
                                 ?: JalaliDates.parseApiDate(meeting.created_at)
                             if (date != null) {
-                                Text(JalaliDates.formatDateTime(date), color = NeshastyarColors.TextMuted, fontSize = 12.sp)
+                                Text(
+                                    JalaliDates.formatDateTime(date),
+                                    color = NeshastyarColors.TextMuted,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.align(Alignment.CenterVertically),
+                                )
                             }
                             StatusChip(meeting.status)
+                            if (!isProcessed && !processingFailed && analyzingLabel != null) {
+                                Text(
+                                    text = "• در حال تحلیل با $analyzingLabel",
+                                    color = NeshastyarColors.TextMuted,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.align(Alignment.CenterVertically),
+                                )
+                            } else if (isProcessed && analyzedByLabel != null) {
+                                Text(
+                                    text = "• تحلیل شده با $analyzedByLabel",
+                                    color = NeshastyarColors.TextMuted,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.align(Alignment.CenterVertically),
+                                )
+                            }
                         }
                     }
 
@@ -218,6 +262,15 @@ fun MeetingDetailScreen(
 
                     item {
                         if (processingFailed) {
+                            AnalyzeModelPicker(
+                                value = state.analyzeModel,
+                                models = state.analyzeModels,
+                                autoKey = state.autoKey,
+                                label = "مدل هوش مصنوعی تحلیل",
+                                enabled = !state.reprocessing,
+                                onValueChange = viewModel::onAnalyzeModel,
+                                modifier = Modifier.padding(bottom = 10.dp),
+                            )
                             NeshastyarPrimaryButton(
                                 text = "درخواست پردازش مجدد",
                                 onClick = viewModel::requestReprocess,
@@ -234,6 +287,13 @@ fun MeetingDetailScreen(
                                     text = "ایمیل",
                                     onClick = viewModel::sendEmail,
                                     modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (isProcessed) {
+                                Spacer(Modifier.height(8.dp))
+                                NeshastyarSecondaryButton(
+                                    text = "صورتجلسه (مشاهده و اشتراک)",
+                                    onClick = viewModel::openShareSheet,
                                 )
                             }
                         }
@@ -260,6 +320,147 @@ fun MeetingDetailScreen(
             onSubmit = viewModel::submitAiEdit,
             onDismiss = viewModel::dismissAiEditSheet,
         )
+    }
+
+    if (state.showShareSheet) {
+        ShareMinutesBottomSheet(
+            loading = state.shareLoading,
+            shareUrl = state.shareUrl,
+            shareToken = state.shareToken,
+            error = state.shareError,
+            onOpenReport = { token ->
+                viewModel.dismissShareSheet()
+                onOpenReport(token)
+            },
+            onCreateLink = viewModel::ensureShareLink,
+            onDisableLink = viewModel::disableShareLink,
+            onDismiss = viewModel::dismissShareSheet,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShareMinutesBottomSheet(
+    loading: Boolean,
+    shareUrl: String?,
+    shareToken: String?,
+    error: String?,
+    onOpenReport: (String) -> Unit,
+    onCreateLink: () -> Unit,
+    onDisableLink: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = NeshastyarColors.Background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            SectionHeader(
+                title = "صورتجلسه قابل اشتراک",
+                subtitle = "مشاهده، ویرایش جدول تصمیمات، ذخیره PDF و اشتراک‌گذاری لینک",
+                icon = Icons.Default.Description,
+                iconTint = NeshastyarColors.PrimaryBright,
+            )
+            Spacer(Modifier.height(14.dp))
+
+            when {
+                loading -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            color = NeshastyarColors.Primary,
+                            modifier = Modifier.size(26.dp),
+                            strokeWidth = 2.5.dp,
+                        )
+                    }
+                }
+                !shareUrl.isNullOrBlank() -> {
+                    NeshastyarTextField(
+                        value = shareUrl,
+                        onValueChange = {},
+                        label = "لینک عمومی صورتجلسه",
+                        enabled = false,
+                        textStyle = LocalTextStyle.current.copy(
+                            textDirection = TextDirection.Ltr,
+                            textAlign = TextAlign.Left,
+                            fontSize = 13.sp,
+                        ),
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    if (!shareToken.isNullOrBlank()) {
+                        NeshastyarPrimaryButton(
+                            text = "باز کردن و ویرایش صورتجلسه",
+                            icon = Icons.Default.Description,
+                            onClick = { onOpenReport(shareToken) },
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NeshastyarSecondaryButton(
+                            text = "کپی لینک",
+                            onClick = {
+                                clipboard.setText(AnnotatedString(shareUrl))
+                                Toast.makeText(context, "لینک صورتجلسه کپی شد", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        NeshastyarSecondaryButton(
+                            text = "اشتراک‌گذاری",
+                            onClick = {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "اشتراک‌گذاری صورتجلسه"))
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+                    TextButton(
+                        onClick = onDisableLink,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    ) {
+                        Text("غیرفعال کردن لینک", color = NeshastyarColors.Error, fontSize = 13.sp)
+                    }
+                }
+                else -> {
+                    NeshastyarPrimaryButton(
+                        text = "ساخت لینک جدید صورتجلسه",
+                        icon = Icons.Default.Share,
+                        onClick = onCreateLink,
+                    )
+                }
+            }
+
+            if (error != null) {
+                Text(
+                    text = error,
+                    color = NeshastyarColors.Error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
     }
 }
 
