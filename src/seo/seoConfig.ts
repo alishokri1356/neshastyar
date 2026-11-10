@@ -34,6 +34,11 @@ export type SeoRoute = {
 
 const PROTECTED_PREFIXES = [
   "/home",
+  "/search",
+  "/meetings-by-date",
+  "/meetings_by_date",
+  "/chat",
+  "/chat-history",
   "/tag",
   "/meeting",
   "/record",

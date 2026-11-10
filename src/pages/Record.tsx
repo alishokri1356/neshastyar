@@ -1,105 +1,116 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { useMeetingStore } from '@/store/useMeetingStore';
-import { Mic, Pause, Square, Play, Upload, Trash2, Check, GripVertical, Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import AppShell from '@/components/layout/AppShell';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowRight,
+  FileEdit,
+  Mic,
+  Pause,
+  Play,
+  Square,
+  Trash2,
+} from "lucide-react";
+import { useMeetingStore } from "@/store/useMeetingStore";
+import { useToast } from "@/hooks/use-toast";
+import {
+  loadUploadDraft,
+  saveUploadDraftFiles,
+  updateDraftStatus,
+} from "@/lib/uploadDraftStore";
+import { DraftStatus } from "@/lib/neshastyarStatus";
+import { useSpeechInput } from "@/components/neshastyar/SpeechInputSheet";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+  NeshastyarSecondaryButton,
+  NeshastyarTopBar,
+} from "@/components/neshastyar/NeshastyarUi";
 
 interface AudioFile {
   id: string;
   name: string;
   duration: number;
   blob: Blob | File;
-  type: 'recording' | 'upload';
+  type: "recording" | "upload";
 }
 
 const SUPPORTED_AUDIO_EXTENSIONS = [
-  '.mp3',
-  '.wav',
-  '.aac',
-  '.m4a',
-  '.ogg',
-  '.opus',
-  '.webm',
-  '.3gp',
-  '.3gpp',
-  '.amr',
-  '.flac',
-  '.caf',
-  '.aiff',
-  '.aif',
+  ".mp3",
+  ".wav",
+  ".aac",
+  ".m4a",
+  ".ogg",
+  ".opus",
+  ".webm",
+  ".3gp",
+  ".3gpp",
+  ".amr",
+  ".flac",
+  ".caf",
+  ".aiff",
+  ".aif",
 ] as const;
 
 const SUPPORTED_AUDIO_MIME_TYPES = [
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/wav',
-  'audio/wave',
-  'audio/x-wav',
-  'audio/aac',
-  'audio/mp4',
-  'audio/x-m4a',
-  'audio/m4a',
-  'audio/ogg',
-  'audio/opus',
-  'audio/webm',
-  'audio/3gpp',
-  'audio/3gpp2',
-  'audio/amr',
-  'audio/amr-wb',
-  'audio/flac',
-  'audio/x-caf',
-  'audio/caf',
-  'audio/aiff',
-  'audio/x-aiff',
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/wave",
+  "audio/x-wav",
+  "audio/aac",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/m4a",
+  "audio/ogg",
+  "audio/opus",
+  "audio/webm",
+  "audio/3gpp",
+  "audio/3gpp2",
+  "audio/amr",
+  "audio/amr-wb",
+  "audio/flac",
+  "audio/x-caf",
+  "audio/caf",
+  "audio/aiff",
+  "audio/x-aiff",
 ];
 
-const SUPPORTED_FORMATS_LABEL = 'MP3، WAV، AAC، M4A، OGG، OPUS، FLAC، WebM، 3GP، AMR، CAF، AIFF';
-
-const FILE_INPUT_ACCEPT = `audio/*,${SUPPORTED_AUDIO_EXTENSIONS.join(',')}`;
+const SUPPORTED_FORMATS_LABEL =
+  "MP3، WAV، AAC، M4A، OGG، OPUS، FLAC، WebM، 3GP، AMR، CAF، AIFF";
+const FILE_INPUT_ACCEPT = `audio/*,${SUPPORTED_AUDIO_EXTENSIONS.join(",")}`;
+const WAVEFORM_HEIGHTS = [
+  12, 28, 18, 36, 22, 40, 16, 32, 24, 38, 14, 30, 20, 34, 18, 26, 12, 28, 22, 36,
+];
 
 const getFileExtension = (fileName: string) => {
-  if (!fileName.includes('.')) return '';
-  return fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+  if (!fileName.includes(".")) return "";
+  return fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
 };
 
 const isSupportedAudioFile = (file: File) => {
   const extension = getFileExtension(file.name);
-
-  if (extension && SUPPORTED_AUDIO_EXTENSIONS.includes(extension as typeof SUPPORTED_AUDIO_EXTENSIONS[number])) {
+  if (
+    extension &&
+    SUPPORTED_AUDIO_EXTENSIONS.includes(
+      extension as (typeof SUPPORTED_AUDIO_EXTENSIONS)[number],
+    )
+  ) {
     return true;
   }
-
-  if (file.type && SUPPORTED_AUDIO_MIME_TYPES.includes(file.type)) {
-    return true;
-  }
-
-  return false;
+  const baseMime = (file.type || "").split(";")[0].trim().toLowerCase();
+  return Boolean(baseMime && SUPPORTED_AUDIO_MIME_TYPES.includes(baseMime));
 };
 
-const getUnsupportedFileError = (fileNames: string[]) => {
-  const listedFiles = fileNames.slice(0, 3).map((name) => `«${name}»`).join('، ');
-  const remainingCount = fileNames.length > 3 ? ` و ${fileNames.length - 3} فایل دیگر` : '';
+function formatHhMmSs(totalSec: number): string {
+  const s = Math.max(0, Math.floor(totalSec));
+  const h = String(Math.floor(s / 3600)).padStart(2, "0");
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+  const sec = String(s % 60).padStart(2, "0");
+  return `${h}:${m}:${sec}`;
+}
 
-  if (fileNames.length === 1) {
-    return {
-      title: 'این فایل صوتی نیست',
-      description: `فایل ${listedFiles} قابل آپلود نیست. لطفاً فقط فایل صوتی انتخاب کنید. فرمت‌های مجاز: ${SUPPORTED_FORMATS_LABEL}`,
-    };
-  }
-
-  return {
-    title: 'برخی فایل‌ها صوتی نیستند',
-    description: `${fileNames.length} فایل از انتخاب شما صوتی نیستند: ${listedFiles}${remainingCount}. لطفاً فقط فایل صوتی انتخاب کنید. فرمت‌های مجاز: ${SUPPORTED_FORMATS_LABEL}`,
-  };
-};
-
-const Record = () => {
+const Record: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -123,85 +134,140 @@ const Record = () => {
     clearRecordDraft,
   } = useMeetingStore();
 
-  const restoredAudioFiles = locationDraft?.audioFiles ?? recordDraft?.audioFiles ?? [];
-  const restoredCommentText = locationDraft?.commentText ?? recordDraft?.commentText ?? '';
-
-  // State for multiple audio files
-  const [audioFiles, setAudioFiles] = useState<AudioFile[]>(restoredAudioFiles);
-  const [showFilesList, setShowFilesList] = useState(restoredAudioFiles.length > 0);
-
-  // State for comment text
-  const [commentText, setCommentText] = useState<string>(restoredCommentText);
-  
-  // State for audio playback
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>(
+    locationDraft?.audioFiles ?? recordDraft?.audioFiles ?? [],
+  );
+  const [commentText, setCommentText] = useState<string>(
+    locationDraft?.commentText ?? recordDraft?.commentText ?? "",
+  );
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [playingFileId, setPlayingFileId] = useState<string | null>(null);
-  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
-  
-  // State for drag and drop
-  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
-  
-  const intervalRef = useRef<NodeJS.Timeout>();
-  const mediaRecorderRef = useRef<MediaRecorder>();
+  const [hydrated, setHydrated] = useState(false);
+
+  const audioMapRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resumeAfterDictationRef = useRef(false);
+  const durationRef = useRef(recordingDuration);
+  durationRef.current = recordingDuration;
 
+  // Hydrate persisted IndexedDB draft if store is empty
   useEffect(() => {
-    const draft = location.state as {
-      audioFiles?: AudioFile[];
-      commentText?: string;
-    } | null;
+    let cancelled = false;
+    (async () => {
+      if (locationDraft?.audioFiles?.length || recordDraft?.audioFiles?.length) {
+        await updateDraftStatus(DraftStatus.ON_RECORDING);
+        if (!cancelled) setHydrated(true);
+        return;
+      }
+      const stored = await loadUploadDraft();
+      if (!cancelled && stored) {
+        if (stored.status === DraftStatus.ON_UPLOADING) {
+          navigate("/tag-selection", { replace: true });
+          return;
+        }
+        if (stored.files.length > 0 || stored.commentText) {
+          setAudioFiles(stored.files);
+          setCommentText(stored.commentText);
+        }
+        await updateDraftStatus(DraftStatus.ON_RECORDING);
+      }
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    if (!draft) return;
-
-    setAudioFiles(draft.audioFiles ?? []);
-    setCommentText(draft.commentText ?? '');
-    setShowFilesList((draft.audioFiles?.length ?? 0) > 0);
-  }, [location.state]);
-
+  // Persist draft changes to memory store + IndexedDB
   useEffect(() => {
+    if (!hydrated) return;
     if (audioFiles.length > 0 || commentText.trim()) {
       setRecordDraft({ audioFiles, commentText });
-      return;
-    }
-
-    clearRecordDraft();
-  }, [audioFiles, commentText, setRecordDraft, clearRecordDraft]);
-
-  useEffect(() => {
-    if (isRecording && !isPaused) {
-      intervalRef.current = setInterval(() => {
-        setRecordingDuration(recordingDuration + 1);
-      }, 1000);
+      void saveUploadDraftFiles(
+        audioFiles.map((f) => ({
+          id: f.id,
+          name: f.name,
+          duration: f.duration,
+          type: f.type,
+          blob: f.blob,
+        })),
+        commentText,
+        undefined,
+        { status: DraftStatus.ON_RECORDING },
+      );
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      clearRecordDraft();
     }
+  }, [audioFiles, commentText, hydrated, setRecordDraft, clearRecordDraft]);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isRecording, isPaused, recordingDuration, setRecordingDuration]);
-
-  // Cleanup audio elements on unmount
+  // Timer tick while actively recording
   useEffect(() => {
-    return () => {
-      audioElements.forEach((audioElement) => {
-        audioElement.pause();
-        URL.revokeObjectURL(audioElement.src);
-      });
-    };
-  }, [audioElements]);
+    if (!isRecording || isPaused) return;
+    const id = window.setInterval(() => {
+      setRecordingDuration(durationRef.current + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isRecording, isPaused, setRecordingDuration]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // Cleanup audio previews on unmount
+  useEffect(() => {
+    const map = audioMapRef.current;
+    return () => {
+      map.forEach((el) => {
+        el.pause();
+        URL.revokeObjectURL(el.src);
+      });
+      map.clear();
+    };
+  }, []);
+
+  const handlePauseResume = useCallback(() => {
+    if (isPaused) {
+      if (mediaRecorderRef.current?.state === "paused") {
+        mediaRecorderRef.current.resume();
+      }
+      resumeRecording();
+    } else {
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.pause();
+      }
+      pauseRecording();
+    }
+  }, [isPaused, pauseRecording, resumeRecording]);
+
+  const { startSpeech, speechSheet } = useSpeechInput({
+    prompt: "یادداشت خود را بگویید",
+    onFinished: () => {
+      if (resumeAfterDictationRef.current) {
+        resumeAfterDictationRef.current = false;
+        if (mediaRecorderRef.current?.state === "paused") {
+          mediaRecorderRef.current.resume();
+        }
+        resumeRecording();
+      }
+    },
+    onResult: (dictated) => {
+      const cleaned = dictated.trim();
+      if (!cleaned) return;
+      setCommentText((prev) => [prev.trim(), cleaned].filter(Boolean).join(" "));
+    },
+  });
+
+  const startNoteDictation = () => {
+    if (isRecording && !isPaused) {
+      resumeAfterDictationRef.current = true;
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.pause();
+      }
+      pauseRecording();
+    }
+    void startSpeech();
   };
 
   const handleStartRecording = async () => {
+    setPermissionError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -209,496 +275,364 @@ const Record = () => {
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
+        if (event.data.size > 0) chunksRef.current.push(event.data);
       };
 
-      // Handle recording completion
       mediaRecorder.onstop = () => {
-        const audioBlob = chunksRef.current.length > 0 
-          ? new Blob(chunksRef.current, { type: 'audio/wav' }) 
-          : null;
-        
+        const mime = mediaRecorder.mimeType || "audio/webm";
+        const audioBlob =
+          chunksRef.current.length > 0 ? new Blob(chunksRef.current, { type: mime }) : null;
+
         if (audioBlob) {
-          // Add recording to the list
           const newAudioFile: AudioFile = {
             id: `recording-${Date.now()}`,
-            name: `ضبط ${new Date().toLocaleTimeString('fa-IR')}`,
-            duration: recordingDuration,
+            name: `ضبط ${new Date().toLocaleTimeString("fa-IR")}`,
+            duration: durationRef.current,
             blob: audioBlob,
-            type: 'recording'
+            type: "recording",
           };
-          
-          setAudioFiles(prev => [...prev, newAudioFile]);
-          setShowFilesList(true);
-          
-          toast({
-            title: "ضبط تکمیل شد",
-            description: "فایل صوتی به لیست اضافه شد.",
-          });
+          setAudioFiles((prev) => [...prev, newAudioFile]);
         }
       };
 
       mediaRecorder.start();
       startRecording();
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      toast({
-        title: "خطا در دسترسی به میکروفون",
-        description: "امکان دسترسی به میکروفون وجود ندارد. لطفاً مجوزها را بررسی کنید.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePauseResume = () => {
-    if (isPaused) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
-        mediaRecorderRef.current.resume();
-      }
-      resumeRecording();
-    } else {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.pause();
-      }
-      pauseRecording();
+    } catch {
+      setPermissionError("برای ضبط باید دسترسی میکروفون را بدهید");
     }
   };
 
   const handleStopRecording = () => {
-    if (mediaRecorderRef.current) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
     }
     stopRecording();
+    setRecordingDuration(0);
   };
 
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const removeAudioFile = (id: string) => {
-    setAudioFiles(prev => prev.filter(file => file.id !== id));
-    if (audioFiles.length === 1) {
-      setShowFilesList(false);
+  const handleCancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      chunksRef.current = [];
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
     }
-    
-    // Clean up audio element if it exists
-    const audioElement = audioElements.get(id);
-    if (audioElement) {
-      audioElement.pause();
-      URL.revokeObjectURL(audioElement.src);
-      setAudioElements(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(id);
-        return newMap;
-      });
-    }
-    
-    // Stop playing if this file was playing
-    if (playingFileId === id) {
-      setPlayingFileId(null);
-    }
-  };
-
-  const handlePlayPause = async (file: AudioFile) => {
-    try {
-      // Stop any currently playing audio
-      if (playingFileId && playingFileId !== file.id) {
-        const currentAudio = audioElements.get(playingFileId);
-        if (currentAudio) {
-          currentAudio.pause();
-        }
-      }
-
-      let audioElement = audioElements.get(file.id);
-      
-      if (!audioElement) {
-        // Create audio element for this file
-        audioElement = new Audio();
-        const audioUrl = URL.createObjectURL(file.blob);
-        audioElement.src = audioUrl;
-        audioElement.preload = 'metadata';
-        
-        // Store the audio element
-        setAudioElements(prev => new Map(prev).set(file.id, audioElement!));
-        
-        // Clean up URL when audio ends
-        audioElement.addEventListener('ended', () => {
-          setPlayingFileId(null);
-        });
-      }
-
-      if (playingFileId === file.id) {
-        // Currently playing this file - pause it
-        audioElement.pause();
-        setPlayingFileId(null);
-      } else {
-        // Play this file
-        await audioElement.play();
-        setPlayingFileId(file.id);
-      }
-    } catch (error) {
-      console.error('Error playing audio:', error);
-      toast({
-        title: "خطا در پخش فایل صوتی",
-        description: "امکان پخش این فایل صوتی وجود ندارد.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, fileId: string) => {
-    setDraggedItemId(fileId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, targetFileId: string) => {
-    e.preventDefault();
-    
-    if (!draggedItemId || draggedItemId === targetFileId) {
-      setDraggedItemId(null);
-      return;
-    }
-
-    setAudioFiles(prev => {
-      const newFiles = [...prev];
-      const draggedIndex = newFiles.findIndex(file => file.id === draggedItemId);
-      const targetIndex = newFiles.findIndex(file => file.id === targetFileId);
-      
-      if (draggedIndex === -1 || targetIndex === -1) return prev;
-      
-      // Remove the dragged item
-      const [draggedItem] = newFiles.splice(draggedIndex, 1);
-      
-      // Insert it at the target position
-      newFiles.splice(targetIndex, 0, draggedItem);
-      
-      return newFiles;
-    });
-    
-    setDraggedItemId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedItemId(null);
-  };
-
-  const handleDone = () => {
-    if (audioFiles.length === 0) {
-      toast({
-        title: "هیچ فایل صوتی",
-        description: "لطفاً حداقل یک فایل صوتی اضافه کنید.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Navigate to tag selection with all audio files and comment text
-    setRecordDraft({ audioFiles, commentText });
-    navigate('/tag-selection', {
-      state: {
-        audioFiles,
-        commentText,
-      },
-    });
-  };
-
-  const handleBackToHome = () => {
-    clearRecordDraft();
-    navigate('/home');
+    stopRecording();
+    setRecordingDuration(0);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    
-    if (!files || files.length === 0) return;
-    
+    const selected = event.target.files;
+    if (!selected || selected.length === 0) return;
+
     const validFiles: File[] = [];
-    const invalidFiles: string[] = [];
-    
-    Array.from(files).forEach((file: File) => {
-      if (isSupportedAudioFile(file)) {
-        validFiles.push(file);
-      } else {
-        invalidFiles.push(file.name);
-      }
+    const invalidNames: string[] = [];
+
+    Array.from(selected).forEach((f) => {
+      if (isSupportedAudioFile(f)) validFiles.push(f);
+      else invalidNames.push(f.name);
     });
-    
-    if (invalidFiles.length > 0) {
-      const error = getUnsupportedFileError(invalidFiles);
+
+    if (invalidNames.length > 0) {
       toast({
-        title: error.title,
-        description: error.description,
+        title: "برخی فایل‌ها صوتی نیستند",
+        description: `فرمت‌های مجاز: ${SUPPORTED_FORMATS_LABEL}`,
         variant: "destructive",
       });
     }
-    
-    // Process valid files
-    if (validFiles.length > 0) {
-      let processedCount = 0;
-      const newAudioFiles: AudioFile[] = [];
-      
-      validFiles.forEach((file, index) => {
-        // Get audio duration (approximate)
-        const audio = new Audio();
-        audio.src = URL.createObjectURL(file);
-        
-        audio.onloadedmetadata = () => {
-          const duration = Math.floor(audio.duration);
-          URL.revokeObjectURL(audio.src);
-          
-          // Add file to the list
-          const newAudioFile: AudioFile = {
-            id: `upload-${Date.now()}-${index}`,
+
+    validFiles.forEach((file) => {
+      const audio = new Audio();
+      const objectUrl = URL.createObjectURL(file);
+      audio.src = objectUrl;
+      audio.addEventListener("loadedmetadata", () => {
+        const dur = Number.isFinite(audio.duration) ? Math.round(audio.duration) : 0;
+        URL.revokeObjectURL(objectUrl);
+        setAudioFiles((prev) => [
+          ...prev,
+          {
+            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             name: file.name,
-            duration: duration,
+            duration: dur,
             blob: file,
-            type: 'upload'
-          };
-          
-          newAudioFiles.push(newAudioFile);
-          processedCount++;
-          
-          // When all files are processed, update state
-          if (processedCount === validFiles.length) {
-            setAudioFiles(prev => [...prev, ...newAudioFiles]);
-            setShowFilesList(true);
-            
-            toast({
-              title: "فایل‌ها اضافه شدند",
-              description: `${validFiles.length} فایل صوتی به لیست اضافه شد.`,
-            });
-          }
-        };
-        
-        audio.onerror = () => {
-          URL.revokeObjectURL(audio.src);
-          processedCount++;
-          
-          // Still count as processed even if failed
-          if (processedCount === validFiles.length) {
-            if (newAudioFiles.length > 0) {
-              setAudioFiles(prev => [...prev, ...newAudioFiles]);
-              setShowFilesList(true);
-              
-              toast({
-                title: "برخی فایل‌ها اضافه شدند",
-                description: `${newAudioFiles.length} از ${validFiles.length} فایل با موفقیت اضافه شد.`,
-              });
-            } else {
-              toast({
-                title: "خطا در بارگذاری فایل‌ها",
-                description: "هیچ فایل صوتی قابل پخش نبود.",
-                variant: "destructive",
-              });
-            }
-          }
-        };
+            type: "upload",
+          },
+        ]);
       });
-    }
-    
-    // Clear the input so the same files can be selected again
-    event.target.value = '';
+      audio.addEventListener("error", () => {
+        URL.revokeObjectURL(objectUrl);
+        setAudioFiles((prev) => [
+          ...prev,
+          {
+            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            name: file.name,
+            duration: 0,
+            blob: file,
+            type: "upload",
+          },
+        ]);
+      });
+    });
+
+    event.target.value = "";
   };
 
-  if (!isRecording) {
-    return (
-      <AppShell
-        title="ضبط جلسه"
-        subtitle="می‌توانید چند فایل صوتی اضافه کنید"
-        onBack={handleBackToHome}
-        hideNav
-      >
-        <div className={`mx-auto max-w-2xl ${audioFiles.length > 0 ? 'pb-24' : ''}`}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept={FILE_INPUT_ACCEPT}
-            onChange={handleFileChange}
-            className="hidden"
-          />
+  const togglePreviewPlay = async (file: AudioFile) => {
+    const map = audioMapRef.current;
+    if (playingFileId && playingFileId !== file.id) {
+      map.get(playingFileId)?.pause();
+    }
+    let el = map.get(file.id);
+    if (!el) {
+      el = new Audio(URL.createObjectURL(file.blob));
+      el.addEventListener("ended", () => setPlayingFileId(null));
+      map.set(file.id, el);
+    }
+    if (playingFileId === file.id) {
+      el.pause();
+      setPlayingFileId(null);
+    } else {
+      try {
+        await el.play();
+        setPlayingFileId(file.id);
+      } catch {
+        toast({ title: "امکان پخش این فایل صوتی وجود ندارد", variant: "destructive" });
+      }
+    }
+  };
 
-          {/* Audio Files List */}
-          {showFilesList && audioFiles.length > 0 && (
-            <div className="mb-6">
-              <h2 className="mb-3 text-base font-semibold text-foreground">
-                فایل‌های صوتی ({audioFiles.length})
-              </h2>
-              <div className="space-y-2">
-                {audioFiles.map((file) => (
-                  <Card
-                    key={file.id}
-                    className={`border border-border/50 bg-card/70 transition-all duration-200 ${
-                      draggedItemId === file.id ? 'scale-95 opacity-50' : 'hover:shadow-soft'
-                    }`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, file.id)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, file.id)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing">
-                          <GripVertical className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={file.type === 'recording' ? 'default' : 'secondary'} className="shrink-0">
-                              {file.type === 'recording' ? 'ضبط' : 'آپلود'}
-                            </Badge>
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            مدت زمان: {formatTime(file.duration)}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePlayPause(file)}
-                            className="h-8 w-8 p-0"
-                          >
-                            {playingFileId === file.id ? (
-                              <Pause className="h-4 w-4" />
-                            ) : (
-                              <Play className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeAudioFile(file.id)}
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+  const removeAudioFile = (id: string) => {
+    const el = audioMapRef.current.get(id);
+    if (el) {
+      el.pause();
+      URL.revokeObjectURL(el.src);
+      audioMapRef.current.delete(id);
+    }
+    if (playingFileId === id) setPlayingFileId(null);
+    setAudioFiles((prev) => prev.filter((f) => f.id !== id));
+  };
 
-              <div className="mt-4 flex justify-center">
-                <Button
-                  onClick={handleFileSelect}
-                  variant="outline"
-                  size="icon"
-                  className="h-12 w-12 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                  aria-label="اضافه کردن فایل صوتی"
-                >
-                  <Plus className="h-6 w-6" />
-                </Button>
-              </div>
-            </div>
-          )}
+  const canContinue = !isRecording && audioFiles.length > 0;
 
-          {/* Empty state add button */}
-          {audioFiles.length === 0 && (
-            <button
-              type="button"
-              onClick={handleFileSelect}
-              className="mb-6 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/40 bg-card/40 px-6 py-10 text-primary transition-colors hover:bg-primary/5"
-            >
-              <Upload className="h-8 w-8" />
-              <span className="text-base font-semibold">اضافه کردن فایل صوتی</span>
-              <span className="text-xs text-muted-foreground">یا از دکمه ضبط استفاده کنید</span>
-            </button>
-          )}
-
-          {/* Comment Text Input */}
-          <div className="mb-6">
-            <Label htmlFor="comment-text" className="mb-2 block text-base font-semibold text-foreground">
-              توضیحات خاص
-            </Label>
-            <Textarea
-              id="comment-text"
-              placeholder="برای نتیجه بهتر از هوش مصنوعی، می‌توانید عنوان جلسه، نام شرکت‌کنندگان و تاریخ جلسه را وارد کنید..."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              className="min-h-[100px] w-full resize-none"
-            />
-          </div>
-        </div>
-
-        {/* Sticky bottom action bar */}
-        {audioFiles.length > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-lg pb-safe">
-            <div className="mx-auto w-full max-w-2xl px-4 py-3">
-              <Button onClick={handleDone} variant="primary" size="lg" className="w-full">
-                <Check className="h-5 w-5" />
-                تمام ({audioFiles.length} فایل)
-              </Button>
-            </div>
-          </div>
-        )}
-      </AppShell>
+  const handleContinue = async () => {
+    if (!canContinue) return;
+    setRecordDraft({ audioFiles, commentText });
+    await saveUploadDraftFiles(
+      audioFiles.map((f) => ({
+        id: f.id,
+        name: f.name,
+        duration: f.duration,
+        type: f.type,
+        blob: f.blob,
+      })),
+      commentText,
+      undefined,
+      { status: DraftStatus.ON_TAG_SELECTION },
     );
-  }
+    navigate("/tag-selection", { state: { audioFiles, commentText } });
+  };
+
+  const phaseLabel = isRecording
+    ? isPaused
+      ? "ضبط متوقف موقت"
+      : "در حال ضبط جلسه"
+    : "آماده ضبط جلسه";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 via-background to-red-100 px-6 safe-top pb-safe">
-      <div className="space-y-8 p-4 text-center">
-        {/* Recording Indicator */}
-        <div className="relative mx-auto h-40 w-40">
-          <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-red-500/20">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-red-500">
-              <Mic className="h-12 w-12 text-white" />
+    <div dir="rtl" className="flex min-h-[100dvh] flex-col bg-[#FBF9F4] text-[#1C1B18]">
+      <NeshastyarTopBar />
+
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col space-y-4 px-4 pb-28 pt-1">
+        {/* Sub-header matching Android RecordScreen */}
+        <div className="flex items-center justify-between py-1">
+          <button
+            type="button"
+            onClick={() => navigate("/home")}
+            aria-label="بازگشت"
+            className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-[#1C1B18] hover:bg-black/5"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </button>
+          <span className="text-[16px] font-bold text-[#0D4D4D]">ضبط جلسه</span>
+        </div>
+
+        {/* Status + Timer */}
+        <div className="flex flex-col items-center pt-1 text-center">
+          <p className="text-[14px] text-[#66625B]">{phaseLabel}</p>
+          <p
+            dir="ltr"
+            className="mt-2 text-[42px] font-bold tabular-nums tracking-tight text-[#1C1B18]"
+          >
+            {formatHhMmSs(recordingDuration)}
+          </p>
+        </div>
+
+        {/* 20-bar Waveform matching Android WaveformPlaceholder */}
+        <div className="flex h-12 w-full items-center justify-evenly">
+          {WAVEFORM_HEIGHTS.map((h, idx) => {
+            const active = isRecording && !isPaused;
+            return (
+              <span
+                key={idx}
+                style={{ height: `${active ? h : Math.round(h / 2)}px` }}
+                className={`w-1 rounded-sm transition-all duration-300 ${
+                  active ? "animate-pulse bg-[#0F766E]/85" : "bg-[#E8E2D5]"
+                }`}
+              />
+            );
+          })}
+        </div>
+
+        {/* Primary Recording Controls */}
+        <div className="flex items-center justify-center py-2">
+          {!isRecording ? (
+            <button
+              type="button"
+              onClick={() => void handleStartRecording()}
+              aria-label="شروع ضبط"
+              className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[#0F766E] text-[#FBF9F4] shadow-[0_14px_30px_rgba(13,77,77,0.32)] transition hover:bg-[#0D4D4D] active:scale-95"
+            >
+              <Mic className="h-9 w-9" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-5">
+              <button
+                type="button"
+                onClick={handlePauseResume}
+                aria-label={isPaused ? "ادامه ضبط" : "مکث ضبط"}
+                className="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#F5F2EB] text-[#0F766E] border border-[#E8E2D5] transition hover:bg-[#E8E2D5]/60 active:scale-95"
+              >
+                {isPaused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleStopRecording}
+                aria-label="پایان ضبط"
+                className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[#0F766E] text-[#FBF9F4] shadow-[0_14px_30px_rgba(13,77,77,0.32)] transition hover:bg-[#0D4D4D] active:scale-95"
+              >
+                <Square className="h-8 w-8 fill-current" />
+              </button>
             </div>
+          )}
+        </div>
+
+        {permissionError ? (
+          <p className="text-center text-[13px] text-[#B91C1C]">{permissionError}</p>
+        ) : null}
+
+        {/* Quick Notes Card with Speech Dictation */}
+        <NeshastyarCard>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileEdit className="h-5 w-5 text-[#0F766E]" />
+              <span className="text-[15px] font-semibold text-[#1C1B18]">
+                یادداشت‌های سریع
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={startNoteDictation}
+              aria-label="یادداشت صوتی"
+              title="یادداشت صوتی"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#E8E2D5] text-[#1C1B18] transition hover:bg-[#F5F2EB]"
+            >
+              <Mic className="h-5 w-5" />
+            </button>
           </div>
-          <div className="absolute inset-0 mx-auto h-40 w-40 animate-pulse rounded-full bg-red-500/30" />
-        </div>
 
-        {/* Recording Status */}
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-            {isPaused ? 'ضبط متوقف شده' : 'در حال ضبط...'}
-          </h1>
-          <div className="font-mono text-4xl font-bold text-red-500">
-            {formatTime(recordingDuration)}
+          <div className="mt-2.5">
+            <NeshastyarField
+              label="یادداشت"
+              placeholder="نکته مهمی در این لحظه رخ داد؟ اینجا بنویسید…"
+              value={commentText}
+              onChange={setCommentText}
+              multiline
+              rows={3}
+            />
           </div>
-        </div>
+        </NeshastyarCard>
 
-        {/* Control Buttons */}
-        <div className="flex justify-center gap-6">
-          <Button
-            onClick={handlePauseResume}
-            variant="outline"
-            size="lg"
-            className="h-16 w-16 rounded-full border-2"
+        {/* Import Audio File Button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={FILE_INPUT_ACCEPT}
+          multiple
+          hidden
+          onChange={handleFileChange}
+        />
+        <NeshastyarSecondaryButton
+          disabled={isRecording}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          افزودن فایل صوتی
+        </NeshastyarSecondaryButton>
+
+        {/* Files List */}
+        {audioFiles.length > 0 ? (
+          <div className="space-y-2 pt-1">
+            <h2 className="text-[14px] font-semibold text-[#404848]">
+              فایل‌ها ({audioFiles.length})
+            </h2>
+            {audioFiles.map((file) => {
+              const source = file.type === "recording" ? "ضبط" : "وارد شده";
+              const dur = file.duration > 0 ? ` · ${file.duration} ثانیه` : "";
+              const playing = playingFileId === file.id;
+              return (
+                <NeshastyarCard key={file.id} className="p-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void togglePreviewPlay(file)}
+                      aria-label={playing ? "مکث" : "پخش"}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#0F766E] hover:bg-[#D7EFED]/50"
+                    >
+                      {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium text-[#1C1B18]">
+                        {file.name}
+                      </p>
+                      <p className="text-[12px] text-[#66625B]">{source + dur}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAudioFile(file.id)}
+                      aria-label="حذف"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#B91C1C] hover:bg-[#FDF2F0]"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </NeshastyarCard>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {isRecording ? (
+          <NeshastyarSecondaryButton onClick={handleCancelRecording}>
+            لغو ضبط جلسه
+          </NeshastyarSecondaryButton>
+        ) : null}
+      </main>
+
+      {/* Fixed Bottom Continue CTA */}
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-[#FBF9F4]/95 px-4 py-3 backdrop-blur-sm pb-safe">
+        <div className="mx-auto w-full max-w-2xl">
+          <NeshastyarPrimaryButton
+            disabled={!canContinue}
+            onClick={() => void handleContinue()}
+            icon={<ArrowLeft className="h-5 w-5" />}
           >
-            {isPaused ? (
-              <Play className="h-8 w-8" />
-            ) : (
-              <Pause className="h-8 w-8" />
-            )}
-          </Button>
-
-          <Button
-            onClick={handleStopRecording}
-            className="h-16 w-16 rounded-full bg-red-500 text-white hover:bg-red-600"
-          >
-            <Square className="h-8 w-8" />
-          </Button>
+            ادامه و انتخاب برچسب‌ها
+          </NeshastyarPrimaryButton>
         </div>
-
-        <p className="mx-auto max-w-md text-sm text-muted-foreground">
-          {isPaused 
-            ? 'روی پلی کلیک کنید تا ضبط را ادامه دهید یا استاپ کنید تا تمام شود'
-            : 'روی مکث کلیک کنید تا موقتاً متوقف شود یا استاپ کنید تا ضبط تمام شود'
-          }
-        </p>
       </div>
+
+      {speechSheet}
     </div>
   );
 };

@@ -1,15 +1,22 @@
-import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { mysqlClient } from '@/lib/mysql-client';
-import AppShell from '@/components/layout/AppShell';
-import { isHtmlContent } from '@/lib/meetingSummary';
+import React from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import { mysqlClient } from "@/lib/mysql-client";
+import { htmlToPlainText, isHtmlContent } from "@/lib/meetingSummary";
+import { isErrorStatus } from "@/lib/neshastyarStatus";
+import {
+  NeshastyarCard,
+  NeshastyarSubHeader,
+  NeshastyarTopBar,
+} from "@/components/neshastyar/NeshastyarUi";
+import { MeetingDetailBottomBar } from "@/components/neshastyar/MeetingDetailChrome";
 
-const MeetingTranscription = () => {
-  const { meetingId } = useParams<{ meetingId: string }>();
+const MeetingTranscription: React.FC = () => {
+  const { meetingId = "" } = useParams<{ meetingId: string }>();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['meeting-transcription', meetingId],
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["meeting-transcription", meetingId],
     queryFn: async () => {
       if (!meetingId) return null;
 
@@ -18,76 +25,75 @@ const MeetingTranscription = () => {
       } = await mysqlClient.auth.getUser();
       if (!user) return null;
 
-      const { data: meetingData, error } = await mysqlClient
-        .from('meetings')
-        .select('id, title, transcription')
-        .eq('id', meetingId)
-        .eq('user_id', user.id)
+      const { data: meetingData, error: fetchErr } = await mysqlClient
+        .from("meetings")
+        .select("id, title, status, transcription")
+        .eq("id", meetingId)
+        .eq("user_id", user.id)
         .single();
 
-      if (error || !meetingData) {
-        console.error('Error fetching meeting transcription:', error);
-        return null;
+      if (fetchErr || !meetingData) {
+        throw new Error(fetchErr?.message || "جلسه یافت نشد");
       }
 
       return {
-        title: meetingData.title || 'جلسه',
-        transcription: meetingData.transcription || '',
+        title: meetingData.title || "جلسه",
+        status: meetingData.status || "",
+        transcription: String(meetingData.transcription || ""),
       };
     },
-    enabled: !!meetingId,
-    staleTime: 5 * 60 * 1000,
+    enabled: Boolean(meetingId),
+    staleTime: 60_000,
   });
 
-  if (isLoading) {
-    return (
-      <AppShell title="جزییات صحبت های جلسه" onBack={`/meeting/${meetingId}`} hideNav>
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">در حال بارگذاری...</p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (!data) {
-    return (
-      <AppShell title="جزییات صحبت های جلسه" onBack={`/meeting/${meetingId}`} hideNav>
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">جلسه یافت نشد.</p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  const transcription = data.transcription.trim();
-  const renderAsHtml = transcription.length > 0 && isHtmlContent(transcription);
+  const rawText = (data?.transcription ?? "").trim();
+  const plain = isHtmlContent(rawText) ? htmlToPlainText(rawText) : rawText;
 
   return (
-    <AppShell title="جزییات صحبت های جلسه" subtitle={data.title} onBack={`/meeting/${meetingId}`} hideNav>
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-lg text-card-foreground">جزییات صحبت های جلسه</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!transcription ? (
-            <p className="text-muted-foreground text-center py-8">جزییات صحبت های این جلسه موجود نیست.</p>
-          ) : renderAsHtml ? (
-            <div
-              className="prose prose-sm max-w-none text-card-foreground leading-7"
-              dir="rtl"
-              dangerouslySetInnerHTML={{ __html: transcription }}
-            />
-          ) : (
-            <pre
-              className="whitespace-pre-wrap break-words font-sans text-sm leading-7 text-card-foreground"
-              dir="rtl"
+    <div dir="rtl" className="min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]">
+      <NeshastyarTopBar />
+
+      <main className="mx-auto w-full max-w-2xl px-4 pb-24">
+        <NeshastyarSubHeader
+          title="جزییات مکالمات"
+          onBack={`/meeting/${meetingId}/options`}
+        />
+
+        {isLoading ? (
+          <div className="flex min-h-[45vh] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
+          </div>
+        ) : error ? (
+          <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center">
+            <p className="text-[#B91C1C]">{(error as Error).message}</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="text-sm font-semibold text-[#0F766E]"
             >
-              {transcription}
-            </pre>
-          )}
-        </CardContent>
-      </Card>
-    </AppShell>
+              تلاش مجدد
+            </button>
+          </div>
+        ) : (
+          <div className="mt-2">
+            <NeshastyarCard>
+              <p
+                className={`whitespace-pre-wrap break-words text-[15px] leading-8 ${
+                  plain ? "text-[#1C1B18]" : "text-[#66625B]"
+                }`}
+              >
+                {plain || "جزییات مکالمات این جلسه موجود نیست."}
+              </p>
+            </NeshastyarCard>
+          </div>
+        )}
+      </main>
+
+      <MeetingDetailBottomBar
+        meetingId={meetingId}
+        showProcessedSections={!isErrorStatus(data?.status)}
+      />
+    </div>
   );
 };
 

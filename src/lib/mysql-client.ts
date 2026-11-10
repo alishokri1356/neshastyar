@@ -1,8 +1,10 @@
 // MySQL client wrapper that provides a database API
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
+type QueryResult<T = any> = { data: T; error: any };
+
 class MySQLClient {
-  private session: { token: string; expiresAt: string } | null = null;
+  private session: { token: string; expiresAt: string; access_token?: string; user?: any } | null = null;
 
   constructor() {
     // Load session from localStorage
@@ -754,8 +756,11 @@ class MySQLClient {
               return { data: result.data || null, error: result.error };
             }
           },
-          then: (resolve: any, reject: any) => {
-            executeQuery().then(resolve, reject);
+          then: <TResult1 = QueryResult, TResult2 = never>(
+            onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
+            onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+          ): Promise<TResult1 | TResult2> => {
+            return executeQuery().then(onfulfilled, onrejected);
           }
         };
         return queryBuilder;
@@ -803,13 +808,19 @@ class MySQLClient {
                 const result = await executeInsert();
                 return result;
               },
-              then: (resolve: any, reject: any) => {
-                executeInsert().then(resolve, reject);
+              then: <TResult1 = QueryResult, TResult2 = never>(
+                onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
+                onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+              ): Promise<TResult1 | TResult2> => {
+                return executeInsert().then(onfulfilled, onrejected);
               }
             };
           },
-          then: (resolve: any, reject: any) => {
-            executeInsert().then(resolve, reject);
+          then: <TResult1 = QueryResult, TResult2 = never>(
+            onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
+            onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+          ): Promise<TResult1 | TResult2> => {
+            return executeInsert().then(onfulfilled, onrejected);
           }
         };
       },
@@ -847,8 +858,11 @@ class MySQLClient {
             };
 
             return {
-              then: (resolve: any, reject: any) => {
-                executeUpdate().then(resolve, reject);
+              then: <TResult1 = QueryResult, TResult2 = never>(
+                onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
+                onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+              ): Promise<TResult1 | TResult2> => {
+                return executeUpdate().then(onfulfilled, onrejected);
               }
             };
           },
@@ -888,8 +902,11 @@ class MySQLClient {
             };
 
             return {
-              then: (resolve: any, reject: any) => {
-                executeDelete().then(resolve, reject);
+              then: <TResult1 = { error: any }, TResult2 = never>(
+                onfulfilled?: ((value: { error: any }) => TResult1 | PromiseLike<TResult1>) | null,
+                onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+              ): Promise<TResult1 | TResult2> => {
+                return executeDelete().then(onfulfilled, onrejected);
               }
             };
           },

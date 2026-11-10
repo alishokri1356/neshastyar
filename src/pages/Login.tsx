@@ -1,19 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuthStore } from '@/store/useAuthStore';
-import { useToast } from '@/hooks/use-toast';
-import GoogleSignInButton from '@/components/GoogleSignInButton';
-import { Mic2, Sparkles } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useToast } from "@/hooks/use-toast";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+} from "@/components/neshastyar/NeshastyarUi";
 
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const Login: React.FC = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { login, loginWithGoogle, isAuthenticated } = useAuthStore();
   const { toast } = useToast();
@@ -21,38 +24,33 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate("/home");
     }
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg(null);
 
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       toast({
-        title: 'خوش آمدید!',
-        description: 'شما با موفقیت وارد شدید.',
+        title: "خوش آمدید!",
+        description: "شما با موفقیت وارد شدید.",
       });
-      navigate('/');
+      navigate("/home");
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      if (errorMessage.includes('Email not verified') || errorMessage.includes('verify your email')) {
-        toast({
-          title: 'ایمیل تأیید نشده',
-          description:
-            'لطفاً ابتدا ایمیل خود را تأیید کنید. لینک تأیید به ایمیل شما ارسال شده است.',
-          variant: 'destructive',
-          duration: 8000,
-        });
+      const message = (error as Error).message || "";
+      if (
+        message.includes("Email not verified") ||
+        message.includes("verify your email")
+      ) {
+        setErrorMsg(
+          "لطفاً ابتدا ایمیل خود را تأیید کنید. لینک تأیید به ایمیل شما ارسال شده است.",
+        );
       } else {
-        toast({
-          title: 'خطا',
-          description: 'ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.',
-          variant: 'destructive',
-        });
+        setErrorMsg("ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.");
       }
     } finally {
       setIsLoading(false);
@@ -62,133 +60,134 @@ const Login = () => {
   const handleGoogle = useCallback(
     async (idToken: string) => {
       setGoogleLoading(true);
+      setErrorMsg(null);
       try {
         await loginWithGoogle(idToken);
         toast({
-          title: 'خوش آمدید!',
-          description: 'با حساب گوگل وارد شدید.',
+          title: "خوش آمدید!",
+          description: "با حساب گوگل وارد شدید.",
         });
-        navigate('/');
+        navigate("/home");
       } catch (error) {
-        toast({
-          title: 'خطا در ورود با گوگل',
-          description: (error as Error).message || 'ورود ناموفق بود.',
-          variant: 'destructive',
-        });
+        setErrorMsg((error as Error).message || "ورود با گوگل ناموفق بود.");
         throw error;
       } finally {
         setGoogleLoading(false);
       }
     },
-    [loginWithGoogle, navigate, toast]
+    [loginWithGoogle, navigate, toast],
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
-      <div className="w-full max-w-md space-y-8">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
-              <Mic2 className="h-6 w-6 text-white" />
-              <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">نشست یار</h1>
-          </div>
-          <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
+    <div
+      dir="rtl"
+      className="flex min-h-[100dvh] items-center justify-center bg-[#FBF9F4] px-6 py-8 text-[#1C1B18]"
+    >
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex flex-col items-center text-center">
+          <Link to="/" className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#003535] text-white">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M6 13c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm6-10C9.8 3 8 4.8 8 7s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm6 10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4z"
+                />
+              </svg>
+            </span>
+            <span className="text-[26px] font-black text-[#003535]">نشست‌یار</span>
+          </Link>
+          <p className="mt-1.5 text-[14px] text-[#66625B]">ورود با ایمیل</p>
         </div>
 
-        <Card className="shadow-medium border-0 bg-gradient-card">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">خوش آمدید</CardTitle>
-            <CardDescription className="text-center">
-              برای دسترسی به جلسات و خلاصه‌های هوشمند خود وارد شوید
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 mb-6">
-              <GoogleSignInButton
-                onCredential={handleGoogle}
-                disabled={isLoading || googleLoading}
-                onError={(message) =>
-                  toast({
-                    title: 'خطا در ورود با گوگل',
-                    description: message,
-                    variant: 'destructive',
-                  })
-                }
-              />
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">یا</span>
-                </div>
-              </div>
-            </div>
+        <NeshastyarCard className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <NeshastyarField
+              id="email"
+              label="ایمیل"
+              type="email"
+              dir="ltr"
+              placeholder="example@mail.com"
+              value={email}
+              onChange={(v) => {
+                setEmail(v);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              required
+              leadingIcon={<Mail className="h-5 w-5" />}
+            />
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">ایمیل</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  dir="ltr"
-                  className="transition-all focus:ring-primary/20"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">رمز عبور</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="رمز عبور خود را وارد کنید"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  dir="ltr"
-                  className="transition-all focus:ring-primary/20"
-                />
-              </div>
-
-              <div className="text-right">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary hover:text-primary-glow transition-colors"
+            <NeshastyarField
+              id="password"
+              label="رمز عبور"
+              type={passwordVisible ? "text" : "password"}
+              dir="ltr"
+              value={password}
+              onChange={(v) => {
+                setPassword(v);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              required
+              leadingIcon={<Lock className="h-5 w-5" />}
+              trailingIcon={
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((prev) => !prev)}
+                  aria-label="نمایش رمز عبور"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[#66625B] hover:bg-black/5"
                 >
-                  رمز عبور را فراموش کرده‌اید؟
-                </Link>
-              </div>
+                  {passwordVisible ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              }
+            />
 
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full"
-                disabled={isLoading || googleLoading}
-                size="lg"
+            <div className="text-right">
+              <Link
+                to="/forgot-password"
+                className="text-[13px] text-[#66625B] hover:text-[#0D4D4D]"
               >
-                {isLoading ? 'در حال ورود...' : 'ورود'}
-              </Button>
-            </form>
-
-            <div className="text-center mt-6">
-              <p className="text-sm text-muted-foreground">
-                حساب کاربری ندارید؟{' '}
-                <Link
-                  to="/signup"
-                  className="font-medium text-primary hover:text-primary-glow transition-colors"
-                >
-                  ثبت نام
-                </Link>
-              </p>
+                فراموشی رمز عبور؟
+              </Link>
             </div>
-          </CardContent>
-        </Card>
+
+            {errorMsg ? (
+              <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
+            ) : null}
+
+            <NeshastyarPrimaryButton
+              type="submit"
+              loading={isLoading}
+              disabled={isLoading || googleLoading}
+            >
+              ورود
+            </NeshastyarPrimaryButton>
+          </form>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-[#E8E2D5]" />
+            <span className="text-[12px] text-[#66625B]">یا</span>
+            <div className="h-px flex-1 bg-[#E8E2D5]" />
+          </div>
+
+          <GoogleSignInButton
+            onCredential={handleGoogle}
+            disabled={isLoading || googleLoading}
+            onError={(message) => setErrorMsg(message)}
+          />
+
+          <div className="mt-5 flex items-center justify-center gap-1 text-[14px]">
+            <span className="text-[#404848]">حساب کاربری ندارید؟</span>
+            <Link
+              to="/signup"
+              className="font-semibold text-[#0F766E] underline hover:text-[#0D4D4D]"
+            >
+              ثبت‌نام کنید
+            </Link>
+          </div>
+        </NeshastyarCard>
       </div>
     </div>
   );

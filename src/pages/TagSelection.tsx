@@ -1,26 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Progress } from '@/components/ui/progress';
-import { useMeetingStore } from '@/store/useMeetingStore';
-import { Plus, Tag, X, Play, Pause, GripVertical } from 'lucide-react';
-import type { Tag as TagType } from '@/store/useMeetingStore';
-import AppShell from '@/components/layout/AppShell';
-
-interface AudioFile {
-  id: string;
-  name: string;
-  duration: number;
-  blob: Blob | File;
-  type: 'recording' | 'upload';
-}
-import { mysqlClient } from '@/lib/mysql-client';
-import { uploadFileResumable, UploadAbortedError } from '@/lib/resumableUpload';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Loader2, X } from "lucide-react";
+import { useMeetingStore } from "@/store/useMeetingStore";
+import { mysqlClient } from "@/lib/mysql-client";
+import { useToast } from "@/hooks/use-toast";
+import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
+import {
+  uploadFileResumable,
+  UploadAbortedError,
+} from "@/lib/resumableUpload";
 import {
   clearUploadDraft,
   loadUploadDraft,
@@ -29,432 +17,312 @@ import {
   saveUploadDraftFiles,
   saveUploadMeetingId,
   setUploadActive,
-} from '@/lib/uploadDraftStore';
-import { useToast } from '@/components/ui/use-toast';
-import AnalyzeModelSelect from '@/components/AnalyzeModelSelect';
+} from "@/lib/uploadDraftStore";
+import { DraftStatus } from "@/lib/neshastyarStatus";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+  NeshastyarSecondaryButton,
+  NeshastyarSubHeader,
+  NeshastyarTopBar,
+} from "@/components/neshastyar/NeshastyarUi";
 
-// Get API base URL from environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+interface AudioFile {
+  id: string;
+  name: string;
+  duration: number;
+  blob: Blob | File;
+  type: "recording" | "upload";
+}
 
-const normalizeSearchText = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ');
+interface CatalogTag {
+  id: string;
+  name: string;
+  color?: string;
+}
 
-const splitSearchWords = (text: string) =>
-  normalizeSearchText(text)
-    .split(' ')
-    .filter((word) => word.length > 0);
+interface CatalogPerson {
+  id: string;
+  name: string;
+}
 
-const wordsShareMatch = (queryWord: string, tagWord: string) => {
-  if (queryWord === tagWord) return 100;
-  if (tagWord.startsWith(queryWord) || queryWord.startsWith(tagWord)) return 75;
-  if (tagWord.includes(queryWord) || queryWord.includes(tagWord)) return 55;
-  return 0;
-};
+type CatalogRow =
+  | { kind: "tag"; key: string; id: string; name: string }
+  | { kind: "person"; key: string; id: string; name: string };
 
-const getTagMatchScore = (query: string, tagName: string): number | null => {
-  const normalizedQuery = normalizeSearchText(query);
-  const normalizedName = normalizeSearchText(tagName);
+const TAG_COLORS = [
+  "#0D4D4D",
+  "#0F766E",
+  "#166534",
+  "#C88A2E",
+  "#1D4ED8",
+  "#7C3AED",
+];
 
-  if (!normalizedQuery) return null;
+function normalizeCatalogQuery(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/\s+/g, " ");
+}
 
-  if (normalizedName === normalizedQuery) return 1000;
-  if (normalizedName.startsWith(normalizedQuery)) return 900 - normalizedName.length;
-  if (normalizedName.includes(normalizedQuery)) return 750 - normalizedName.indexOf(normalizedQuery);
-
-  const queryWords = splitSearchWords(normalizedQuery);
-  const tagWords = splitSearchWords(normalizedName);
-
-  if (queryWords.length === 0) return null;
-
-  let matchedQueryWords = 0;
-  let wordMatchScore = 0;
-
-  for (const queryWord of queryWords) {
-    const bestWordScore = tagWords.reduce((best, tagWord) => {
-      return Math.max(best, wordsShareMatch(queryWord, tagWord));
-    }, 0);
-
-    if (bestWordScore > 0) {
-      matchedQueryWords += 1;
-      wordMatchScore += bestWordScore;
-    }
-  }
-
-  if (matchedQueryWords > 0) {
-    const coverage = matchedQueryWords / queryWords.length;
-    return 400 + wordMatchScore + coverage * 120;
-  }
-
-  const queryChars = normalizedQuery.split('');
-  let searchIndex = 0;
-  let matchedChars = 0;
-
-  for (const char of normalizedName) {
-    if (char === queryChars[searchIndex]) {
-      matchedChars += 1;
-      searchIndex += 1;
-      if (searchIndex === queryChars.length) break;
-    }
-  }
-
-  if (matchedChars === queryChars.length) {
-    return 200 + matchedChars * 10;
-  }
-
-  return null;
-};
-
-const TagSelection = () => {
+const TagSelection: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tags, addTag, addMeeting, setTags, clearRecordDraft, recordDraft } = useMeetingStore();
   const { toast } = useToast();
-  
-  const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
-  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const { recordDraft, setRecordDraft, clearRecordDraft } = useMeetingStore();
+
+  const API_BASE_URL =
+    import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
+  const locationState = location.state as {
+    audioFiles?: AudioFile[];
+    commentText?: string;
+  } | null;
+
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>(
+    locationState?.audioFiles ?? recordDraft?.audioFiles ?? [],
+  );
+  const [commentText, setCommentText] = useState<string>(
+    locationState?.commentText ?? recordDraft?.commentText ?? "",
+  );
+
+  const [tags, setTags] = useState<CatalogTag[]>([]);
+  const [participants, setParticipants] = useState<CatalogPerson[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [queryInput, setQueryInput] = useState("");
+  const [analyzeModel, setAnalyzeModel] = useState("auto");
+
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  
-  // State for individual file upload progress
-  const [fileUploadProgress, setFileUploadProgress] = useState<Map<string, number>>(new Map());
-  const [canResume, setCanResume] = useState(false);
+  const [fileIndex, setFileIndex] = useState(0);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
-  const saveMeetingRef = useRef<() => Promise<void>>(async () => {});
-  
-  // State for audio playback
-  const [playingFileId, setPlayingFileId] = useState<string | null>(null);
-  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
-  
-  // Calculate total progress whenever individual progress changes
-  useEffect(() => {
-    if (fileUploadProgress.size > 0) {
-      const individualProgresses = Array.from(fileUploadProgress.values());
-      const averageProgress = individualProgresses.reduce((sum, progress) => sum + progress, 0) / individualProgresses.length;
-      setUploadProgress(Math.round(averageProgress));
-    }
-  }, [fileUploadProgress]);
-
-  const routeDraft = location.state as { audioFiles?: AudioFile[]; commentText?: string } | null;
-  const [audioFiles, setAudioFiles] = useState<AudioFile[] | null>(
-    routeDraft?.audioFiles ?? recordDraft?.audioFiles ?? null,
-  );
-  const [commentText, setCommentText] = useState(
-    routeDraft?.commentText ?? recordDraft?.commentText ?? '',
-  );
-  const [analyzeModel, setAnalyzeModel] = useState('auto');
-  const audioFilesRef = useRef(audioFiles);
+  const audioFilesRef = useRef<AudioFile[]>(audioFiles);
   audioFilesRef.current = audioFiles;
-  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
-  const autoResumeStarted = useRef(false);
 
+  // Load tags, participants, user default model, and stored draft
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await mysqlClient.auth.getProfile();
-        if (!cancelled && data?.default_analyze_model) {
-          setAnalyzeModel(data.default_analyze_model);
-        }
-      } catch {
-        // Keep Auto default when profile lookup fails.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
-  useEffect(() => {
-    let cancelled = false;
     (async () => {
       try {
-        const draft = await loadUploadDraft();
+        const [stored, sessionRes, profileRes] = await Promise.all([
+          loadUploadDraft(),
+          mysqlClient.auth.getSession(),
+          mysqlClient.auth.getProfile(),
+        ]);
+
         if (cancelled) return;
-        const inMemory = audioFilesRef.current;
-        const restoredFromDisk = (!inMemory || inMemory.length === 0) && Boolean(draft?.files?.length);
-        if (restoredFromDisk && draft) {
-          const restored: AudioFile[] = draft.files.map((file) => ({
-            id: file.id,
-            name: file.name,
-            duration: file.duration,
-            blob: file.blob,
-            type: file.type,
-          }));
-          setAudioFiles(restored);
-          audioFilesRef.current = restored;
-          setCommentText(draft.commentText || '');
-          if (draft.selectedTagIds?.length) setPendingTagIds(draft.selectedTagIds);
-          if (draft.uploading || Object.keys(draft.completed || {}).length > 0) setCanResume(true);
-          if (draft.uploading && !autoResumeStarted.current) {
-            autoResumeStarted.current = true;
-            void saveMeetingRef.current();
-          }
-        } else if (inMemory?.length) {
-          await saveUploadDraftFiles(
-            inMemory.map((file) => ({
-              id: file.id,
-              name: file.name,
-              duration: file.duration,
-              type: file.type,
-              blob: file.blob,
-            })),
-            commentText,
-            [],
-          );
-          await setUploadActive(false);
+
+        if (profileRes.data?.default_analyze_model) {
+          setAnalyzeModel(profileRes.data.default_analyze_model);
         }
-      } catch (error) {
-        console.error('Failed to restore upload draft', error);
+
+        if (stored) {
+          if (audioFilesRef.current.length === 0 && stored.files.length > 0) {
+            setAudioFiles(stored.files);
+            setCommentText((prev) => prev || stored.commentText);
+            setRecordDraft({
+              audioFiles: stored.files,
+              commentText: stored.commentText,
+            });
+          }
+          if (stored.selectedTagIds?.length) {
+            setSelectedTagIds(stored.selectedTagIds);
+          }
+          if (stored.selectedParticipantIds?.length) {
+            setSelectedParticipantIds(stored.selectedParticipantIds);
+          }
+        }
+
+        const userId = sessionRes.data?.session?.user?.id;
+        if (userId) {
+          const [tagsRes, peopleRes] = await Promise.all([
+            mysqlClient.from("tags").select("*").eq("user_id", userId),
+            mysqlClient.participants.list(),
+          ]);
+
+          if (!cancelled) {
+            if (Array.isArray(tagsRes.data)) {
+              setTags(
+                tagsRes.data.map((t: { id: string; name: string; color?: string }) => ({
+                  id: t.id,
+                  name: t.name || t.id,
+                  color: t.color,
+                })),
+              );
+            }
+            if (Array.isArray(peopleRes.data?.participants)) {
+              setParticipants(
+                peopleRes.data.participants.map((p: { id: string; name: string }) => ({
+                  id: p.id,
+                  name: p.name || p.id,
+                })),
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed loading tag selection catalog:", err);
+      } finally {
+        if (!cancelled) setLoadingCatalog(false);
       }
     })();
+
     return () => {
       cancelled = true;
+      abortRef.current?.abort();
     };
-  }, []);
+  }, [setRecordDraft]);
 
+  // Persist tag & participant selection into IndexedDB draft
   useEffect(() => {
-    if (!pendingTagIds.length || tags.length === 0) return;
-    const matched = tags.filter((tag) => pendingTagIds.includes(tag.id));
-    if (matched.length > 0) {
-      setSelectedTags(matched);
+    if (audioFiles.length === 0) return;
+    void saveUploadDraftFiles(
+      audioFiles.map((f) => ({
+        id: f.id,
+        name: f.name,
+        duration: f.duration,
+        type: f.type,
+        blob: f.blob,
+      })),
+      commentText,
+      selectedTagIds,
+      {
+        status: isUploading ? DraftStatus.ON_UPLOADING : DraftStatus.ON_TAG_SELECTION,
+        selectedParticipantIds,
+      },
+    );
+  }, [audioFiles, commentText, selectedTagIds, selectedParticipantIds, isUploading]);
+
+  const normalizedQuery = normalizeCatalogQuery(queryInput);
+
+  const catalogRows: CatalogRow[] = useMemo(() => {
+    const all: CatalogRow[] = [
+      ...tags.map((t) => ({
+        kind: "tag" as const,
+        key: `tag:${t.id}`,
+        id: t.id,
+        name: t.name,
+      })),
+      ...participants.map((p) => ({
+        kind: "person" as const,
+        key: `person:${p.id}`,
+        id: p.id,
+        name: p.name,
+      })),
+    ];
+
+    return all
+      .filter((row) =>
+        !normalizedQuery || normalizeCatalogQuery(row.name).includes(normalizedQuery),
+      )
+      .sort((a, b) =>
+        normalizeCatalogQuery(a.name).localeCompare(normalizeCatalogQuery(b.name), "fa"),
+      );
+  }, [tags, participants, normalizedQuery]);
+
+  const selectedTags = useMemo(
+    () => tags.filter((t) => selectedTagIds.includes(t.id)),
+    [tags, selectedTagIds],
+  );
+  const selectedPeople = useMemo(
+    () => participants.filter((p) => selectedParticipantIds.includes(p.id)),
+    [participants, selectedParticipantIds],
+  );
+
+  const handleAddFromQuery = async () => {
+    const raw = queryInput.trim();
+    if (!raw || isUploading) return;
+    const q = normalizeCatalogQuery(raw);
+
+    const exactTag = tags.find((t) => normalizeCatalogQuery(t.name) === q);
+    const exactPerson = participants.find((p) => normalizeCatalogQuery(p.name) === q);
+
+    if (exactTag || exactPerson) {
+      if (exactTag && !selectedTagIds.includes(exactTag.id)) {
+        setSelectedTagIds((prev) => [...prev, exactTag.id]);
+      }
+      if (exactPerson && !selectedParticipantIds.includes(exactPerson.id)) {
+        setSelectedParticipantIds((prev) => [...prev, exactPerson.id]);
+      }
+      setQueryInput("");
+      return;
     }
-  }, [pendingTagIds, tags]);
 
-  // Fetch user's tags from database on component mount
-  useEffect(() => {
-    const fetchTags = async () => {
-      try {
-        const { data: { session } } = await mysqlClient.auth.getSession();
-        
-        if (!session) {
-          toast({
-            title: "وارد نشده‌اید",
-            description: "لطفاً برای مشاهده برچسب‌های خود وارد شوید",
-            variant: "destructive",
-          });
-          navigate('/login');
-          return;
-        }
-
-        const { data, error } = await mysqlClient
-          .from('tags')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-
-        if (error) {
-          console.error('TagSelection - Tags fetch error:', error);
-          
-          // Check if it's an authentication error
-          if (error.message?.includes('Access token required') || error.message?.includes('Unauthorized')) {
-            navigate('/login');
-            return;
-          }
-          
-          toast({
-            title: "خطا در بارگذاری برچسب‌ها",
-            description: error.message || "بارگزاری برچسب ها نا موفق بود",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Set fetched tags directly (they already have IDs)
-        if (data && data.length > 0) {
-          const formattedTags = data.map(tag => ({
-            id: tag.id,
-            name: tag.name,
-            color: tag.color,
-            userId: tag.user_id
-          }));
-          setTags(formattedTags);
-        } else {
-          setTags([]); // Explicitly set empty array - this is normal!
-        }
-      } catch (error) {
-        console.error('TagSelection - Error fetching tags:', error);
-        
-        // Check if it's a network error or authentication issue
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          toast({
-            title: "خطا در اتصال",
-            description: "خطا در اتصال به سرور. لطفاً اتصال اینترنت خود را بررسی کنید.",
-            variant: "destructive",
-          });
-        } else if (error.message?.includes('Access token required') || error.message?.includes('Unauthorized')) {
-          navigate('/login');
-        } else {
-          toast({
-            title: "خطای غیرمنتظره",
-            description: "بارگذاری برچسب‌ها ناموفق بود",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    fetchTags();
-  }, [setTags, toast, navigate]);
-
-  const closestTags = useMemo(() => {
-    const query = tagSearchQuery.trim();
-    if (!query) return [];
-
-    return tags
-      .filter((tag) => !selectedTags.some((selected) => selected.id === tag.id))
-      .map((tag) => {
-        const score = getTagMatchScore(query, tag.name);
-        return score === null ? null : { tag, score };
-      })
-      .filter((item): item is { tag: TagType; score: number } => item !== null)
-      .sort((a, b) => b.score - a.score || a.tag.name.localeCompare(b.tag.name, 'fa'))
-      .slice(0, 3)
-      .map((item) => item.tag);
-  }, [tagSearchQuery, tags, selectedTags]);
-
-  const hasExactTagMatch = useMemo(() => {
-    const query = normalizeSearchText(tagSearchQuery);
-    if (!query) return false;
-
-    return tags.some((tag) => normalizeSearchText(tag.name) === query);
-  }, [tagSearchQuery, tags]);
-
-  const canCreateNewTag = tagSearchQuery.trim().length > 0 && !hasExactTagMatch;
-
-  const tagColors = [
-    '#3B82F6', // Blue
-    '#EF4444', // Red
-    '#10B981', // Green
-    '#F59E0B', // Amber
-    '#8B5CF6', // Purple
-    '#EC4899', // Pink
-    '#14B8A6', // Teal
-    '#F97316', // Orange
-  ];
-
-  const handleSelectSuggestedTag = (tag: TagType) => {
-    setSelectedTags((prev) => {
-      if (prev.some((item) => item.id === tag.id)) {
-        return prev;
-      }
-      return [...prev, tag];
-    });
-    setTagSearchQuery('');
-  };
-
-  const handleRemoveSelectedTag = (tagId: string) => {
-    setSelectedTags((prev) => prev.filter((tag) => tag.id !== tagId));
-  };
-
-  const handleCreateTag = async () => {
-    const tagName = tagSearchQuery.trim();
-    if (!tagName || hasExactTagMatch) return;
-
+    // Create new tag just like Android TagSelectionViewModel.createTag
     try {
-      const { data: { session } } = await mysqlClient.auth.getSession();
+      const {
+        data: { session },
+      } = await mysqlClient.auth.getSession();
+      if (!session?.user) return;
 
-      if (!session) {
-        toast({
-          title: "احراز هویت الزامی است",
-          description: "لطفاً برای ایجاد برچسب وارد شوید",
-          variant: "destructive",
-        });
+      const color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
+      const { data, error } = await mysqlClient.from("tags").insert({
+        name: raw,
+        color,
+        user_id: session.user.id,
+      });
+
+      if (error || !data) {
+        setErrorMsg(error?.message || "ایجاد برچسب ناموفق بود");
         return;
       }
 
-      const newTagColor = tagColors[Math.floor(Math.random() * tagColors.length)];
-
-      const { data, error } = await mysqlClient
-        .from('tags')
-        .insert({
-          name: tagName,
-          color: newTagColor,
-          user_id: session.user.id
-        });
-
-      if (error) {
-        toast({
-          title: "خطا در ایجاد برچسب",
-          description: error.message || "ایجاد برچسب ناموفق بود",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const fullNewTag = {
+      const created: CatalogTag = {
         id: data.id,
-        name: data.name,
+        name: data.name || raw,
         color: data.color,
-        userId: data.user_id
       };
-
-      addTag(fullNewTag);
-      setTagSearchQuery('');
-      setSelectedTags((prev) => [...prev, fullNewTag]);
-
-      toast({
-        title: "برچسب ایجاد شد",
-        description: `"${fullNewTag.name}" با موفقیت ایجاد شد`,
-      });
-    } catch (error) {
-      toast({
-        title: "خطا",
-        description: "ایجاد برچسب ناموفق بود",
-        variant: "destructive",
-      });
+      setTags((prev) => [...prev, created]);
+      setSelectedTagIds((prev) => [...prev, created.id]);
+      setQueryInput("");
+    } catch {
+      setErrorMsg("ایجاد برچسب ناموفق بود");
     }
   };
 
-  const handleSaveMeeting = async () => {
+  const handleUploadAndAnalyze = async () => {
     const files = audioFilesRef.current;
     if (!files || files.length === 0) {
-      toast({
-        title: "خطا",
-        description: "هیچ فایل صوتی یافت نشد",
-        variant: "destructive",
-      });
+      setErrorMsg("هیچ فایل صوتی برای آپلود یافت نشد");
       return;
     }
 
     const controller = new AbortController();
     abortRef.current = controller;
     setIsUploading(true);
-    setCanResume(true);
+    setErrorMsg(null);
+    setUploadProgress(0);
 
     try {
-      const storedBefore = await loadUploadDraft();
-      const tagIds = selectedTags.length
-        ? selectedTags.map((tag) => tag.id)
-        : (storedBefore?.selectedTagIds || []);
-      await saveUploadDraftFiles(
-        files.map((file) => ({
-          id: file.id,
-          name: file.name,
-          duration: file.duration,
-          type: file.type,
-          blob: file.blob,
-        })),
-        commentText || storedBefore?.commentText || '',
-        tagIds,
-      );
       await setUploadActive(true);
 
-      const { data: { session } } = await mysqlClient.auth.getSession();
+      const {
+        data: { session },
+      } = await mysqlClient.auth.getSession();
       const user = session?.user;
       const token = session?.access_token || session?.token;
 
       if (!user || !token) {
         await setUploadActive(false);
-        toast({
-          title: "احراز هویت الزامی است",
-          description: "لطفاً برای ذخیره جلسات وارد شوید",
-          variant: "destructive",
-        });
+        setErrorMsg("لطفاً دوباره وارد حساب خود شوید");
+        setIsUploading(false);
         return;
       }
 
       const firstFile = files[0];
-      const meetingTitle = firstFile.name.replace(/\.(wav|mp3|m4a|ogg|webm|aac|flac)$/i, '') || 'جلسه';
+      const meetingTitle =
+        firstFile.name.replace(/\.(wav|mp3|m4a|ogg|webm|aac|flac)$/i, "") || "جلسه";
       const stored = await loadUploadDraft();
+
       const uploadedFiles: Array<{
         id: string;
         fileName: string;
@@ -468,10 +336,11 @@ const TagSelection = () => {
 
       for (let i = 0; i < files.length; i++) {
         if (controller.signal.aborted) throw new UploadAbortedError();
+        setFileIndex(i + 1);
         const file = files[i];
         const existing = stored?.completed?.[file.id];
+
         if (existing?.filePath) {
-          setFileUploadProgress((prev) => new Map(prev).set(file.id, 100));
           uploadedFiles.push({
             id: file.id,
             fileName: existing.fileName,
@@ -482,22 +351,24 @@ const TagSelection = () => {
             uploadOrder: existing.uploadOrder || i + 1,
             linked: existing.linked,
           });
+          setUploadProgress(Math.round(((i + 1) / files.length) * 100));
           continue;
         }
 
-        setFileUploadProgress((prev) => new Map(prev).set(file.id, prev.get(file.id) || 0));
-        const safeName = file.name.replace(/[^\w.\-()\u0600-\u06FF ]+/g, '_') || 'audio.m4a';
+        const safeName =
+          file.name.replace(/[^\w.\-()\u0600-\u06FF ]+/g, "_") || "audio.m4a";
         const result = await uploadFileResumable({
           apiBaseUrl: API_BASE_URL,
           token,
           uploadId: file.id,
           file: file.blob,
           fileName: safeName,
-          mimeType: file.blob.type || 'audio/mp4',
+          mimeType: file.blob.type || "audio/mp4",
           signal: controller.signal,
           onProgress: (loaded, total) => {
-            const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
-            setFileUploadProgress((prev) => new Map(prev).set(file.id, percent));
+            const fileFraction = total > 0 ? loaded / total : 0;
+            const overall = Math.round(((i + fileFraction) / files.length) * 100);
+            setUploadProgress(Math.min(99, overall));
           },
         });
 
@@ -512,34 +383,31 @@ const TagSelection = () => {
         };
         await saveCompletedUpload(file.id, completed);
         uploadedFiles.push({ id: file.id, ...completed });
-        setFileUploadProgress((prev) => new Map(prev).set(file.id, 100));
       }
 
       let meetingId = stored?.meetingId || null;
       if (!meetingId) {
         const { data: meetingData, error: meetingError } = await mysqlClient
-          .from('meetings')
+          .from("meetings")
           .insert({
             meeting_date: new Date().toISOString(),
             user_id: user.id,
-            summary: '',
+            summary: "",
             title: meetingTitle,
-            status: 'آماده پردازش',
-            CommentText: commentText || null
+            status: "آماده پردازش",
+            CommentText: commentText || null,
           });
 
-        if (meetingError) {
-          throw new Error(meetingError.message);
-        }
+        if (meetingError) throw new Error(meetingError.message);
         meetingId = meetingData.id || meetingData[0]?.id;
-        if (!meetingId) throw new Error('شناسه جلسه از سرور برنگشت');
+        if (!meetingId) throw new Error("شناسه جلسه از سرور برنگشت");
         await saveUploadMeetingId(meetingId);
       }
 
       for (const uploadedFile of uploadedFiles) {
         if (uploadedFile.linked) continue;
         const { error: audioFileError } = await mysqlClient
-          .from('audio_files')
+          .from("audio_files")
           .insert({
             meeting_id: meetingId,
             file_name: uploadedFile.fileName,
@@ -547,422 +415,288 @@ const TagSelection = () => {
             file_size: uploadedFile.fileSize,
             duration: uploadedFile.duration,
             format: uploadedFile.format,
-            upload_order: uploadedFile.uploadOrder
+            upload_order: uploadedFile.uploadOrder,
           });
 
         if (audioFileError) {
-          throw new Error(audioFileError.message || 'ثبت فایل صوتی ناموفق بود');
+          throw new Error(audioFileError.message || "ثبت فایل صوتی ناموفق بود");
         }
         await markUploadLinked(uploadedFile.id);
       }
 
-      // Create meeting-tag relationships
-      if (tagIds.length > 0) {
-        // Create relationships one by one since backend expects single relationship per request
-        for (const tagId of tagIds) {
-          const { error: tagsError } = await mysqlClient
-            .from('meeting_tags')
-            .insert({
-              meeting_id: meetingId,
-              tag_id: tagId
-            });
-
-          if (tagsError && !String(tagsError.message || '').toLowerCase().includes('already exists')) {
-            toast({
-              title: "خطا در پیوند برچسب‌ها",
-              description: tagsError.message,
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-      }
-
-      // Auto-trigger summary generation via backend (sends meetingId in webhook header)
-      try {
-        const createdMeetingId = meetingId;
-
-        const analyzeResponse = await fetch(
-          `${API_BASE_URL}/meetings/${createdMeetingId}/analyze`,
-          {
-            method: 'POST',
-            headers: {
-              ...mysqlClient.getAuthHeaders(),
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ model: analyzeModel || 'auto' }),
-          }
-        );
-
-        if (!analyzeResponse.ok) {
-          const errorData = await analyzeResponse.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to trigger analysis');
-        }
-
-        toast({
-          title: "تولید خلاصه آغاز شد",
-          description: "تولید خلاصه خودکار شروع شد. زمانی که آماده شد به شما ایمیل شماارسال خواهد شد.",
-        });
-      } catch (error) {
-        console.error('=== SUMMARY GENERATION EXCEPTION ===');
-        console.error('Exception type:', error?.constructor?.name);
-        console.error('Exception message:', error?.message);
-        console.error('Full exception:', error);
-        
-        toast({
-          title: "خطای تولید خلاصه", 
-          description: `خطای غیرمنتظره در حین تولید خلاصه: ${error?.message || 'خطای نامشخص'}. می‌توانید آن را از صفحه جلسه به صورت دستی شروع کنید.`,
-          variant: "destructive",
+      // Link selected tags
+      for (const tagId of selectedTagIds) {
+        await mysqlClient.from("meeting_tags").insert({
+          meeting_id: meetingId,
+          tag_id: tagId,
         });
       }
 
-      toast({
-        title: "جلسه ذخیره شد",
-        description: "خلاصه جلسه پس از پردازش به ایمیل شما ارسال خواهد شد.",
+      // Link selected participants (Android parity!)
+      for (const participantId of selectedParticipantIds) {
+        await mysqlClient.meetingParticipants.add({
+          meetingId,
+          participantId,
+        });
+      }
+
+      // Trigger AI analysis
+      await fetch(`${API_BASE_URL}/meetings/${meetingId}/analyze`, {
+        method: "POST",
+        headers: {
+          ...mysqlClient.getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: analyzeModel || "auto" }),
       });
 
+      setUploadProgress(100);
       await clearUploadDraft();
       clearRecordDraft();
-      setCanResume(false);
-      navigate('/home');
-    } catch (error) {
-      if (error instanceof UploadAbortedError || (error as Error)?.name === 'AbortError') {
-        return;
-      }
-      setCanResume(true);
+
       toast({
-        title: "خطا",
-        description: "بارگذاری قطع شد. با زدن ادامه آپلود، از همان نقطه ادامه پیدا می‌کند.",
-        variant: "destructive",
+        title: "آپلود تکمیل شد",
+        description: "تحلیل هوشمند جلسه آغاز شد.",
       });
+      navigate("/home");
+    } catch (err) {
+      await setUploadActive(false);
+      if (err instanceof UploadAbortedError) {
+        setErrorMsg("آپلود متوقف شد؛ می‌توانید ادامه دهید.");
+      } else {
+        setErrorMsg(err instanceof Error ? err.message : "آپلود ناموفق بود");
+      }
     } finally {
       setIsUploading(false);
-      abortRef.current = null;
     }
-  };
-  saveMeetingRef.current = handleSaveMeeting;
-
-  const handleCancelUpload = () => {
-    abortRef.current?.abort();
-    void setUploadActive(false);
-    setIsUploading(false);
-    setCanResume(true);
-    toast({
-      title: "بارگذاری متوقف شد",
-      description: "بخش ارسال‌شده ذخیره شده است و می‌توانید بعداً ادامه دهید.",
-    });
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handlePlayPause = async (file: AudioFile) => {
-    try {
-      // Stop any currently playing audio
-      if (playingFileId && playingFileId !== file.id) {
-        const currentAudio = audioElements.get(playingFileId);
-        if (currentAudio) {
-          currentAudio.pause();
-        }
-      }
-
-      let audioElement = audioElements.get(file.id);
-      
-      if (!audioElement) {
-        // Create audio element for this file
-        audioElement = new Audio();
-        const audioUrl = URL.createObjectURL(file.blob);
-        audioElement.src = audioUrl;
-        audioElement.preload = 'metadata';
-        
-        // Store the audio element
-        setAudioElements(prev => new Map(prev).set(file.id, audioElement!));
-        
-        // Clean up URL when audio ends
-        audioElement.addEventListener('ended', () => {
-          setPlayingFileId(null);
-        });
-      }
-
-      if (playingFileId === file.id) {
-        // Currently playing this file - pause it
-        audioElement.pause();
-        setPlayingFileId(null);
-      } else {
-        // Play this file
-        await audioElement.play();
-        setPlayingFileId(file.id);
-      }
-    } catch (error) {
-      console.error('Error playing audio:', error);
-      toast({
-        title: "خطا در پخش فایل صوتی",
-        description: "امکان پخش این فایل صوتی وجود ندارد.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Cleanup audio elements on unmount
-  useEffect(() => {
-    return () => {
-      audioElements.forEach((audioElement) => {
-        audioElement.pause();
-        URL.revokeObjectURL(audioElement.src);
-      });
-    };
-  }, [audioElements]);
-
-  const handleBackToRecord = () => {
-    navigate('/record', {
-      state: {
-        audioFiles,
-        commentText,
-      },
-    });
   };
 
   return (
-    <AppShell
-      title="انتخاب برچسب"
-      subtitle="برچسب‌هایی برای جلسه انتخاب یا ایجاد کنید"
-      onBack={handleBackToRecord}
-      clickableBack
-      hideNav
-      actions={<Badge variant="secondary" className="shrink-0">{selectedTags.length} انتخاب شده</Badge>}
-    >
-      <div className="mx-auto max-w-2xl space-y-6 pb-28">
-        <Card className="border border-border/50 bg-card/70 shadow-soft">
-          <CardContent className="space-y-2 p-4">
-            <Label htmlFor="analyzeModel">مدل تحلیل</Label>
-            <AnalyzeModelSelect
-              id="analyzeModel"
-              value={analyzeModel}
-              onValueChange={setAnalyzeModel}
+    <div dir="rtl" className="flex min-h-[100dvh] flex-col bg-[#FBF9F4] text-[#1C1B18] pb-safe">
+      <NeshastyarTopBar />
+
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col space-y-3 px-4 pb-6">
+        <NeshastyarSubHeader
+          title="برچسب‌گذاری و ارسال به هوش مصنوعی"
+          onBack={() =>
+            navigate("/record", { state: { audioFiles, commentText } })
+          }
+        />
+
+        {/* Search / Add Card matching Android TagSelectionScreen */}
+        <NeshastyarCard>
+          <p className="text-[13px] text-[#66625B]">جستجو</p>
+          <div className="mt-2">
+            <NeshastyarField
+              label="برچسب یا شرکت‌کننده"
+              placeholder="نام را وارد کنید"
+              value={queryInput}
+              onChange={setQueryInput}
               disabled={isUploading}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleAddFromQuery();
+                }
+              }}
             />
-            <p className="text-xs text-muted-foreground">
-              در حالت Auto، مدل‌ها به ترتیب ارزان‌تر و پایدارتر امتحان می‌شوند.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Audio Files List */}
-        {audioFiles && audioFiles.length > 0 && !isUploading && (
-          <Card className="border border-border/50 bg-card/70 shadow-soft">
-            <CardContent className="p-4">
-              <h3 className="mb-3 font-semibold text-foreground">
-                فایل‌های صوتی ({audioFiles.length})
-              </h3>
-              <div className="space-y-2">
-                {audioFiles.map((file) => (
-                  <div key={file.id} className="flex items-center gap-2 rounded-lg bg-background/60 p-2.5">
-                    <div className="shrink-0 cursor-grab text-muted-foreground">
-                      <GripVertical className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={file.type === 'recording' ? 'default' : 'secondary'} className="shrink-0">
-                          {file.type === 'recording' ? 'ضبط' : 'آپلود'}
-                        </Badge>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        مدت زمان: {formatTime(file.duration)} • {(file.blob.size / (1024 * 1024)).toFixed(1)} MB
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePlayPause(file)}
-                      className="h-8 w-8 shrink-0 p-0"
-                    >
-                      {playingFileId === file.id ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Audio Files Upload Progress */}
-        {isUploading && audioFiles && audioFiles.length > 0 && (
-          <Card className="border border-border/50 bg-card/70 shadow-soft">
-            <CardContent className="p-4">
-              <h3 className="mb-3 font-semibold text-foreground">
-                بارگذاری فایل‌های صوتی ({audioFiles.length})
-              </h3>
-              <div className="space-y-4">
-                {audioFiles.map((file) => {
-                  const progress = fileUploadProgress.get(file.id) || 0;
-                  return (
-                    <div key={file.id} className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Badge variant={file.type === 'recording' ? 'default' : 'secondary'} className="shrink-0">
-                            {file.type === 'recording' ? 'ضبط' : 'آپلود'}
-                          </Badge>
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
-                        </div>
-                        <span className="shrink-0 text-sm text-muted-foreground">{progress}%</span>
-                      </div>
-                      <Progress value={progress} className="h-2" />
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Tags section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-foreground">برچسب‌ها</h2>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleCreateTag}
-              disabled={!canCreateNewTag}
-              className="shrink-0"
+          </div>
+          <div className="mt-2.5">
+            <NeshastyarPrimaryButton
+              disabled={isUploading || !queryInput.trim()}
+              onClick={() => void handleAddFromQuery()}
             >
-              <Plus className="h-4 w-4" />
-              برچسب جدید
-            </Button>
+              افزودن
+            </NeshastyarPrimaryButton>
           </div>
+        </NeshastyarCard>
 
-          {selectedTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {selectedTags.map((tag) => (
-                <div
-                  key={tag.id}
-                  className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium"
-                  style={{
-                    backgroundColor: `${tag.color}20`,
-                    borderColor: tag.color,
-                    color: tag.color,
-                  }}
-                >
-                  {tag.name}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSelectedTag(tag.id)}
-                    className="hover:opacity-70"
-                    aria-label={`حذف برچسب ${tag.name}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+        {/* Selected Chips */}
+        {selectedTags.length > 0 || selectedPeople.length > 0 ? (
+          <NeshastyarCard className="space-y-3">
+            {selectedTags.length > 0 ? (
+              <div>
+                <p className="mb-2 text-[13px] font-semibold text-[#404848]">
+                  برچسب‌ها
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTags.map((tag) => (
+                    <SelectedChip
+                      key={tag.id}
+                      name={tag.name}
+                      disabled={isUploading}
+                      onRemove={() =>
+                        setSelectedTagIds((prev) => prev.filter((id) => id !== tag.id))
+                      }
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="tag-search">جستجوی برچسب</Label>
-            <Input
-              id="tag-search"
-              value={tagSearchQuery}
-              onChange={(e) => setTagSearchQuery(e.target.value)}
-              placeholder="نام برچسب را تایپ کنید..."
-            />
-          </div>
-
-          {tagSearchQuery.trim() && closestTags.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">نزدیک‌ترین برچسب‌ها:</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {closestTags.map((tag) => (
-                  <Card
-                    key={tag.id}
-                    className="cursor-pointer border-2 border-transparent bg-card/70 transition-all duration-200 hover:border-primary/40 hover:shadow-medium"
-                    onClick={() => handleSelectSuggestedTag(tag)}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-4 w-4 shrink-0 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <h4 className="min-w-0 truncate font-medium text-foreground">{tag.name}</h4>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
               </div>
-            </div>
-          )}
+            ) : null}
 
-          {tagSearchQuery.trim() && closestTags.length === 0 && tags.length > 0 && !hasExactTagMatch && (
-            <p className="text-sm text-muted-foreground">
-              برچسبی با این نام پیدا نشد. می‌توانید از دکمه «برچسب جدید» استفاده کنید.
-            </p>
-          )}
-        </div>
-
-        {tags.length === 0 && (
-          <div className="py-8 text-center">
-            <Tag className="mx-auto mb-4 h-14 w-14 text-muted-foreground" />
-            <h3 className="mb-1 text-base font-semibold text-foreground">هنوز برچسبی نیست</h3>
-            <p className="text-sm text-muted-foreground">
-              نام برچسب را در کادر بالا تایپ کنید و روی «برچسب جدید» بزنید.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Sticky bottom action bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-lg pb-safe">
-        <div className="mx-auto w-full max-w-2xl px-4 py-3">
-          {isUploading ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm font-medium text-card-foreground">
-                <span>در حال بارگذاری جلسه...</span>
-                <span>{Math.round(uploadProgress)}%</span>
+            {selectedPeople.length > 0 ? (
+              <div>
+                <p className="mb-2 text-[13px] font-semibold text-[#404848]">
+                  شرکت‌کنندگان
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedPeople.map((person) => (
+                    <SelectedChip
+                      key={person.id}
+                      name={person.name}
+                      disabled={isUploading}
+                      onRemove={() =>
+                        setSelectedParticipantIds((prev) =>
+                          prev.filter((id) => id !== person.id),
+                        )
+                      }
+                    />
+                  ))}
+                </div>
               </div>
-              <Progress value={uploadProgress} className="w-full" />
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <X className="h-4 w-4" />
-                    لغو بارگذاری
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>لغو بارگذاری؟</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      بارگذاری متوقف می‌شود. بخش ارسال‌شده روی سرور می‌ماند و بعداً می‌توانید از همان نقطه ادامه دهید.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>ادامه بارگذاری</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancelUpload}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      بله، لغو بارگذاری
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            ) : null}
+          </NeshastyarCard>
+        ) : null}
+
+        {/* Unified Catalog List (Tags + Participants) */}
+        <div className="max-h-[38vh] flex-1 space-y-1.5 overflow-y-auto py-1">
+          {loadingCatalog ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-7 w-7 animate-spin text-[#0D4D4D]" />
             </div>
+          ) : catalogRows.length === 0 ? (
+            <p className="py-4 text-[14px] text-[#66625B]">
+              {!normalizedQuery
+                ? "برچسب یا شرکت‌کننده‌ای وجود ندارد"
+                : "موردی با این نام پیدا نشد"}
+            </p>
           ) : (
-            <Button onClick={handleSaveMeeting} variant="primary" size="lg" className="w-full">
-              {canResume ? 'ادامه آپلود' : 'آپلود جلسه'}
-            </Button>
+            catalogRows.map((row) => {
+              const selected =
+                row.kind === "tag"
+                  ? selectedTagIds.includes(row.id)
+                  : selectedParticipantIds.includes(row.id);
+
+              return (
+                <NeshastyarCard
+                  key={row.key}
+                  accentBar={selected}
+                  onClick={
+                    !isUploading
+                      ? () => {
+                          if (row.kind === "tag") {
+                            setSelectedTagIds((prev) =>
+                              prev.includes(row.id)
+                                ? prev.filter((id) => id !== row.id)
+                                : [...prev, row.id],
+                            );
+                          } else {
+                            setSelectedParticipantIds((prev) =>
+                              prev.includes(row.id)
+                                ? prev.filter((id) => id !== row.id)
+                                : [...prev, row.id],
+                            );
+                          }
+                          setQueryInput("");
+                        }
+                      : undefined
+                  }
+                  className="px-3.5 py-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-medium text-[#1C1B18]">
+                      {row.name}
+                    </span>
+                    <span className="text-[12px] text-[#66625B]">
+                      {row.kind === "tag" ? "برچسب" : "شرکت‌کننده"}
+                    </span>
+                  </div>
+                </NeshastyarCard>
+              );
+            })
           )}
         </div>
-      </div>
-    </AppShell>
+
+        {/* Web AI Model Picker preserved in Android card style */}
+        <NeshastyarCard className="py-3">
+          <label
+            htmlFor="tag-selection-model"
+            className="mb-1.5 block text-[12px] font-medium text-[#66625B]"
+          >
+            مدل هوش مصنوعی تحلیل
+          </label>
+          <AnalyzeModelSelect
+            id="tag-selection-model"
+            value={analyzeModel}
+            onValueChange={setAnalyzeModel}
+            disabled={isUploading}
+          />
+        </NeshastyarCard>
+
+        {errorMsg ? (
+          <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
+        ) : null}
+
+        {isUploading ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-[#404848]">
+                {audioFiles.length > 0 && fileIndex > 0
+                  ? `فایل ${fileIndex} از ${audioFiles.length} — در حال آپلود فایل…`
+                  : "در حال آپلود فایل…"}
+              </span>
+              <span className="font-semibold text-[#0F766E]">{uploadProgress}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[#F2EDE8]">
+              <div
+                style={{ width: `${Math.min(100, Math.max(0, uploadProgress))}%` }}
+                className="h-full bg-[#0D4D4D] transition-all duration-200"
+              />
+            </div>
+            <NeshastyarSecondaryButton
+              onClick={() => abortRef.current?.abort()}
+              className="h-10 text-xs"
+            >
+              توقف موقت آپلود
+            </NeshastyarSecondaryButton>
+          </div>
+        ) : null}
+
+        <NeshastyarPrimaryButton
+          loading={isUploading}
+          disabled={isUploading || audioFiles.length === 0}
+          onClick={() => void handleUploadAndAnalyze()}
+        >
+          {isUploading ? "در حال آپلود…" : "تأیید و شروع تحلیل هوشمند"}
+        </NeshastyarPrimaryButton>
+      </main>
+    </div>
   );
 };
 
 export default TagSelection;
+
+function SelectedChip({
+  name,
+  onRemove,
+  disabled,
+}: {
+  name: string;
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-[20px] bg-[#D7EFED] pr-3 pl-1 py-1 text-[13px] font-medium text-[#0D4D4D]">
+      <span>{name}</span>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onRemove}
+        aria-label={`حذف ${name}`}
+        className="flex h-6 w-6 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#0D4D4D]/10"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </span>
+  );
+}

@@ -2,149 +2,107 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Neshastyar Design System - Professional AI Meeting Assistant */
+/* Neshastyar Design System — Persian Editorial Sanctuary (aligned with Android NeshastyarColors) */
 
 @layer base {
   :root {
-    /* Base colors - Warm cream theme inspired by winter menu */
-    --background: 39 44% 92%;
-    --foreground: 0 0% 15%;
+    /* Background: #FBF9F4 | TextPrimary: #1C1B18 */
+    --background: 43 47% 97%;
+    --foreground: 45 8% 10%;
 
-    --card: 39 44% 95%;
-    --card-foreground: 0 0% 15%;
+    /* Surface: #FFFFFF */
+    --card: 0 0% 100%;
+    --card-foreground: 45 8% 10%;
 
-    --popover: 39 44% 95%;
-    --popover-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 45 8% 10%;
 
-    /* Primary - Teal/green accent from the menu design */
-    --primary: 174 42% 35%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 174 42% 55%;
+    /* Primary: #0D4D4D | PrimaryBright: #0F766E */
+    --primary: 180 71% 18%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 175 77% 26%;
 
-    /* Secondary - Light cream accent */
-    --secondary: 39 44% 88%;
-    --secondary-foreground: 0 0% 15%;
+    /* SurfaceElevated: #F5F2EB */
+    --secondary: 42 33% 94%;
+    --secondary-foreground: 45 8% 10%;
 
-    /* Success - Recording/active states */
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 98%;
-    --success-glow: 142 71% 65%;
+    /* Success: #166534 */
+    --success: 142 64% 24%;
+    --success-foreground: 0 0% 100%;
+    --success-glow: 142 64% 36%;
 
-    /* Warning - Review needed states */
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-    --warning-glow: 38 92% 70%;
+    /* Warning / Analyzing: #B45309 */
+    --warning: 32 95% 37%;
+    --warning-foreground: 0 0% 100%;
+    --warning-glow: 37 63% 48%;
 
-    /* Info - In-progress states */
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 98%;
+    /* Info */
+    --info: 175 77% 26%;
+    --info-foreground: 0 0% 100%;
 
-    /* Muted tones */
-    --muted: 39 30% 85%;
-    --muted-foreground: 0 0% 45%;
+    /* Muted: #F2EDE8 | TextMuted: #66625B */
+    --muted: 30 29% 93%;
+    --muted-foreground: 38 6% 38%;
 
-    --accent: 39 30% 85%;
-    --accent-foreground: 0 0% 15%;
+    --accent: 174 44% 89%;
+    --accent-foreground: 180 71% 18%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    /* Error: #B91C1C */
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 39 30% 80%;
-    --input: 39 30% 80%;
-    --ring: 174 42% 35%;
+    /* Outline: #E8E2D5 */
+    --border: 41 29% 87%;
+    --input: 41 29% 87%;
+    --ring: 180 71% 18%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-glow)));
-    --gradient-card: linear-gradient(145deg, hsl(39 44% 95% / 0.8), hsl(39 30% 85% / 0.3));
+    --gradient-primary: linear-gradient(135deg, #0D4D4D, #0F766E);
+    --gradient-success: linear-gradient(135deg, #166534, #15803d);
+    --gradient-card: linear-gradient(180deg, #FFFFFF, #FFFFFF);
 
     /* Shadows */
-    --shadow-soft: 0 2px 20px -2px hsl(var(--primary) / 0.1);
-    --shadow-medium: 0 8px 30px -8px hsl(var(--primary) / 0.15);
-    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.3);
+    --shadow-soft: 0 2px 14px -4px rgba(13, 77, 77, 0.08);
+    --shadow-medium: 0 8px 26px -8px rgba(13, 77, 77, 0.14);
+    --shadow-glow: 0 10px 30px -6px rgba(15, 118, 110, 0.28);
 
     /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --sidebar-background: 39 44% 95%;
-
-    --sidebar-foreground: 0 0% 15%;
-
-    --sidebar-primary: 174 42% 35%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 39 30% 85%;
-
-    --sidebar-accent-foreground: 0 0% 15%;
-
-    --sidebar-border: 39 30% 80%;
-
-    --sidebar-ring: 174 42% 35%;
+    --sidebar-background: 43 47% 97%;
+    --sidebar-foreground: 45 8% 10%;
+    --sidebar-primary: 180 71% 18%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 42 33% 94%;
+    --sidebar-accent-foreground: 45 8% 10%;
+    --sidebar-border: 41 29% 87%;
+    --sidebar-ring: 180 71% 18%;
   }
 
   .dark {
-    /* Dark theme - Deep blue professional */
-    --background: 224 71% 4%;
-    --foreground: 210 20% 98%;
-
-    --card: 224 71% 4%;
-    --card-foreground: 210 20% 98%;
-
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 20% 98%;
-
-    --primary: 224 76% 58%;
-    --primary-foreground: 224 71% 4%;
-    --primary-glow: 224 76% 78%;
-
-    --secondary: 215 25% 27%;
-    --secondary-foreground: 210 20% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 98%;
-    --success-glow: 142 71% 65%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-    --warning-glow: 38 92% 70%;
-
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 98%;
-
-    --muted: 215 25% 27%;
-    --muted-foreground: 217 10% 65%;
-
-    --accent: 215 25% 27%;
-    --accent-foreground: 210 20% 98%;
-
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 20% 98%;
-
-    --border: 215 25% 27%;
-    --input: 215 25% 27%;
-    --ring: 224 76% 58%;
-
-    /* Dark gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-glow)));
-    --gradient-card: linear-gradient(145deg, hsl(215 25% 27% / 0.5), hsl(224 71% 4% / 0.8));
-
-    /* Dark shadows */
-    --shadow-soft: 0 2px 20px -2px hsl(0 0% 0% / 0.3);
-    --shadow-medium: 0 8px 30px -8px hsl(0 0% 0% / 0.4);
-    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.2);
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 43 47% 97%;
+    --foreground: 45 8% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 45 8% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 45 8% 10%;
+    --primary: 180 71% 18%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 175 77% 26%;
+    --secondary: 42 33% 94%;
+    --secondary-foreground: 45 8% 10%;
+    --muted: 30 29% 93%;
+    --muted-foreground: 38 6% 38%;
+    --accent: 174 44% 89%;
+    --accent-foreground: 180 71% 18%;
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 41 29% 87%;
+    --input: 41 29% 87%;
+    --ring: 180 71% 18%;
   }
 }
 
@@ -154,7 +112,6 @@
   }
 
   :root {
-    /* Height of the fixed mobile bottom navigation bar */
     --bottom-nav-h: 4rem;
   }
 
@@ -162,17 +119,19 @@
     direction: rtl;
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
+    background-color: #FBF9F4;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    background-color: #FBF9F4;
+    color: #1C1B18;
+    @apply antialiased;
     font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
     overscroll-behavior-y: none;
   }
 }
 
 @layer utilities {
-  /* Safe-area helpers for notches / home indicators (Capacitor native shell) */
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
@@ -185,7 +144,6 @@
   .pb-safe {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   }
-  /* Reserve room so fixed bottom nav never covers page content */
   .pb-nav {
     padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1.5rem);
   }
@@ -195,8 +153,6 @@
   .bottom-safe {
     bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }
-
-  /* Hide scrollbars on horizontal scroll rows while keeping scroll */
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

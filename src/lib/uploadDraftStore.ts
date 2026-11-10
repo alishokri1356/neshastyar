@@ -1,8 +1,10 @@
+import { DraftStatus, type DraftStatusType } from "@/lib/neshastyarStatus";
+
 export interface StoredDraftFile {
   id: string;
   name: string;
   duration: number;
-  type: 'recording' | 'upload';
+  type: "recording" | "upload";
   blob: Blob;
 }
 
@@ -17,17 +19,40 @@ export interface StoredCompletedUpload {
 }
 
 export interface StoredUploadDraft {
+  id: string;
+  createdAt: number;
+  status: DraftStatusType;
   commentText: string;
   files: StoredDraftFile[];
   completed: Record<string, StoredCompletedUpload>;
   selectedTagIds: string[];
+  selectedParticipantIds: string[];
   meetingId: string | null;
   uploading: boolean;
 }
 
-const DB_NAME = 'neshastyar-uploads';
-const STORE = 'draft';
-const KEY = 'current';
+const DB_NAME = "neshastyar-uploads";
+const STORE = "draft";
+const KEY = "current";
+
+const listeners = new Set<() => void>();
+
+function notifyListeners() {
+  listeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // ignore listener errors
+    }
+  });
+}
+
+export function subscribeUploadDraft(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -50,21 +75,43 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+function normalizeDraft(raw: Partial<StoredUploadDraft> | null | undefined): StoredUploadDraft | null {
+  if (!raw) return null;
+  return {
+    id: raw.id || "local-draft",
+    createdAt: raw.createdAt || Date.now(),
+    status:
+      raw.status ||
+      (raw.uploading ? DraftStatus.ON_UPLOADING : DraftStatus.ON_RECORDING),
+    commentText: raw.commentText ?? "",
+    files: Array.isArray(raw.files) ? raw.files : [],
+    completed: raw.completed ?? {},
+    selectedTagIds: Array.isArray(raw.selectedTagIds) ? raw.selectedTagIds : [],
+    selectedParticipantIds: Array.isArray(raw.selectedParticipantIds) ? raw.selectedParticipantIds : [],
+    meetingId: raw.meetingId ?? null,
+    uploading: Boolean(raw.uploading),
+  };
+}
+
 async function readDraft(): Promise<StoredUploadDraft | null> {
-  const db = await openDb();
   try {
-    const tx = db.transaction(STORE, 'readonly');
-    const value = await requestToPromise(tx.objectStore(STORE).get(KEY));
-    return (value as StoredUploadDraft | undefined) ?? null;
-  } finally {
-    db.close();
+    const db = await openDb();
+    try {
+      const tx = db.transaction(STORE, "readonly");
+      const value = await requestToPromise(tx.objectStore(STORE).get(KEY));
+      return normalizeDraft(value as Partial<StoredUploadDraft> | undefined);
+    } finally {
+      db.close();
+    }
+  } catch {
+    return null;
   }
 }
 
 async function writeDraft(draft: StoredUploadDraft): Promise<void> {
   const db = await openDb();
   try {
-    const tx = db.transaction(STORE, 'readwrite');
+    const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).put(draft, KEY);
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
@@ -73,14 +120,19 @@ async function writeDraft(draft: StoredUploadDraft): Promise<void> {
   } finally {
     db.close();
   }
+  notifyListeners();
 }
 
 function emptyDraft(): StoredUploadDraft {
   return {
-    commentText: '',
+    id: `draft-${Date.now()}`,
+    createdAt: Date.now(),
+    status: DraftStatus.ON_RECORDING,
+    commentText: "",
     files: [],
     completed: {},
     selectedTagIds: [],
+    selectedParticipantIds: [],
     meetingId: null,
     uploading: false,
   };
@@ -93,7 +145,11 @@ export async function loadUploadDraft(): Promise<StoredUploadDraft | null> {
 export async function saveUploadDraftFiles(
   files: StoredDraftFile[],
   commentText: string,
-  selectedTagIds: string[] = [],
+  selectedTagIds?: string[],
+  options?: {
+    status?: DraftStatusType;
+    selectedParticipantIds?: string[];
+  },
 ): Promise<void> {
   const current = (await readDraft()) ?? emptyDraft();
   const ids = new Set(files.map((file) => file.id));
@@ -105,8 +161,20 @@ export async function saveUploadDraftFiles(
     ...current,
     commentText,
     files,
-    selectedTagIds,
+    selectedTagIds: selectedTagIds ?? current.selectedTagIds,
+    selectedParticipantIds: options?.selectedParticipantIds ?? current.selectedParticipantIds,
+    status: options?.status ?? current.status,
     completed,
+  });
+}
+
+export async function updateDraftStatus(status: DraftStatusType): Promise<void> {
+  const current = await readDraft();
+  if (!current) return;
+  await writeDraft({
+    ...current,
+    status,
+    uploading: status === DraftStatus.ON_UPLOADING ? true : current.uploading,
   });
 }
 
@@ -135,13 +203,14 @@ export async function saveUploadMeetingId(meetingId: string): Promise<void> {
 export async function setUploadActive(active: boolean): Promise<void> {
   const current = (await readDraft()) ?? emptyDraft();
   current.uploading = active;
+  current.status = active ? DraftStatus.ON_UPLOADING : DraftStatus.ON_TAG_SELECTION;
   await writeDraft(current);
 }
 
 export async function clearUploadDraft(): Promise<void> {
   const db = await openDb();
   try {
-    const tx = db.transaction(STORE, 'readwrite');
+    const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).delete(KEY);
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
@@ -150,4 +219,5 @@ export async function clearUploadDraft(): Promise<void> {
   } finally {
     db.close();
   }
+  notifyListeners();
 }

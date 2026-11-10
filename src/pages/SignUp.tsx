@@ -1,53 +1,60 @@
-import { useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuthStore } from '@/store/useAuthStore';
-import { useToast } from '@/hooks/use-toast';
-import GoogleSignInButton from '@/components/GoogleSignInButton';
-import { Mic2, Sparkles } from 'lucide-react';
+import React, { useCallback, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { mysqlClient } from "@/lib/mysql-client";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useToast } from "@/hooks/use-toast";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+} from "@/components/neshastyar/NeshastyarUi";
 
-const SignUp = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+const SignUp: React.FC = () => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { signup, loginWithGoogle } = useAuthStore();
+  const { loginWithGoogle } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+
     if (password !== confirmPassword) {
-      toast({
-        title: 'خطا',
-        description: 'رمزهای عبور مطابقت ندارند',
-        variant: 'destructive',
-      });
+      setErrorMsg("رمزهای عبور مطابقت ندارند");
       return;
     }
 
     setIsLoading(true);
     try {
-      await signup(email, password, confirmPassword);
+      const { error } = await mysqlClient.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { name: name.trim() || undefined } },
+      });
+
+      if (error) {
+        throw new Error(error.error || error.message || "ثبت‌نام ناموفق بود");
+      }
+
       toast({
-        title: 'ایمیل خود را بررسی کنید!',
+        title: "ایمیل خود را بررسی کنید!",
         description:
-          'ما لینک تأیید را برای شما ارسال کرده‌ایم. لطفاً ایمیل خود را بررسی کنید و قبل از ورود بر روی لینک کلیک کنید.',
+          "لینک تأیید برای شما ارسال شد. لطفاً ایمیل خود را بررسی کنید و سپس وارد شوید.",
         duration: 6000,
       });
-      navigate('/login');
-    } catch (error) {
-      const errorMessage = (error as Error).message;
-      toast({
-        title: 'خطا',
-        description: errorMessage || 'ایجاد حساب کاربری ناموفق بود. لطفاً دوباره تلاش کنید.',
-        variant: 'destructive',
-      });
+      navigate("/login");
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "ایجاد حساب کاربری ناموفق بود.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -56,138 +63,104 @@ const SignUp = () => {
   const handleGoogle = useCallback(
     async (idToken: string) => {
       setGoogleLoading(true);
+      setErrorMsg(null);
       try {
         await loginWithGoogle(idToken);
         toast({
-          title: 'خوش آمدید!',
-          description: 'حساب گوگل شما آماده است.',
+          title: "خوش آمدید!",
+          description: "حساب گوگل شما آماده است.",
         });
-        navigate('/');
-      } catch (error) {
-        toast({
-          title: 'خطا در ثبت‌نام با گوگل',
-          description: (error as Error).message || 'عملیات ناموفق بود.',
-          variant: 'destructive',
-        });
-        throw error;
+        navigate("/home");
+      } catch (err) {
+        setErrorMsg((err as Error).message || "خطا در ثبت‌نام با گوگل");
+        throw err;
       } finally {
         setGoogleLoading(false);
       }
     },
-    [loginWithGoogle, navigate, toast]
+    [loginWithGoogle, navigate, toast],
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
-      <div className="w-full max-w-md space-y-8">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
-              <Mic2 className="h-6 w-6 text-white" />
-              <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">نشست یار</h1>
-          </div>
-          <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
+    <div
+      dir="rtl"
+      className="flex min-h-[100dvh] items-center justify-center bg-[#FBF9F4] px-6 py-8 text-[#1C1B18]"
+    >
+      <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <h1 className="text-[24px] font-bold text-[#1C1B18]">ثبت نام</h1>
+          <p className="mt-1.5 text-[14px] text-[#404848]">حساب جدید بسازید</p>
         </div>
 
-        <Card className="shadow-medium border-0 bg-gradient-card">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">ایجاد حساب کاربری</CardTitle>
-            <CardDescription className="text-center">
-              به هزاران متخصصی بپیوندید که از هوش مصنوعی برای تبدیل جلسات خود استفاده می‌کنند
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 mb-6">
-              <GoogleSignInButton
-                onCredential={handleGoogle}
-                disabled={isLoading || googleLoading}
-                onError={(message) =>
-                  toast({
-                    title: 'خطا در ثبت‌نام با گوگل',
-                    description: message,
-                    variant: 'destructive',
-                  })
-                }
-              />
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">یا</span>
-                </div>
-              </div>
-            </div>
+        <NeshastyarCard className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <NeshastyarField
+              label="نام (اختیاری)"
+              value={name}
+              onChange={setName}
+            />
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">ایمیل</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  dir="ltr"
-                  className="transition-all focus:ring-primary/20"
-                />
-              </div>
+            <NeshastyarField
+              label="ایمیل"
+              type="email"
+              dir="ltr"
+              placeholder="example@mail.com"
+              value={email}
+              onChange={setEmail}
+              required
+            />
 
-              <div className="space-y-2">
-                <Label htmlFor="password">رمز عبور</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="یک رمز عبور امن ایجاد کنید"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  dir="ltr"
-                  className="transition-all focus:ring-primary/20"
-                />
-              </div>
+            <NeshastyarField
+              label="رمز عبور"
+              type="password"
+              dir="ltr"
+              value={password}
+              onChange={setPassword}
+              required
+            />
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">تکرار رمز عبور</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="رمز عبور خود را تکرار کنید"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  dir="ltr"
-                  className="transition-all focus:ring-primary/20"
-                />
-              </div>
+            <NeshastyarField
+              label="تکرار رمز عبور"
+              type="password"
+              dir="ltr"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              required
+            />
 
-              <Button
+            {errorMsg ? (
+              <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
+            ) : null}
+
+            <div className="pt-2">
+              <NeshastyarPrimaryButton
                 type="submit"
-                variant="primary"
-                className="w-full"
+                loading={isLoading}
                 disabled={isLoading || googleLoading}
-                size="lg"
               >
-                {isLoading ? 'در حال ایجاد حساب...' : 'ثبت نام'}
-              </Button>
-            </form>
-
-            <div className="text-center mt-6">
-              <p className="text-sm text-muted-foreground">
-                قبلاً حساب کاربری دارید؟{' '}
-                <Link
-                  to="/login"
-                  className="font-medium text-primary hover:text-primary-glow transition-colors"
-                >
-                  ورود
-                </Link>
-              </p>
+                ثبت نام
+              </NeshastyarPrimaryButton>
             </div>
-          </CardContent>
-        </Card>
+          </form>
+
+          <div className="mt-4">
+            <GoogleSignInButton
+              label="ثبت‌نام با حساب گوگل"
+              onCredential={handleGoogle}
+              disabled={isLoading || googleLoading}
+              onError={(m) => setErrorMsg(m)}
+            />
+          </div>
+
+          <div className="mt-4 text-center">
+            <Link
+              to="/"
+              className="text-[14px] font-medium text-[#0D4D4D] hover:text-[#0F766E]"
+            >
+              حساب دارید؟ ورود
+            </Link>
+          </div>
+        </NeshastyarCard>
       </div>
     </div>
   );

@@ -1,14 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuthStore } from '@/store/useAuthStore';
-import { mysqlClient } from '@/lib/mysql-client';
-import { useToast } from '@/components/ui/use-toast';
-import { ChevronLeft, Search, Settings, Tag } from 'lucide-react';
-import AppShell from '@/components/layout/AppShell';
-import EmptyState from '@/components/EmptyState';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Loader2, Search, Settings, Tag } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { mysqlClient } from "@/lib/mysql-client";
+import { useToast } from "@/components/ui/use-toast";
+import AppShell from "@/components/layout/AppShell";
+import EmptyState from "@/components/EmptyState";
+import { NeshastyarCard } from "@/components/neshastyar/NeshastyarUi";
 
 interface DatabaseTag {
   id: string;
@@ -17,7 +15,7 @@ interface DatabaseTag {
   meetingCount: number;
 }
 
-const TagList = () => {
+const TagList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { toast } = useToast();
@@ -25,47 +23,49 @@ const TagList = () => {
   const [untaggedCount, setUntaggedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const filteredTags = useMemo(() => {
-    if (!normalizedSearchQuery) {
-      return tags;
-    }
-
+    if (!normalizedSearchQuery) return tags;
     return tags.filter((tag) =>
       tag.name.toLowerCase().includes(normalizedSearchQuery),
     );
   }, [tags, normalizedSearchQuery]);
 
   const showUntaggedCard =
-    !normalizedSearchQuery || 'بدون برچسب'.includes(normalizedSearchQuery);
-
-  const shellSearchProps = {
-    searchActive: searchOpen,
-    searchValue: searchQuery,
-    onSearchChange: setSearchQuery,
-    onSearchClose: () => {
-      setSearchOpen(false);
-      setSearchQuery('');
-    },
-    searchPlaceholder: 'جستجوی برچسب...',
-  };
+    untaggedCount > 0 &&
+    (!normalizedSearchQuery || "بدون برچسب".includes(normalizedSearchQuery));
 
   useEffect(() => {
     const fetchTagsAndUntagged = async () => {
       try {
         if (!user) return;
 
-        // Fetch tags
+        const { data: mgmtData, error: mgmtErr } = await mysqlClient.tags.management();
+        if (!mgmtErr && mgmtData && Array.isArray(mgmtData.tags)) {
+          const withMeetings = mgmtData.tags
+            .map((t: { id: string; name: string; color?: string; meeting_count?: number; meetingCount?: number }) => ({
+              id: t.id,
+              name: t.name || t.id,
+              color: t.color || "#0D4D4D",
+              meetingCount: Number(t.meeting_count ?? t.meetingCount ?? 0),
+            }))
+            .filter((t: DatabaseTag) => t.meetingCount > 0);
+
+          setTags(withMeetings);
+          setUntaggedCount(Number(mgmtData.untaggedMeetingsCount ?? 0));
+          return;
+        }
+
+        // Fallback if management endpoint isn't available
         const { data: tagsData, error: tagsError } = await mysqlClient
-          .from('tags')
-          .select('id, name, color')
-          .eq('user_id', user.id);
+          .from("tags")
+          .select("id, name, color")
+          .eq("user_id", user.id);
 
         if (tagsError) {
-          console.error('Error fetching tags:', tagsError);
           toast({
             title: "خطا در بارگذاری برچسب‌ها",
             description: tagsError.message,
@@ -74,210 +74,143 @@ const TagList = () => {
           return;
         }
 
-        // Fetch meeting counts for each tag using the API endpoint
-        // This ensures we only count meetings that belong to the user
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-        const authHeaders = (mysqlClient as any).getAuthHeaders();
-        const taggedMeetingIds = new Set<string>();
+        const API_BASE_URL =
+          import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+        const authHeaders = mysqlClient.getAuthHeaders();
+        const taggedIds = new Set<string>();
 
-        const tagPromises = (tagsData || []).map(async (tag) => {
-          try {
-            const response = await fetch(
-              `${API_BASE_URL}/meeting-tags/tags/${tag.id}/meetings`,
-              {
-                headers: {
-                  ...authHeaders,
-                  'Content-Type': 'application/json',
-                },
+        const formatted = await Promise.all(
+          (tagsData || []).map(async (tag: { id: string; name: string; color: string }) => {
+            try {
+              const res = await fetch(
+                `${API_BASE_URL}/meeting-tags/tags/${tag.id}/meetings`,
+                { headers: authHeaders },
+              );
+              if (res.ok) {
+                const meetings = await res.json();
+                if (Array.isArray(meetings)) {
+                  meetings.forEach((m: { id?: string }) => {
+                    if (m.id) taggedIds.add(m.id);
+                  });
+                  return {
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                    meetingCount: meetings.length,
+                  };
+                }
               }
-            );
-
-            if (response.ok) {
-              const meetings = await response.json();
-              const meetingCount = Array.isArray(meetings) ? meetings.length : 0;
-              
-              // Track which meetings are tagged
-              if (Array.isArray(meetings)) {
-                meetings.forEach((meeting: any) => {
-                  if (meeting.id) {
-                    taggedMeetingIds.add(meeting.id);
-                  }
-                });
-              }
-              
-              return {
-                id: tag.id,
-                name: tag.name,
-                color: tag.color,
-                meetingCount
-              };
+            } catch {
+              // ignore
             }
-            return {
-              id: tag.id,
-              name: tag.name,
-              color: tag.color,
-              meetingCount: 0
-            };
-          } catch (error) {
-            console.error(`Error fetching meetings for tag ${tag.id}:`, error);
-            return {
-              id: tag.id,
-              name: tag.name,
-              color: tag.color,
-              meetingCount: 0
-            };
-          }
-        });
+            return { id: tag.id, name: tag.name, color: tag.color, meetingCount: 0 };
+          }),
+        );
 
-        const formattedTags = await Promise.all(tagPromises);
-        
-        // Filter out tags with no meetings
-        const tagsWithMeetings = formattedTags.filter(tag => tag.meetingCount > 0);
-        setTags(tagsWithMeetings);
+        setTags(formatted.filter((t) => t.meetingCount > 0));
+        const { data: allMeetings } = await mysqlClient
+          .from("meetings")
+          .select("id")
+          .eq("user_id", user.id);
 
-        // Fetch untagged meetings count
-        // Get all meetings for this user
-        const { data: allMeetings, error: meetingsError } = await mysqlClient
-          .from('meetings')
-          .select('id')
-          .eq('user_id', user.id);
-
-        if (meetingsError) {
-          console.error('Error fetching meetings:', meetingsError);
-          return;
+        if (Array.isArray(allMeetings)) {
+          setUntaggedCount(
+            allMeetings.filter((m: { id: string }) => !taggedIds.has(m.id)).length,
+          );
         }
-
-        let untaggedMeetingsCount = 0;
-
-        if (allMeetings && allMeetings.length > 0) {
-          // Calculate untagged meetings count
-          // A meeting is untagged if it's not in the taggedMeetingIds set
-          // (taggedMeetingIds was populated when we fetched meetings for each tag above)
-          untaggedMeetingsCount = allMeetings.filter(meeting => !taggedMeetingIds.has(meeting.id)).length;
-        } else {
-          // If no meetings exist, untagged count is 0
-          untaggedMeetingsCount = 0;
-        }
-        
-        setUntaggedCount(untaggedMeetingsCount);
-      } catch (error) {
-        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTagsAndUntagged();
+    void fetchTagsAndUntagged();
   }, [user, toast]);
-
-  const handleTagClick = (tagId: string) => {
-    navigate(`/tag/${tagId}`);
-  };
-
-  const handleUntaggedClick = () => {
-    navigate('/tag/untagged');
-  };
 
   const headerActions = (
     <>
       {!searchOpen && (
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
+          type="button"
           onClick={() => setSearchOpen(true)}
           aria-label="جستجوی برچسب‌ها"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-black/5"
         >
           <Search className="h-5 w-5" />
-        </Button>
+        </button>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => navigate('/tags/manage')}
-        aria-label="مدیریت برچسب‌ها"
+      <button
+        type="button"
+        onClick={() => navigate("/tags/manage")}
+        aria-label="مدیریت"
+        className="flex h-10 w-10 items-center justify-center rounded-full text-[#0F766E] hover:bg-black/5"
       >
         <Settings className="h-5 w-5" />
-      </Button>
+      </button>
     </>
   );
 
-  if (loading) {
-    return (
-      <AppShell
-        title="برچسب‌ها"
-        subtitle="جلسات بر اساس برچسب"
-        actions={headerActions}
-        {...shellSearchProps}
-      >
-        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">در حال بارگذاری...</p>
-        </div>
-      </AppShell>
-    );
-  }
-
   return (
     <AppShell
-      title="برچسب‌ها"
-      subtitle="جلسات بر اساس برچسب"
+      title="لیست جلسات بر حسب برچسب"
+      onBack="/home"
       actions={headerActions}
-      {...shellSearchProps}
+      searchActive={searchOpen}
+      searchValue={searchQuery}
+      onSearchChange={setSearchQuery}
+      onSearchClose={() => {
+        setSearchOpen(false);
+        setSearchQuery("");
+      }}
+      searchPlaceholder="جستجوی برچسب..."
     >
-      <div className="space-y-2.5">
-        {/* Without any tag option */}
-        {showUntaggedCard && (
-          <Card
-            className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
-            onClick={handleUntaggedClick}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-4 w-4 shrink-0 rounded-full border border-muted-foreground/50 bg-muted-foreground/30" />
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-medium text-foreground">بدون برچسب</h3>
-                  <p className="text-sm text-muted-foreground">{untaggedCount} جلسه</p>
-                </div>
-                <Badge variant="secondary" className="shrink-0 text-xs">{untaggedCount}</Badge>
-                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {loading ? (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {showUntaggedCard ? (
+            <NeshastyarCard
+              onClick={() => navigate("/tag/untagged")}
+              className="p-3.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] text-[#1C1B18]">
+                  {`بدون برچسب (${untaggedCount})`}
+                </span>
+                <ArrowLeft className="h-5 w-5 text-[#66625B]" />
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </NeshastyarCard>
+          ) : null}
 
-        {/* Tags list */}
-        {filteredTags.map((tag) => (
-          <Card
-            key={tag.id}
-            className="cursor-pointer border border-border/50 bg-card/70 shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
-            onClick={() => handleTagClick(tag.id)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} />
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-medium text-foreground">{tag.name}</h3>
-                  <p className="text-sm text-muted-foreground">{tag.meetingCount} جلسه</p>
-                </div>
-                <Badge variant="secondary" className="shrink-0 text-xs">{tag.meetingCount}</Badge>
-                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {filteredTags.map((tag) => (
+            <NeshastyarCard
+              key={tag.id}
+              onClick={() => navigate(`/tag/${tag.id}`)}
+              className="p-3.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] text-[#1C1B18]">
+                  {`${tag.name} (${tag.meetingCount})`}
+                </span>
+                <ArrowLeft className="h-5 w-5 text-[#66625B]" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            </NeshastyarCard>
+          ))}
 
-        {filteredTags.length === 0 && !showUntaggedCard && (
-          <EmptyState
-            icon={Tag}
-            title={normalizedSearchQuery ? 'نتیجه‌ای یافت نشد' : 'هنوز برچسبی ندارید'}
-            description={
-              normalizedSearchQuery
-                ? 'عبارت جستجو را تغییر دهید'
-                : 'جلسه‌ای ضبط کنید و برچسب اضافه کنید'
-            }
-          />
-        )}
-      </div>
+          {filteredTags.length === 0 && !showUntaggedCard ? (
+            <EmptyState
+              icon={Tag}
+              title={normalizedSearchQuery ? "نتیجه‌ای یافت نشد" : "هنوز برچسبی ندارید"}
+              description={
+                normalizedSearchQuery
+                  ? "عبارت جستجو را تغییر دهید"
+                  : "جلسه‌ای ضبط کنید و برچسب اضافه کنید"
+              }
+            />
+          ) : null}
+        </div>
+      )}
     </AppShell>
   );
 };

@@ -45,59 +45,30 @@ function escapeHtml(value = "") {
 }
 
 function renderHomeBody() {
-  const faqsHtml = HOME_FAQS.map(
-    (faq) => `
-      <div class="rounded-xl border border-border p-6 bg-card text-right">
-        <h3 class="text-lg font-semibold mb-2">${escapeHtml(faq.question)}</h3>
-        <p class="text-muted-foreground leading-8">${escapeHtml(faq.answer)}</p>
-      </div>`,
-  ).join("\n");
-
   return `
-    <header class="border-b px-4 py-3">
-      <div class="mx-auto flex max-w-5xl items-center justify-between">
-        <a href="/" class="text-lg font-semibold">${escapeHtml(BRAND_NAME)}</a>
-        <nav aria-label="ناوبری اصلی" class="flex gap-3 text-sm">
-          <a href="/login">ورود</a>
-          <a href="/signup">ثبت‌نام</a>
-        </nav>
-      </div>
-    </header>
-    <main class="mx-auto max-w-5xl px-4 py-12 text-right">
-      <section class="text-center mb-12">
-        <h1 class="mb-6 text-3xl font-bold leading-tight sm:text-5xl">
-          یک پایگاه دانش قابل جستجو از تمام مکالمات خود ایجاد کنید
-        </h1>
-        <p class="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground leading-8">
-          جلسات خود را با هوش مصنوعی خلاصه‌سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید.
-        </p>
-        <div class="flex flex-wrap justify-center gap-3">
-          <a href="/signup" class="rounded-md bg-primary px-6 py-3 text-primary-foreground font-medium">رایگان ثبت نام کنید</a>
-          <a href="/login" class="rounded-md border px-6 py-3 font-medium">ورود</a>
+    <div dir="rtl" class="relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#003535]">
+      <picture class="pointer-events-none absolute inset-0 select-none">
+        <source media="(min-width: 768px)" srcset="/landing-bg-desktop.jpg" />
+        <img src="/landing-bg-mobile.jpg" alt="" aria-hidden="true" class="h-full w-full object-cover object-center" />
+      </picture>
+      <main class="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col items-center px-6">
+        <div class="flex items-center gap-2.5 pt-9">
+          <span class="text-[28px] font-black text-[#003535]">${escapeHtml(BRAND_NAME)}</span>
         </div>
-      </section>
-      <section class="grid gap-6 sm:grid-cols-3 mb-12 text-center">
-        <article class="rounded-xl border p-6">
-          <h2 class="text-xl font-semibold mb-3">خلاصه‌سازی هوشمند</h2>
-          <p class="text-muted-foreground leading-8">خلاصه‌های جامع جلسات با نکات کلیدی و تصمیم‌ها با هوش مصنوعی.</p>
-        </article>
-        <article class="rounded-xl border p-6">
-          <h2 class="text-xl font-semibold mb-3">استخراج موارد عملی</h2>
-          <p class="text-muted-foreground leading-8">شناسایی موارد پیگیری، مهلت‌ها و تکالیف از مکالمات شما.</p>
-        </article>
-        <article class="rounded-xl border p-6">
-          <h2 class="text-xl font-semibold mb-3">آرشیو قابل جستجو</h2>
-          <p class="text-muted-foreground leading-8">پایگاه دانش قابل جستجو از تمام جلسات و جزئیات مهم.</p>
-        </article>
-      </section>
-      <section aria-labelledby="faq-heading" class="mb-12">
-        <h2 id="faq-heading" class="text-2xl font-bold mb-6 text-center">سوالات متداول</h2>
-        <div class="space-y-4">${faqsHtml}</div>
-      </section>
-    </main>
-    <footer class="border-t py-8 text-center text-sm text-muted-foreground">
-      <p>© ${new Date().getFullYear()} ${escapeHtml(BRAND_NAME)} — امنیت سازمانی و تطبیق با GDPR</p>
-    </footer>
+        <div class="flex-1"></div>
+        <h1 class="text-center text-[26px] font-semibold leading-[42px] text-[#003535] sm:text-[34px] sm:leading-[56px]">
+          شما در جلسه حاضر باشید،<br />نشست‌یار یادداشت‌ها را می‌نویسد.
+        </h1>
+        <div class="flex-1"></div>
+        <div class="w-full max-w-[380px] pb-5">
+          <a href="/login" class="flex h-[58px] w-full items-center justify-center rounded-[30px] bg-[#003535] px-[22px] text-[16px] font-semibold text-white">ادامه با گوگل</a>
+          <a href="/login" class="mt-3 flex h-[58px] w-full items-center justify-center rounded-[30px] bg-[#003535] px-[22px] text-[16px] font-semibold text-white">ادامه با ایمیل</a>
+          <p class="pt-4 text-center text-[13px] leading-[22px] text-white/95">
+            با ادامه، شرایط استفاده و حریم خصوصی نشست‌یار را می‌پذیرید.
+          </p>
+        </div>
+      </main>
+    </div>
   `;
 }
 

@@ -1,7 +1,8 @@
-import React from 'react';
-import AppHeader from './AppHeader';
-import BottomNav from './BottomNav';
-import { cn } from '@/lib/utils';
+import React from "react";
+import AppHeader from "./AppHeader";
+import BottomNav from "./BottomNav";
+import { NeshastyarTopBar } from "@/components/neshastyar/NeshastyarUi";
+import { cn } from "@/lib/utils";
 
 interface AppShellProps {
   title: React.ReactNode;
@@ -16,12 +17,15 @@ interface AppShellProps {
   searchPlaceholder?: string;
   actions?: React.ReactNode;
   leading?: React.ReactNode;
-  /** Hide the bottom navigation (e.g. full-screen flows like recording). */
+  /** Hide the bottom navigation (matches Android default on secondary screens). */
   hideNav?: boolean;
   /** Hide the default header (page provides its own). */
   hideHeader?: boolean;
+  /** Hide the Android NeshastyarTopBar ("نشست یار" + search + home icon). */
+  hideTopBar?: boolean;
   /** Constrain and pad the content. Set false for edge-to-edge pages. */
   contained?: boolean;
+  bottomBar?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
@@ -41,18 +45,20 @@ const AppShell = ({
   leading,
   hideNav = false,
   hideHeader = false,
+  hideTopBar = false,
   contained = true,
+  bottomBar,
   children,
   className,
   contentClassName,
 }: AppShellProps) => {
   return (
     <div
-      className={cn(
-        'min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10',
-        className,
-      )}
+      dir="rtl"
+      className={cn("min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]", className)}
     >
+      {!hideTopBar && <NeshastyarTopBar />}
+
       {!hideHeader && (
         <AppHeader
           title={title}
@@ -71,15 +77,15 @@ const AppShell = ({
 
       <main
         className={cn(
-          hideNav ? 'pb-safe' : 'pb-nav',
-          contained && 'mx-auto w-full max-w-3xl px-4 py-5',
+          bottomBar || !hideNav ? "pb-nav" : "pb-safe",
+          contained && "mx-auto w-full max-w-2xl px-4 py-3",
           contentClassName,
         )}
       >
         {children}
       </main>
 
-      {!hideNav && <BottomNav />}
+      {bottomBar ? bottomBar : !hideNav ? <BottomNav /> : null}
     </div>
   );
 };

@@ -1,185 +1,104 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { Mic2, Sparkles, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+} from "@/components/neshastyar/NeshastyarUi";
 
-const ForgotPassword = () => {
-  const { toast } = useToast();
-  const [email, setEmail] = useState('');
+const ForgotPassword: React.FC = () => {
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email) {
-      toast({
-        title: "خطا",
-        description: "لطفاً ایمیل خود را وارد کنید.",
-        variant: "destructive",
-      });
+    if (!email.trim()) {
+      setErrorMsg("لطفاً ایمیل خود را وارد کنید.");
       return;
     }
 
     setIsLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:3001/api";
       const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      const data = await response.json();
-
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
-        setIsSuccess(true);
-        toast({
-          title: "ایمیل ارسال شد",
-          description: "لینک بازنشانی رمز عبور به ایمیل شما ارسال شد.",
-          variant: "default",
-        });
+        setSuccessMsg("لینک بازنشانی رمز عبور به ایمیل شما ارسال شد.");
       } else {
-        toast({
-          title: "خطا",
-          description: data.message || "خطا در ارسال ایمیل بازنشانی رمز عبور.",
-          variant: "destructive",
-        });
+        setErrorMsg(data.message || "خطا در ارسال ایمیل بازنشانی رمز عبور.");
       }
-    } catch (error) {
-      toast({
-        title: "خطا",
-        description: "خطا در اتصال به سرور. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
+    } catch {
+      setErrorMsg("خطا در اتصال به سرور. لطفاً دوباره تلاش کنید.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
-        <div className="w-full max-w-md space-y-8">
-          {/* Logo and Brand */}
-          <div className="space-y-4 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
-                <Mic2 className="h-6 w-6 text-white" />
-                <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground">نشست یار</h1>
-            </div>
-            <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
-          </div>
-
-          <Card className="shadow-medium border-0 bg-gradient-card">
-            <CardHeader className="space-y-1">
-              <div className="flex items-center justify-center mb-4">
-                <CheckCircle className="h-12 w-12 text-success" />
-              </div>
-              <CardTitle className="text-2xl text-center">ایمیل ارسال شد!</CardTitle>
-              <CardDescription className="text-center">
-                لینک بازنشانی رمز عبور به ایمیل شما ارسال شد
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center space-y-4">
-                <div className="rounded-lg border border-success/30 bg-success/10 p-4">
-                  <p className="font-medium text-success">ایمیل بازنشانی رمز عبور ارسال شد</p>
-                  <p className="mt-2 text-sm text-success/80">
-                    لطفاً صندوق ورودی ایمیل خود را بررسی کنید و روی لینک بازنشانی رمز عبور کلیک کنید.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="text-center mt-6">
-                <Link 
-                  to="/login" 
-                  className="inline-flex items-center gap-1 text-sm text-primary transition-colors hover:text-primary-glow"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  بازگشت به ورود
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-primary/5">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo and Brand */}
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow">
-              <Mic2 className="h-6 w-6 text-white" />
-              <Sparkles className="absolute -top-1 -left-1 h-4 w-4 animate-pulse text-primary-glow" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">نشست یار</h1>
-          </div>
-          <p className="text-muted-foreground">دستیار هوشمند جلسات</p>
+    <div
+      dir="rtl"
+      className="flex min-h-[100dvh] items-center justify-center bg-[#FBF9F4] px-6 py-8 text-[#1C1B18]"
+    >
+      <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <h1 className="text-[24px] font-bold text-[#1C1B18]">
+            بازیابی رمز عبور
+          </h1>
+          <p className="mt-1.5 text-[14px] text-[#404848]">
+            ایمیل حساب خود را وارد کنید
+          </p>
         </div>
 
-        <Card className="shadow-medium border-0 bg-gradient-card">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">بازیابی رمز عبور</CardTitle>
-            <CardDescription className="text-center">
-              ایمیل خود را وارد کنید تا لینک بازنشانی رمز عبور برای شما ارسال شود
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">ایمیل</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="ایمیل خود را وارد کنید"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    در حال ارسال...
-                  </>
-                ) : (
-                  'ارسال لینک بازنشانی'
-                )}
-              </Button>
-            </form>
-            
-            <div className="text-center mt-6">
-              <Link 
-                to="/login" 
-                className="inline-flex items-center gap-1 text-sm text-primary transition-colors hover:text-primary-glow"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                بازگشت به ورود
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <NeshastyarCard className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <NeshastyarField
+              label="ایمیل"
+              type="email"
+              dir="ltr"
+              placeholder="example@mail.com"
+              value={email}
+              onChange={setEmail}
+              disabled={isLoading}
+              required
+            />
+
+            {errorMsg ? (
+              <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
+            ) : null}
+
+            {successMsg ? (
+              <p className="text-[13px] text-[#0D4D4D]">{successMsg}</p>
+            ) : null}
+
+            <NeshastyarPrimaryButton
+              type="submit"
+              loading={isLoading}
+              disabled={isLoading}
+            >
+              ارسال لینک بازیابی
+            </NeshastyarPrimaryButton>
+          </form>
+
+          <div className="mt-4 text-center">
+            <Link
+              to="/"
+              className="text-[14px] font-medium text-[#0D4D4D] hover:text-[#0F766E]"
+            >
+              بازگشت به ورود
+            </Link>
+          </div>
+        </NeshastyarCard>
       </div>
     </div>
   );

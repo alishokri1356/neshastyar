@@ -1,351 +1,422 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuthStore } from '@/store/useAuthStore';
-import { mysqlClient } from '@/lib/mysql-client';
-import { useToast } from '@/components/ui/use-toast';
-import { useQuery } from '@tanstack/react-query';
-import { Mic2, Calendar, ChevronLeft } from 'lucide-react';
-import moment from 'moment-jalaali';
-import AppShell from '@/components/layout/AppShell';
-import EmptyState from '@/components/EmptyState';
-import { cn } from '@/lib/utils';
-
-interface DatabaseAudioFile {
-  id: string;
-  meeting_id: string;
-  file_name: string;
-  file_path: string;
-  file_size?: number;
-  duration?: number;
-  format?: string;
-  upload_order: number;
-  created_at: string;
-  updated_at: string;
-}
+import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Calendar,
+  FileText,
+  Loader2,
+  Mic,
+  Phone,
+  RefreshCw,
+  Search,
+  Tag,
+  User,
+  Users,
+} from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { mysqlClient } from "@/lib/mysql-client";
+import { useLocalDraft, type LocalDraftUi } from "@/hooks/useLocalDraft";
+import {
+  DraftStatus,
+  formatJalaliGroupLabel,
+  formatPersianClockTime,
+  isAnalyzingStatus,
+  isErrorStatus,
+  parseApiDate,
+} from "@/lib/neshastyarStatus";
+import { StatusChip } from "@/components/neshastyar/NeshastyarUi";
 
 interface DatabaseMeeting {
   id: string;
-  meeting_date: string;
-  summary: string;
-  status: string;
-  title?: string;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
-  audioFiles?: DatabaseAudioFile[];
-  [key: string]: any; // Allow additional properties
+  meeting_date?: string | null;
+  created_at?: string | null;
+  status?: string | null;
+  title?: string | null;
 }
 
-const Home = () => {
+interface MeetingDateGroup {
+  label: string;
+  meetings: DatabaseMeeting[];
+}
+
+const Home: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { toast } = useToast();
-  
-  // Persian day names and month names
-  const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
-  const persianMonths = [
-    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-  ];
+  const localDraft = useLocalDraft();
 
-  // Format dates and times using Persian (Jalali) calendar
-  const formatPersianDate = (date: Date, options?: Intl.DateTimeFormatOptions) => {
-    try {
-      // Use moment-jalaali for proper Persian calendar support
-      const jMoment = moment(date);
-      
-      if (options?.weekday === 'short' && options?.month === 'short' && options?.day === 'numeric') {
-        // Format like "سه‌شنبه، 17 مهر"
-        const weekdayIndex = jMoment.day(); // 0 = Sunday, 1 = Monday, etc.
-        const weekday = persianDays[weekdayIndex];
-        const monthIndex = jMoment.jMonth(); // 0 = Farvardin, 1 = Ordibehesht, etc.
-        const month = persianMonths[monthIndex];
-        const day = jMoment.format('jD');
-        return `${weekday}، ${day} ${month}`;
-      }
-      
-      // Default format
-      return jMoment.format('jYYYY/jMM/jDD');
-    } catch {
-      // Fallback to fa-IR if persian calendar not supported
-      return new Intl.DateTimeFormat('fa-IR', options).format(date);
-    }
-  };
-
-  const formatPersianDateTime = (date: Date) => {
-    try {
-      // Use moment-jalaali for proper Persian calendar support
-      const jMoment = moment(date);
-      const monthIndex = jMoment.jMonth();
-      const month = persianMonths[monthIndex];
-      const day = jMoment.format('jD');
-      const year = jMoment.format('jYYYY');
-      const time = jMoment.format('HH:mm');
-      return `${day} ${month} ${year} - ${time}`;
-    } catch {
-      // Fallback to fa-IR if persian calendar not supported
-      return new Intl.DateTimeFormat('fa-IR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }).format(date);
-    }
-  };
-  
-  // State for expanded date groups
-  const [expandedDates, setExpandedDates] = React.useState<Record<string, boolean>>({});
-
-       // Fetch initial meetings on load
-       const { data: initialMeetings = [], isLoading: meetingsLoading } = useQuery({
-         queryKey: ['meetings', user?.id, 'recent'],
-         queryFn: async () => {
-           if (!user) {
-             return [];
-           }
-
-           try {
-             const { data: meetingsData, error: meetingsError } = await mysqlClient
-               .from('meetings')
-               .select(`
-                 *,
-                 audio_files (
-                   id,
-                   file_name,
-                   file_path,
-                   file_size,
-                   duration,
-                   format,
-                   upload_order,
-                   created_at,
-                   updated_at
-                 )
-               `)
-               .eq('user_id', user.id)
-               .order('created_at', { ascending: false })
-               .limit(20);
-
-             if (meetingsError) {
-               toast({
-                 title: "خطا در بارگذاری جلسات",
-                 description: meetingsError.message,
-                 variant: "destructive",
-               });
-               throw meetingsError;
-             }
-
-             return meetingsData || [];
-           } catch (error) {
-             throw error;
-           }
-         },
-         enabled: !!user,
-         staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
-         refetchOnWindowFocus: false,
-       });
-
-  // Poll for new meetings only (every 30 seconds)
-  const { data: newMeetings = [] } = useQuery({
-    queryKey: ['meetings', user?.id, 'new'],
+  const {
+    data: meetings = [],
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery<DatabaseMeeting[]>({
+    queryKey: ["meetings", user?.id, "home-timeline"],
     queryFn: async () => {
-      if (!user || !initialMeetings.length) return [];
+      if (!user) return [];
+      const { data, error: fetchErr } = await mysqlClient
+        .from("meetings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-      // Get the latest meeting's created_at timestamp
-      const latestMeetingTime = initialMeetings[0]?.created_at;
-      
-      const { data: meetingsData, error: meetingsError } = await mysqlClient
-        .from('meetings')
-        .select(`
-          *,
-          audio_files (
-            id,
-            file_name,
-            file_path,
-            file_size,
-            duration,
-            format,
-            upload_order,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('user_id', user.id)
-        .gt('created_at', latestMeetingTime)
-        .order('created_at', { ascending: false });
-
-      if (meetingsError) {
-        console.error('Error fetching new meetings:', meetingsError);
-        return [];
+      if (fetchErr) {
+        throw new Error(fetchErr.message || "خطا در بارگذاری جلسات");
       }
-
-      return meetingsData || [];
+      return Array.isArray(data) ? data : [];
     },
-    enabled: !!user && initialMeetings.length > 0,
-    refetchInterval: 60000, // Reduce to 60 seconds
-    refetchIntervalInBackground: false, // Disable background refetching
-    staleTime: 2 * 60 * 1000, // 2 minutes stale time
+    enabled: Boolean(user),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
-  const meetingsByDate = React.useMemo(() => {
-    if (!newMeetings.length && !initialMeetings.length) return {};
+  const groups: MeetingDateGroup[] = useMemo(() => {
+    const sorted = [...meetings].sort((a, b) => {
+      const ta =
+        parseApiDate(a.created_at)?.getTime() ??
+        parseApiDate(a.meeting_date)?.getTime() ??
+        0;
+      const tb =
+        parseApiDate(b.created_at)?.getTime() ??
+        parseApiDate(b.meeting_date)?.getTime() ??
+        0;
+      return tb - ta;
+    });
 
-    const allMeetings = [...newMeetings, ...initialMeetings];
-    const uniqueMeetings = allMeetings.filter((meeting, index, self) =>
-      index === self.findIndex(m => m.id === meeting.id)
-    );
-
-    const sortedMeetings = uniqueMeetings
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    return sortedMeetings.reduce((acc, meeting) => {
-      const date = new Date(meeting.meeting_date || meeting.created_at);
-      const dateKey = formatPersianDate(date, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(meeting);
-      return acc;
-    }, {} as Record<string, DatabaseMeeting[]>);
-  }, [initialMeetings, newMeetings]);
-
-  const getMeetingTitle = (meeting: DatabaseMeeting): string => {
-    const audioFiles = meeting.audioFiles || [];
-    const audioCountText = audioFiles.length > 1 ? ` (${audioFiles.length} فایل)` : '';
-    return `${meeting.title || 'جلسه'}${audioCountText}`;
-  };
-
-  const getMeetingDuration = (meeting: DatabaseMeeting): string => {
-    const audioFiles = meeting.audioFiles || [];
-    const totalDuration = audioFiles.reduce((sum, file) => sum + (file.duration || 0), 0);
-    if (totalDuration <= 0) return '';
-    return `${Math.round(totalDuration / 60)} دقیقه`;
-  };
-
-  const loading = meetingsLoading;
-
-  // Expand first date group by default when data loads
-  React.useEffect(() => {
-    const dateKeys = Object.keys(meetingsByDate);
-    if (dateKeys.length > 0 && Object.keys(expandedDates).length === 0) {
-      setExpandedDates({ [dateKeys[0]]: true });
+    const map = new Map<string, DatabaseMeeting[]>();
+    for (const meeting of sorted) {
+      const d =
+        parseApiDate(meeting.meeting_date) ??
+        parseApiDate(meeting.created_at) ??
+        new Date();
+      const label = formatJalaliGroupLabel(d) || "امروز";
+      const list = map.get(label) ?? [];
+      list.push(meeting);
+      map.set(label, list);
     }
-  }, [meetingsByDate, expandedDates]);
+    return Array.from(map.entries()).map(([label, list]) => ({
+      label,
+      meetings: list,
+    }));
+  }, [meetings]);
 
-  if (loading) {
-    return (
-      <AppShell title="خانه" subtitle="جلسات اخیر">
-        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">در حال بارگذاری...</p>
-        </div>
-      </AppShell>
-    );
-  }
+  const avatarChar =
+    user?.name?.trim()?.charAt(0) ||
+    user?.email?.trim()?.charAt(0)?.toUpperCase() ||
+    "ک";
+
+  const draftLabel = localDraft ? formatJalaliGroupLabel(localDraft.createdAt) : "";
+  const openLocalDraft = (draft: LocalDraftUi) => {
+    if (draft.status === DraftStatus.ON_RECORDING) {
+      navigate("/record");
+    } else {
+      navigate("/tag-selection");
+    }
+  };
 
   return (
-    <AppShell title="خانه" subtitle="جلسات اخیر">
-      <div className="space-y-2.5">
-        {Object.keys(meetingsByDate).length > 0 ? (
-          Object.entries(meetingsByDate).map(([dateKey, groupMeetings]) => (
-            <div key={dateKey} className="space-y-2.5">
-              <Card
-                className="cursor-pointer border border-primary/15 bg-card shadow-soft transition-all duration-300 hover:shadow-medium active:scale-[0.99]"
-                onClick={() =>
-                  setExpandedDates((prev) => ({ ...prev, [dateKey]: !prev[dateKey] }))
-                }
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate font-medium text-foreground">{dateKey}</h3>
-                      <p className="text-sm text-muted-foreground">{groupMeetings.length} جلسه</p>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0 text-xs">
-                      {groupMeetings.length}
-                    </Badge>
-                    <ChevronLeft
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                        expandedDates[dateKey] ? '-rotate-90' : '',
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+    <div
+      dir="rtl"
+      className="flex min-h-[100dvh] flex-col bg-[#FBF9F4] text-[#1C1B18] safe-top safe-bottom"
+    >
+      {/* Android HomeHeader */}
+      <header className="mx-auto w-full max-w-2xl px-[18px] pt-[18px] pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <RoundHomeButton
+              onClick={() => navigate("/account/manage")}
+              ariaLabel="تنظیمات و حساب کاربری"
+            >
+              <span className="flex h-full w-full items-center justify-center rounded-full bg-[#D7EFED] text-[18px] font-bold text-[#0D4D4D]">
+                {avatarChar}
+              </span>
+            </RoundHomeButton>
 
-              {expandedDates[dateKey] && (
-                <div className="space-y-2 rounded-xl border border-border/40 bg-muted/35 p-2">
-                  {groupMeetings.map((meeting) => {
-                    const meetingDate = new Date(meeting.meeting_date || meeting.created_at);
-                    const durationText = getMeetingDuration(meeting);
+            <RoundHomeButton
+              onClick={() => navigate("/search")}
+              ariaLabel="جست‌وجو"
+            >
+              <Search className="h-[25px] w-[25px] text-[#66625B]" />
+            </RoundHomeButton>
+          </div>
 
-                    return (
-                      <Card
-                        key={meeting.id}
-                        className="cursor-pointer border border-[#2d6a4f] bg-[#14532d] shadow-none transition-all duration-300 hover:border-[#40916c] hover:bg-[#1b4332] active:scale-[0.99]"
-                        onClick={() => navigate(`/meeting/${meeting.id}`)}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2d6a4f]/60">
-                              <Mic2 className="h-4 w-4 text-[#fef9c3]" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="truncate font-medium text-[#fef9c3]">
-                                {getMeetingTitle(meeting)}
-                              </h3>
-                              <p className="text-sm text-[#fef9c3]/80">
-                                {formatPersianDateTime(meetingDate)}
-                                {durationText ? ` · ${durationText}` : ''}
-                              </p>
-                            </div>
-                            {meeting.status && (
-                              <Badge
-                                variant="secondary"
-                                className="shrink-0 border-[#40916c]/50 bg-[#2d6a4f]/70 text-xs text-[#fef9c3]"
-                              >
-                                {meeting.status}
-                              </Badge>
-                            )}
-                            <ChevronLeft className="h-4 w-4 shrink-0 text-[#fef9c3]/70" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <EmptyState
-            icon={Mic2}
-            title="هنوز جلسه‌ای ثبت نشده است"
-            description="برای شروع، روی دکمه ضبط در پایین صفحه بزنید."
-            action={
-              <Button variant="primary" onClick={() => navigate('/record')}>
-                <Mic2 className="h-4 w-4" />
-                ضبط جلسه جدید
-              </Button>
-            }
+          <div className="flex items-center gap-2">
+            {isFetching && !isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-[#66625B]" />
+            ) : null}
+            <RoundHomeButton
+              onClick={() => navigate("/record")}
+              ariaLabel="یادداشت صوتی جدید"
+            >
+              <Phone className="h-[23px] w-[23px] text-[#66625B]" />
+            </RoundHomeButton>
+          </div>
+        </div>
+
+        {/* Subtle editorial browse pills so Tags, Participants & By-Date remain 1-tap away on Web */}
+        <div className="mt-3.5 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <BrowsePill
+            icon={<Tag className="h-3.5 w-3.5" />}
+            label="برچسب‌ها"
+            onClick={() => navigate("/tags")}
           />
+          <BrowsePill
+            icon={<Users className="h-3.5 w-3.5" />}
+            label="شرکت‌کنندگان"
+            onClick={() => navigate("/participants")}
+          />
+          <BrowsePill
+            icon={<Calendar className="h-3.5 w-3.5" />}
+            label="بر حسب تاریخ"
+            onClick={() => navigate("/meetings-by-date")}
+          />
+        </div>
+      </header>
+
+      {/* Main Timeline Body */}
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-[18px] pb-32 pt-1">
+        {isLoading && !localDraft ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
+          </div>
+        ) : error && groups.length === 0 && !localDraft ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+            <p className="text-[14px] text-[#66625B]">
+              {(error as Error).message || "خطا در بارگذاری جلسات"}
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="text-[14px] font-bold text-[#0F766E]"
+            >
+              تلاش مجدد
+            </button>
+          </div>
+        ) : groups.length === 0 && !localDraft ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2.5 text-center">
+            <User className="h-9 w-9 text-[#66625B]" />
+            <p className="text-[15px] text-[#66625B]">هنوز یادداشتی ندارید</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {localDraft && !groups.some((g) => g.label === draftLabel) ? (
+              <div className="space-y-2.5">
+                <TimelineHeader label={draftLabel} />
+                <DraftTimelineCard
+                  draft={localDraft}
+                  onClick={() => openLocalDraft(localDraft)}
+                />
+              </div>
+            ) : null}
+
+            {groups.map((group) => (
+              <div key={group.label} className="space-y-2.5">
+                <TimelineHeader label={group.label} />
+
+                {localDraft && group.label === draftLabel ? (
+                  <DraftTimelineCard
+                    draft={localDraft}
+                    onClick={() => openLocalDraft(localDraft)}
+                  />
+                ) : null}
+
+                {group.meetings.map((meeting) => {
+                  const failed = isErrorStatus(meeting.status);
+                  const analyzing = isAnalyzingStatus(meeting.status);
+                  const subtitle = failed
+                    ? "مشکلی پیش آمد"
+                    : formatPersianClockTime(meeting.meeting_date || meeting.created_at);
+
+                  return (
+                    <TimelineCard
+                      key={meeting.id}
+                      title={meeting.title?.trim() ? meeting.title : "یادداشت جلسه"}
+                      subtitle={subtitle}
+                      isDraft={false}
+                      failed={failed}
+                      badge={analyzing ? <StatusChip status={meeting.status} /> : undefined}
+                      onClick={() => navigate(`/meeting/${meeting.id}`)}
+                      onRetry={() => void refetch()}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         )}
+      </main>
+
+      {/* Fixed Bottom HomeActions matching Android HomeActions */}
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-[#FBF9F4]/95 backdrop-blur-sm pb-safe">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-2.5 px-[18px] py-[18px]">
+          <button
+            type="button"
+            onClick={() => navigate("/record")}
+            className="flex h-[60px] flex-[1.12] items-center justify-center gap-2.5 rounded-[30px] bg-[#0D4D4D] px-[18px] text-[15px] font-medium text-white shadow-sm transition hover:bg-[#0F766E] active:scale-[0.99]"
+          >
+            <Mic className="h-[22px] w-[22px]" />
+            <span>ضبط جدید</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/chat")}
+            className="flex h-[60px] flex-1 items-center justify-center gap-2.5 rounded-[30px] border border-[#E8E2D5] bg-white px-[18px] text-[15px] font-medium text-[#1C1B18] transition hover:bg-[#F5F2EB] active:scale-[0.99]"
+          >
+            <Search className="h-[22px] w-[22px] text-[#1C1B18]" />
+            <span>هر چیزی بپرس</span>
+          </button>
+        </div>
       </div>
-    </AppShell>
+    </div>
   );
 };
 
 export default Home;
+
+function RoundHomeButton({
+  onClick,
+  ariaLabel,
+  children,
+}: {
+  onClick: () => void;
+  ariaLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="flex h-[52px] w-[52px] items-center justify-center rounded-full border border-[#E8E2D5] bg-[#FBF9F4] p-1 transition hover:bg-[#F5F2EB] active:scale-95"
+    >
+      {children}
+    </button>
+  );
+}
+
+function BrowsePill({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#E8E2D5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#404848] transition hover:border-[#0D4D4D]/40 hover:text-[#0D4D4D]"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function TimelineHeader({ label }: { label: string }) {
+  return (
+    <h2 className="pt-3.5 pb-0.5 text-[15px] font-normal text-[#66625B]">
+      {label}
+    </h2>
+  );
+}
+
+function DraftTimelineCard({
+  draft,
+  onClick,
+}: {
+  draft: LocalDraftUi;
+  onClick: () => void;
+}) {
+  const status =
+    draft.status === DraftStatus.ON_RECORDING
+      ? "در حال ضبط"
+      : draft.status === DraftStatus.ON_UPLOADING
+        ? "در حال بارگذاری"
+        : draft.status === DraftStatus.ON_TAG_SELECTION
+          ? "آماده تکمیل"
+          : formatPersianClockTime(draft.createdAt);
+
+  return (
+    <TimelineCard
+      title={`پیش‌نویس: ${draft.title}`}
+      subtitle={status}
+      isDraft
+      failed={false}
+      onClick={onClick}
+    />
+  );
+}
+
+function TimelineCard({
+  title,
+  subtitle,
+  isDraft,
+  failed,
+  badge,
+  onClick,
+  onRetry,
+}: {
+  title: string;
+  subtitle: string;
+  isDraft: boolean;
+  failed: boolean;
+  badge?: React.ReactNode;
+  onClick: () => void;
+  onRetry?: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="flex w-full cursor-pointer items-center gap-4 rounded-[28px] border border-[#E8E2D5] bg-white px-[18px] py-[17px] transition hover:border-[#0D4D4D]/35 active:scale-[0.995]"
+    >
+      <div
+        className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[14px] ${
+          isDraft ? "bg-[#F5F2EB] text-[#66625B]" : "bg-[#D7EFED] text-[#0D4D4D]"
+        }`}
+      >
+        {isDraft ? (
+          <FileText className="h-[29px] w-[29px]" />
+        ) : (
+          <Mic className="h-[29px] w-[29px]" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[16px] font-bold text-[#1C1B18]">{title}</p>
+        {subtitle ? (
+          <p className="mt-0.5 truncate text-[14px] text-[#66625B]">{subtitle}</p>
+        ) : null}
+      </div>
+
+      {badge}
+
+      {failed && onRetry ? (
+        <button
+          type="button"
+          aria-label="تلاش مجدد"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRetry();
+          }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#66625B] hover:bg-black/5"
+        >
+          <RefreshCw className="h-5 w-5" />
+        </button>
+      ) : null}
+    </div>
+  );
+}

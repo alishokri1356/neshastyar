@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, Save, Upload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { mysqlClient } from "@/lib/mysql-client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { Save, LogOut } from "lucide-react";
-import AppShell from "@/components/layout/AppShell";
 import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
 import { absoluteFromApiPath } from "@/lib/meetingReport";
+import androidVersionFile from "../../android-app/versioning.txt?raw";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+  NeshastyarSecondaryButton,
+  NeshastyarSubHeader,
+  NeshastyarTopBar,
+} from "@/components/neshastyar/NeshastyarUi";
+
+const APP_VERSION = androidVersionFile.trim() || "1.0";
 
 const AccountManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -20,27 +26,34 @@ const AccountManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [baleID, setBaleID] = useState("");
+
+  const [email, setEmail] = useState(user?.email || "");
   const [name, setName] = useState("");
+  const [baleID, setBaleID] = useState("");
   const [defaultAnalyzeModel, setDefaultAnalyzeModel] = useState("auto");
   const [orgName, setOrgName] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  const [message, setMessage] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
   }, []);
 
   const loadProfile = async () => {
     setLoading(true);
     try {
       const { data, error } = await mysqlClient.auth.getProfile();
-
       if (error) {
-        throw new Error(error.message || error.error || "خطایی در دریافت اطلاعات پروفایل رخ داد.");
+        throw new Error(
+          error.message || error.error || "خطایی در دریافت اطلاعات پروفایل رخ داد.",
+        );
       }
 
       if (data) {
+        setEmail(data.email || user?.email || "");
         setName(data.name || "");
         setBaleID(data.baleID ?? "");
         setDefaultAnalyzeModel(data.default_analyze_model || "auto");
@@ -48,16 +61,13 @@ const AccountManagement: React.FC = () => {
         setLogoUrl(
           data.org_logo_path
             ? absoluteFromApiPath(`/api/public/logos/${data.id}?v=${Date.now()}`)
-            : null
+            : null,
         );
       }
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      toast({
-        title: "خطا",
-        description: error.message || "خطایی در دریافت اطلاعات پروفایل رخ داد.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "خطایی در دریافت اطلاعات پروفایل رخ داد.",
+      );
     } finally {
       setLoading(false);
     }
@@ -65,44 +75,46 @@ const AccountManagement: React.FC = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    setMessage(null);
+    setErrorMsg(null);
     try {
-      const updates: {
-        name?: string;
-        baleID?: string | null;
-        default_analyze_model?: string | null;
-        org_name?: string | null;
-      } = {};
-      
-      if (name !== undefined) {
-        updates.name = name.trim() || null;
-      }
-      
-      if (baleID !== undefined) {
-        updates.baleID = baleID.trim() || null;
-      }
-
-      updates.default_analyze_model = defaultAnalyzeModel || "auto";
-      updates.org_name = orgName.trim() || null;
-
-      const { data, error } = await mysqlClient.auth.updateProfile(updates);
+      const { error } = await mysqlClient.auth.updateProfile({
+        name: name.trim() || null,
+        baleID: baleID.trim() || null,
+        default_analyze_model: defaultAnalyzeModel || "auto",
+        org_name: orgName.trim() || null,
+      });
 
       if (error) {
-        throw new Error(error.message || error.error || "خطایی در ذخیره تغییرات رخ داد.");
+        throw new Error(error.message || error.error || "خطا در ذخیره تغییرات");
       }
 
-      toast({
-        title: "موفق",
-        description: "تغییرات با موفقیت ذخیره شد.",
-      });
-    } catch (error: any) {
-      console.error("Error saving profile:", error);
-      toast({
-        title: "خطا",
-        description: error.message || "خطایی در ذخیره تغییرات رخ داد.",
-        variant: "destructive",
-      });
+      setMessage("تغییرات با موفقیت ذخیره شد.");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "خطا در ذخیره تغییرات");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploadingLogo(true);
+    setErrorMsg(null);
+    try {
+      const { data, error } = await mysqlClient.uploadOrgLogo(file);
+      if (error || !data?.org_logo_path) {
+        throw new Error(error?.message || "بارگذاری نشان ناموفق بود");
+      }
+      setLogoUrl(absoluteFromApiPath(`/api/public/logos/${data.id}?v=${Date.now()}`));
+      toast({ title: "نشان سازمان ذخیره شد." });
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "بارگذاری نشان ناموفق بود");
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -110,207 +122,137 @@ const AccountManagement: React.FC = () => {
     setLoggingOut(true);
     try {
       await logout();
-      navigate("/login");
-    } catch (error: any) {
-      console.error("Error logging out:", error);
-      toast({
-        title: "خطا",
-        description: error.message || "خروج از حساب کاربری ناموفق بود.",
-        variant: "destructive",
-      });
+      navigate("/");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "خروج از حساب ناموفق بود");
     } finally {
       setLoggingOut(false);
     }
   };
 
-  if (loading) {
-    return (
-      <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل" onBack={true} clickableBack hideNav>
-        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">در حال بارگذاری...</p>
-        </div>
-      </AppShell>
-    );
-  }
-
   return (
-    <AppShell title="مدیریت حساب" subtitle="تنظیمات پروفایل و حساب کاربری" onBack={true} clickableBack hideNav>
-      <div className="mx-auto max-w-2xl">
-        {/* Profile Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>اطلاعات حساب کاربری</CardTitle>
-            <CardDescription className="break-all">
-              ایمیل شما: {user?.email}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Name Field */}
-            <div className="space-y-2">
-              <Label htmlFor="name">نام</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+    <div
+      dir="rtl"
+      className="flex min-h-[100dvh] flex-col bg-[#FBF9F4] text-[#1C1B18]"
+    >
+      <NeshastyarTopBar />
+
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col space-y-4 px-4 pb-10">
+        <NeshastyarSubHeader title="تنظیمات" onBack="/home" />
+
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
+          </div>
+        ) : (
+          <>
+            {/* Main Account Card matching Android AccountScreen */}
+            <NeshastyarCard className="space-y-3.5">
+              <div>
+                <p className="text-[12px] text-[#66625B]">ایمیل</p>
+                <p dir="ltr" className="mt-1 text-right text-[15px] font-medium text-[#1C1B18]">
+                  {email || "—"}
+                </p>
+              </div>
+
+              <NeshastyarField
+                label="نام"
                 placeholder="نام خود را وارد کنید"
+                value={name}
+                onChange={setName}
               />
-            </div>
 
-            {/* BaleID Field */}
-            <div className="space-y-2">
-              <Label htmlFor="orgName">نام سازمان</Label>
-              <Input
-                id="orgName"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                placeholder="نام سازمان برای سربرگ صورتجلسه"
-              />
-              <p className="text-xs text-muted-foreground">
-                این نام در صورتجلسه قابل اشتراک نمایش داده می‌شود
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="orgLogo">نشان سازمان</Label>
-              {logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt="نشان سازمان"
-                  className="h-16 w-auto rounded border bg-white object-contain p-1"
-                />
-              ) : null}
-              <Input
-                id="orgLogo"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                disabled={uploadingLogo}
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (!file) return;
-                  setUploadingLogo(true);
-                  try {
-                    const { data, error } = await mysqlClient.uploadOrgLogo(file);
-                    if (error || !data?.org_logo_path) {
-                      throw new Error(error?.message || "بارگذاری نشان ناموفق بود");
-                    }
-                    setLogoUrl(absoluteFromApiPath(`/api/public/logos/${data.id}?v=${Date.now()}`));
-                    toast({ title: "موفق", description: "نشان سازمان ذخیره شد." });
-                  } catch (error: any) {
-                    toast({
-                      title: "خطا",
-                      description: error.message || "بارگذاری نشان ناموفق بود",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setUploadingLogo(false);
-                  }
-                }}
-              />
-              <p className="text-xs text-muted-foreground">
-                PNG، JPG، WEBP یا SVG، حداکثر ۲ مگابایت. این نشان در خانه سمت چپ سربرگ صورتجلسه نمایش داده می‌شود.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="baleID">شناسه Bale</Label>
-              <Input
-                id="baleID"
+              <NeshastyarField
+                label="شناسه بله"
+                placeholder="شناسه بله خود را وارد کنید"
                 value={baleID}
-                onChange={(e) => setBaleID(e.target.value)}
-                placeholder="شناسه Bale خود را وارد کنید"
+                onChange={setBaleID}
               />
-              <p className="text-xs text-muted-foreground">
-                شناسه Bale شما برای اتصال حساب کاربری استفاده می‌شود
-              </p>
-            </div>
 
-            {/* Save Button */}
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              variant="primary"
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              {saving ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                  در حال ذخیره...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  ذخیره تغییرات
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+              {/* Web-exclusive Default AI Model & Org Branding kept cleanly in the same Editorial style */}
+              <div className="pt-1">
+                <label
+                  htmlFor="default-analyze-model"
+                  className="mb-1.5 block text-[12px] font-medium text-[#66625B]"
+                >
+                  مدل هوش مصنوعی پیش‌فرض تحلیل
+                </label>
+                <AnalyzeModelSelect
+                  id="default-analyze-model"
+                  value={defaultAnalyzeModel}
+                  onValueChange={setDefaultAnalyzeModel}
+                  disabled={saving}
+                />
+              </div>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>مدل تحلیل پیش‌فرض</CardTitle>
-            <CardDescription>
-              این مدل برای تحلیل جلسات جدید استفاده می‌شود، مگر اینکه برای یک جلسه مدل دیگری انتخاب کنید.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="defaultAnalyzeModel">مدل تحلیل</Label>
-              <AnalyzeModelSelect
-                id="defaultAnalyzeModel"
-                value={defaultAnalyzeModel}
-                onValueChange={setDefaultAnalyzeModel}
-                disabled={saving}
+              <NeshastyarField
+                label="نام سازمان (سربرگ صورتجلسه)"
+                placeholder="نام سازمان برای سربرگ صورتجلسه"
+                value={orgName}
+                onChange={setOrgName}
               />
-            </div>
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              variant="primary"
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              {saving ? "در حال ذخیره..." : "ذخیره مدل پیش‌فرض"}
-            </Button>
-          </CardContent>
-        </Card>
 
-        <Card className="mt-6 border-destructive/20">
-          <CardHeader>
-            <CardTitle>خروج از حساب</CardTitle>
-            <CardDescription>
-              با خروج از حساب، برای استفاده مجدد باید دوباره وارد شوید.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              variant="destructive"
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              {loggingOut ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                  در حال خروج...
-                </>
-              ) : (
-                <>
-                  <LogOut className="h-4 w-4" />
-                  خروج از حساب
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </AppShell>
+              <div>
+                <p className="mb-1.5 text-[12px] font-medium text-[#66625B]">
+                  نشان سازمان (سربرگ صورتجلسه)
+                </p>
+                <div className="flex items-center gap-3">
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="نشان سازمان"
+                      className="h-14 w-14 rounded-xl border border-[#E8E2D5] bg-white object-contain p-1"
+                    />
+                  ) : null}
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-[14px] border border-[#E8E2D5] bg-[#F5F2EB] px-4 py-2.5 text-[13px] font-medium text-[#1C1B18] transition hover:bg-[#E8E2D5]/60">
+                    <Upload className="h-4 w-4 text-[#0F766E]" />
+                    <span>{uploadingLogo ? "در حال بارگذاری..." : "انتخاب تصویر لوگو"}</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      hidden
+                      disabled={uploadingLogo}
+                      onChange={(e) => void handleLogoPick(e)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {message ? (
+                <p className="text-[13px] text-[#0F766E]">{message}</p>
+              ) : null}
+              {errorMsg ? (
+                <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
+              ) : null}
+
+              <div className="space-y-2.5 pt-2">
+                <NeshastyarPrimaryButton
+                  loading={saving}
+                  onClick={() => void handleSave()}
+                  icon={<Save className="h-4 w-4" />}
+                >
+                  ذخیره
+                </NeshastyarPrimaryButton>
+
+                <NeshastyarSecondaryButton
+                  disabled={loggingOut}
+                  onClick={() => void handleLogout()}
+                >
+                  {loggingOut ? "در حال خروج..." : "خروج"}
+                </NeshastyarSecondaryButton>
+              </div>
+            </NeshastyarCard>
+
+            <div className="flex-1" />
+
+            <p className="pt-4 text-center text-[12px] text-[#66625B]">
+              {`نسخه برنامه: ${APP_VERSION}`}
+            </p>
+          </>
+        )}
+      </main>
+    </div>
   );
 };
 
 export default AccountManagement;
-

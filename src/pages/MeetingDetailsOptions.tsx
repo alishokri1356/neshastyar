@@ -1,413 +1,669 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Save, X, Trash2, Edit, ChevronDown } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { mysqlClient } from '@/lib/mysql-client';
-import AppShell from '@/components/layout/AppShell';
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  FastForward,
+  Loader2,
+  Pause,
+  Play,
+  Rewind,
+  Square,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAuthStore } from "@/store/useAuthStore";
+import { mysqlClient } from "@/lib/mysql-client";
+import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
+import { isErrorStatus, isProcessedStatus } from "@/lib/neshastyarStatus";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+  NeshastyarSecondaryButton,
+  NeshastyarSubHeader,
+  NeshastyarTopBar,
+} from "@/components/neshastyar/NeshastyarUi";
+import { MeetingDetailBottomBar } from "@/components/neshastyar/MeetingDetailChrome";
 
-const DEFAULT_PROCESSING_REQUEST =
-  'فایل/ فایل های صوتی پیوست در خصوص یک جلسه است . خلاصه جلسه و نکات مهم و شرکت کنندگان را استخراج کن';
+interface AudioFileItem {
+  id: string;
+  fileName: string;
+  duration?: number;
+  urls: string[];
+}
 
-const getAudioUrl = async (fileName: string, userId: string) => {
-  try {
-    const { data: { session } } = await mysqlClient.auth.getSession();
-    if (!session) return null;
+function formatDurationMs(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSec % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
 
-    const token = session.access_token || session.token;
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    return `${API_BASE_URL}/audio/${userId}/${fileName}?token=${token}`;
-  } catch (error) {
-    console.error('Error getting audio URL:', error);
-    return null;
-  }
-};
-
-const MeetingDetailsOptions = () => {
-  const { meetingId } = useParams<{ meetingId: string }>();
+const MeetingDetailsOptions: React.FC = () => {
+  const { meetingId = "" } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
-  const [meeting, setMeeting] = useState<any>(null);
-  const [commentText, setCommentText] = useState('');
-  const [isEditingCommentText, setIsEditingCommentText] = useState(false);
-  const [isAudioSectionExpanded, setIsAudioSectionExpanded] = useState(false);
-  const [isCommentSectionExpanded, setIsCommentSectionExpanded] = useState(false);
-  const [isDeleting] = useState(false);
+  const API_BASE_URL = (
+    import.meta.env.VITE_API_URL || "http://localhost:3001/api"
+  ).replace(/\/$/, "");
 
-  const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [comment, setComment] = useState("");
+  const [analyzeModel, setAnalyzeModel] = useState("auto");
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  const [preparingFileId, setPreparingFileId] = useState<string | null>(null);
+  const [playingFileId, setPlayingFileId] = useState<string | null>(null);
+  const [playbackPaused, setPlaybackPaused] = useState(false);
+  const [positionMs, setPositionMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(0);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
-  const handleNextAudio = () => {
-    if (meeting?.audioFiles && currentAudioIndex < meeting.audioFiles.length - 1) {
-      setCurrentAudioIndex(currentAudioIndex + 1);
-      setCurrentTime(0);
-    }
-  };
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { data: meetingData, isLoading: meetingLoading } = useQuery({
-    queryKey: ['meeting-options', meetingId],
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["meeting-options", meetingId],
     queryFn: async () => {
-      if (!meetingId) return null;
+      if (!meetingId || !user) return null;
 
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) return null;
+      const [{ data: meeting }, { data: sessionData }] = await Promise.all([
+        mysqlClient
+          .from("meetings")
+          .select("*")
+          .eq("id", meetingId)
+          .eq("user_id", user.id)
+          .single(),
+        mysqlClient.auth.getSession(),
+      ]);
 
-      const { data: meetingData, error: meetingError } = await mysqlClient
-        .from('meetings')
-        .select(`
-          *,
-          audio_files (
-            id,
-            file_name,
-            file_path,
-            file_size,
-            duration,
-            format,
-            upload_order,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('id', meetingId)
-        .eq('user_id', user.id)
-        .single();
+      if (!meeting) return null;
 
-      if (meetingError || !meetingData) return null;
+      const token =
+        (sessionData.session as { access_token?: string; token?: string } | null)
+          ?.access_token || sessionData.session?.token;
 
-      const { data: { session } } = await mysqlClient.auth.getSession();
-      const token = session?.access_token || session?.token;
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-      let audioFiles: any[] = [];
+      let rawFiles: Array<{
+        id: string;
+        file_name: string;
+        duration?: number;
+      }> = [];
 
       if (token) {
         try {
-          const audioFilesResponse = await fetch(`${API_BASE_URL}/meetings/${meetingId}/audio-files`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
+          const res = await fetch(
+            `${API_BASE_URL}/meetings/${encodeURIComponent(meetingId)}/audio-files`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
             },
-          });
-
-          const audioFilesData = await audioFilesResponse.json();
-
-          if (audioFilesResponse.ok && Array.isArray(audioFilesData.data)) {
-            audioFiles = audioFilesData.data;
-          } else {
-            audioFiles = Array.isArray(meetingData.audio_files) ? meetingData.audio_files : [];
+          );
+          const json = await res.json().catch(() => null);
+          if (res.ok && Array.isArray(json?.data)) {
+            rawFiles = json.data;
           }
         } catch {
-          audioFiles = Array.isArray(meetingData.audio_files) ? meetingData.audio_files : [];
+          // ignore
         }
-      } else {
-        audioFiles = Array.isArray(meetingData.audio_files) ? meetingData.audio_files : [];
       }
 
-      const processedAudioFiles = await Promise.all(
-        audioFiles.map(async (file: any) => ({
-          id: file.id,
-          fileName: file.file_name,
-          filePath: file.file_path,
-          fileSize: file.file_size,
-          duration: file.duration,
-          format: file.format,
-          uploadOrder: file.upload_order,
-          audioUrl: await getAudioUrl(file.file_name, user.id),
-        }))
-      );
+      const files: AudioFileItem[] = rawFiles.map((f) => {
+        const urls: string[] = [];
+        if (token && f.file_name) {
+          const encodedName = encodeURIComponent(f.file_name);
+          const encodedToken = encodeURIComponent(token);
+          urls.push(
+            `${API_BASE_URL}/audio/${encodeURIComponent(user.id)}/${encodedName}?token=${encodedToken}`,
+          );
+        }
+        if (f.id && token) {
+          urls.push(
+            `${API_BASE_URL}/audio/${encodeURIComponent(f.id)}?token=${encodeURIComponent(token)}`,
+          );
+        }
+        return {
+          id: f.id,
+          fileName: f.file_name || f.id,
+          duration: f.duration,
+          urls,
+        };
+      });
 
       return {
-        id: meetingData.id,
-        title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
-        commentText: meetingData.CommentText || null,
-        audioFiles: processedAudioFiles,
+        meeting,
+        files,
       };
     },
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
-    enabled: !!meetingId,
+    enabled: Boolean(meetingId && user),
+    staleTime: 30_000,
   });
 
   useEffect(() => {
-    if (meetingData) {
-      setMeeting(meetingData);
-      setCommentText(meetingData.commentText || '');
+    if (data?.meeting) {
+      setComment(data.meeting.CommentText || "");
+      if (data.meeting.analyze_model) {
+        setAnalyzeModel(data.meeting.analyze_model);
+      }
     }
-  }, [meetingData]);
+  }, [data?.meeting]);
 
-  const handleSaveCommentText = async () => {
-    if (!meeting) return;
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
-    try {
-      const { error } = await mysqlClient
-        .from('meetings')
-        .update({ CommentText: commentText } as any)
-        .eq('id', meeting.id);
+  const stopPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    setPreparingFileId(null);
+    setPlayingFileId(null);
+    setPlaybackPaused(false);
+    setPositionMs(0);
+    setDurationMs(0);
+  };
 
-      if (error) throw error;
+  const togglePlay = (file: AudioFileItem) => {
+    if (preparingFileId === file.id) {
+      stopPlayback();
+      return;
+    }
+    if (playingFileId === file.id) {
+      if (playbackPaused && audioRef.current) {
+        void audioRef.current.play();
+        setPlaybackPaused(false);
+      }
+      return;
+    }
 
-      setMeeting((prev: any) => ({ ...prev, commentText }));
-      setIsEditingCommentText(false);
-      queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
-      queryClient.invalidateQueries({ queryKey: ['meeting-options', meetingId] });
+    stopPlayback();
+    if (!file.urls.length) {
+      setPlaybackError("آدرس پخش فایل در دسترس نیست");
+      return;
+    }
 
-      toast({
-        title: 'توضیح درخواست پردازش ذخیره شد',
-        description: 'توضیح درخواست پردازش با موفقیت به‌روزرسانی شد.',
+    setPreparingFileId(file.id);
+    setPlaybackError(null);
+
+    let urlIdx = 0;
+    const tryPlayUrl = () => {
+      const url = file.urls[urlIdx];
+      if (!url) {
+        stopPlayback();
+        setPlaybackError("پخش فایل ناموفق بود");
+        return;
+      }
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.addEventListener("loadedmetadata", () => {
+        const dMs = Number.isFinite(audio.duration)
+          ? audio.duration * 1000
+          : (file.duration ?? 0) * 1000;
+        setDurationMs(Math.max(1000, dMs));
       });
-    } catch (error) {
-      console.error('Error saving comment text:', error);
-      toast({
-        title: 'خطا',
-        description: 'ذخیره توضیح درخواست پردازش ناموفق بود. لطفاً دوباره تلاش کنید.',
-        variant: 'destructive',
+
+      audio.addEventListener("playing", () => {
+        setPreparingFileId(null);
+        setPlayingFileId(file.id);
+        setPlaybackPaused(false);
+        const dMs = Number.isFinite(audio.duration)
+          ? audio.duration * 1000
+          : (file.duration ?? 0) * 1000;
+        if (dMs > 0) setDurationMs(dMs);
       });
+
+      audio.addEventListener("timeupdate", () => {
+        setPositionMs(audio.currentTime * 1000);
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          setDurationMs(audio.duration * 1000);
+        }
+      });
+
+      audio.addEventListener("ended", () => {
+        stopPlayback();
+      });
+
+      audio.addEventListener("error", () => {
+        urlIdx += 1;
+        tryPlayUrl();
+      });
+
+      void audio.play().catch(() => {
+        urlIdx += 1;
+        tryPlayUrl();
+      });
+    };
+
+    tryPlayUrl();
+  };
+
+  const pauseOrResume = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!audio.paused) {
+      audio.pause();
+      setPlaybackPaused(true);
+    } else {
+      void audio.play();
+      setPlaybackPaused(false);
     }
   };
 
-  if (meetingLoading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-muted-foreground">در حال بارگذاری...</p>
-        </div>
-      </div>
-    );
-  }
+  const seekTo = (ms: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const clamped = Math.max(0, Math.min(durationMs || 1, ms));
+    audio.currentTime = clamped / 1000;
+    setPositionMs(clamped);
+  };
 
-  if (!meeting) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto text-center space-y-4">
-          <p className="text-muted-foreground">جلسه یافت نشد.</p>
-          <Button onClick={() => navigate('/home')} variant="outline">
-            بازگشت به خانه
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const seekBy = (deltaMs: number) => {
+    seekTo(positionMs + deltaMs);
+  };
+
+  const handleReanalyze = async () => {
+    if (reanalyzing || !meetingId) return;
+    setReanalyzing(true);
+    setMessage(null);
+    setErrorMsg(null);
+
+    try {
+      const { error: updErr } = await mysqlClient
+        .from("meetings")
+        .update({ CommentText: comment } as Record<string, unknown>)
+        .eq("id", meetingId);
+
+      if (updErr) throw new Error(updErr.message || "ذخیره توضیحات ناموفق بود");
+
+      const res = await fetch(`${API_BASE_URL}/meetings/${encodeURIComponent(meetingId)}/analyze`, {
+        method: "POST",
+        headers: {
+          ...mysqlClient.getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: analyzeModel || "auto" }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.message || "درخواست پردازش ناموفق بود");
+      }
+
+      setMessage("درخواست پردازش ارسال شد");
+      await queryClient.invalidateQueries({ queryKey: ["meeting-detail", meetingId] });
+      await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "درخواست پردازش ناموفق بود");
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
+  const handleDeleteMeeting = async () => {
+    if (deleting || !meetingId) return;
+    setDeleting(true);
+    setDeleteError(null);
+    stopPlayback();
+
+    try {
+      const tagsRes = await fetch(
+        `${API_BASE_URL}/meeting-tags/meetings/${encodeURIComponent(meetingId)}/tags`,
+        { headers: mysqlClient.getAuthHeaders() },
+      );
+      const linkedTags = tagsRes.ok ? await tagsRes.json().catch(() => []) : [];
+      if (Array.isArray(linkedTags)) {
+        for (const tag of linkedTags) {
+          await fetch(
+            `${API_BASE_URL}/meeting-tags?meeting_id=${encodeURIComponent(meetingId)}&tag_id=${encodeURIComponent(tag.id)}`,
+            { method: "DELETE", headers: mysqlClient.getAuthHeaders() },
+          );
+        }
+      }
+
+      const { error: delErr } = await mysqlClient
+        .from("meetings")
+        .delete()
+        .eq("id", meetingId);
+
+      if (delErr) throw new Error(delErr.message || "حذف جلسه ناموفق بود");
+
+      await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      navigate("/home", { replace: true });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "حذف جلسه ناموفق بود");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const processed = isProcessedStatus(data?.meeting?.status);
+  const showProcessedBar = !isErrorStatus(data?.meeting?.status);
 
   return (
-    <AppShell title="گزینه‌های جلسه" subtitle={meeting.title} onBack={`/meeting/${meetingId}`} hideNav>
-      <div className="space-y-5">
+    <div dir="rtl" className="min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]">
+      <NeshastyarTopBar />
 
-        {meeting.audioFiles && meeting.audioFiles.length > 0 ? (
-          <Card className="bg-card border-border">
-            <CardHeader
-              className="cursor-pointer select-none"
-              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
+      <main className="mx-auto w-full max-w-2xl space-y-4 px-4 pb-24">
+        <NeshastyarSubHeader
+          title="گزینه‌های جلسه"
+          onBack={`/meeting/${meetingId}`}
+        />
+
+        {isLoading ? (
+          <div className="flex min-h-[45vh] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
+          </div>
+        ) : !data?.meeting ? (
+          <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center">
+            <p className="text-[#66625B]">جلسه یافت نشد.</p>
+            <NeshastyarSecondaryButton
+              onClick={() => navigate("/home")}
+              className="max-w-xs"
             >
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-card-foreground">
-                  ضبط صوتی ({meeting.audioFiles.length} فایل)
-                </CardTitle>
-                <ChevronDown
-                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                    isAudioSectionExpanded ? 'rotate-180' : ''
-                  }`}
+              بازگشت به خانه
+            </NeshastyarSecondaryButton>
+          </div>
+        ) : (
+          <>
+            {/* Special Instructions + Model Picker + Reprocess + Show Conversation */}
+            <NeshastyarCard className="space-y-3">
+              <NeshastyarField
+                label="توضیحات خاص"
+                placeholder="توضیحات خاص خود را وارد کنید…"
+                value={comment}
+                onChange={setComment}
+                multiline
+                rows={4}
+              />
+
+              <div>
+                <label
+                  htmlFor="options-analyze-model"
+                  className="mb-1.5 block text-[12px] font-medium text-[#66625B]"
+                >
+                  مدل هوش مصنوعی تحلیل
+                </label>
+                <AnalyzeModelSelect
+                  id="options-analyze-model"
+                  value={analyzeModel}
+                  onValueChange={setAnalyzeModel}
+                  disabled={reanalyzing}
                 />
               </div>
-            </CardHeader>
-            {isAudioSectionExpanded && (
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {meeting.audioFiles.map((audioFile: any, index: number) => (
-                    <div
-                      key={audioFile.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        index === currentAudioIndex
-                          ? 'bg-primary/10 border-primary'
-                          : 'bg-muted/50 border-border hover:bg-muted/70'
-                      }`}
-                      onClick={() => setCurrentAudioIndex(index)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">
-                            فایل {index + 1}: {audioFile.fileName}
+
+              <NeshastyarPrimaryButton
+                loading={reanalyzing}
+                onClick={() => void handleReanalyze()}
+              >
+                پردازش مجدد
+              </NeshastyarPrimaryButton>
+
+              {processed || data.meeting.transcription ? (
+                <NeshastyarSecondaryButton
+                  onClick={() => navigate(`/meeting/${meetingId}/conversation`)}
+                >
+                  نمایش جزییات مکالمات
+                </NeshastyarSecondaryButton>
+              ) : null}
+
+              {message ? (
+                <p className="text-[13px] text-[#0F766E]">{message}</p>
+              ) : null}
+              {errorMsg ? (
+                <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
+              ) : null}
+            </NeshastyarCard>
+
+            {/* Audio Files Section matching Android MeetingOptionsScreen */}
+            <div className="space-y-2">
+              <h2 className="text-[15px] font-semibold text-[#404848]">
+                فایل‌های صوتی
+              </h2>
+
+              {playbackError ? (
+                <p className="text-[13px] text-[#B91C1C]">{playbackError}</p>
+              ) : null}
+
+              {data.files.length === 0 ? (
+                <NeshastyarCard className="p-3.5">
+                  <p className="text-[14px] text-[#66625B]">
+                    هیچ فایل صوتی برای این جلسه یافت نشد.
+                  </p>
+                </NeshastyarCard>
+              ) : (
+                data.files.map((file) => {
+                  const isPlaying = file.id === playingFileId;
+                  const isPreparing = file.id === preparingFileId;
+                  const totalMs = Math.max(
+                    1,
+                    isPlaying ? durationMs : (file.duration ?? 0) * 1000,
+                  );
+
+                  return (
+                    <NeshastyarCard key={file.id} className="p-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isPlaying && !playbackPaused}
+                          onClick={() => togglePlay(file)}
+                          aria-label="پخش"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#0F766E] hover:bg-[#D7EFED]/50 disabled:opacity-60"
+                        >
+                          {isPreparing ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-[#0F766E]" />
+                          ) : (
+                            <Play className="h-5 w-5" />
+                          )}
+                        </button>
+
+                        <div className="min-w-0 flex-1 px-1">
+                          <p className="truncate text-[14px] font-medium text-[#1C1B18]">
+                            {file.fileName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {audioFile.duration ? formatTime(audioFile.duration) : 'نامشخص'} •{' '}
-                            {audioFile.format || 'صوتی'}
-                          </p>
+                          {isPreparing ? (
+                            <p className="text-[12px] text-[#66625B]">
+                              در حال شروع پخش…
+                            </p>
+                          ) : !isPlaying && (file.duration ?? 0) > 0 ? (
+                            <p dir="ltr" className="text-right text-[12px] text-[#66625B]">
+                              {formatDurationMs((file.duration ?? 0) * 1000)}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
 
-                {meeting.audioFiles[currentAudioIndex] && (
-                  <div className="space-y-3">
-                    <audio
-                      ref={(audio) => {
-                        if (audio) {
-                          audio.addEventListener('timeupdate', () => {
-                            setCurrentTime(audio.currentTime);
-                          });
-                          audio.addEventListener('loadedmetadata', () => {
-                            setDuration(audio.duration);
-                          });
-                          audio.addEventListener('ended', () => {
-                            if (currentAudioIndex < meeting.audioFiles.length - 1) {
-                              handleNextAudio();
-                            }
-                          });
-                        }
-                      }}
-                      controls
-                      src={meeting.audioFiles[currentAudioIndex].audioUrl}
-                      className="w-full"
-                    >
-                      Your browser does not support the audio element.
-                    </audio>
+                      {isPlaying ? (
+                        <div className="mt-3 space-y-2">
+                          <div dir="ltr" className="space-y-1">
+                            <input
+                              type="range"
+                              min={0}
+                              max={totalMs}
+                              value={Math.min(totalMs, positionMs)}
+                              onChange={(e) => seekTo(Number(e.target.value))}
+                              className="h-1.5 w-full cursor-pointer accent-[#0F766E]"
+                            />
+                            <div className="flex justify-between text-[12px]">
+                              <span className="font-medium text-[#0F766E]">
+                                {formatDurationMs(positionMs)}
+                              </span>
+                              <span className="text-[#66625B]">
+                                {formatDurationMs(totalMs)}
+                              </span>
+                            </div>
+                          </div>
 
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{formatTime(currentTime)}</span>
-                      <span>{formatTime(duration)}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            )}
-          </Card>
-        ) : (
-          <Card className="bg-card border-border">
-            <CardHeader
-              className="cursor-pointer select-none"
-              onClick={() => setIsAudioSectionExpanded((prev) => !prev)}
-            >
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-card-foreground">ضبط صوتی</CardTitle>
-                <ChevronDown
-                  className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                    isAudioSectionExpanded ? 'rotate-180' : ''
-                  }`}
-                />
-              </div>
-            </CardHeader>
-            {isAudioSectionExpanded && (
-              <CardContent>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">هیچ فایل صوتی برای این جلسه یافت نشد.</p>
-                  <p className="text-sm text-muted-foreground">
-                    ممکن است فایل‌های صوتی هنوز در حال پردازش باشند یا به سیستم جدید منتقل نشده باشند.
-                  </p>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
-
-        <Card className="bg-card border-border">
-          <CardHeader
-            className="cursor-pointer select-none"
-            onClick={() => setIsCommentSectionExpanded((prev) => !prev)}
-          >
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">توضیح درخواست پردازش</CardTitle>
-              <ChevronDown
-                className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                  isCommentSectionExpanded ? 'rotate-180' : ''
-                }`}
-              />
-            </div>
-          </CardHeader>
-          {isCommentSectionExpanded && (
-            <CardContent>
-              <div className="flex justify-end mb-3">
-                {isEditingCommentText ? (
-                  <div className="flex gap-3">
-                    <Button onClick={handleSaveCommentText} size="sm">
-                      <Save className="h-4 w-4" />
-                      ذخیره
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setIsEditingCommentText(false);
-                        setCommentText(meeting?.commentText || '');
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <X className="h-4 w-4" />
-                      لغو
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => {
-                      const dbValue = meeting?.commentText || commentText || '';
-                      const editValue =
-                        dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
-                      setCommentText(editValue);
-                      setIsEditingCommentText(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Edit className="h-4 w-4" />
-                    ویرایش
-                  </Button>
-                )}
-              </div>
-              {isEditingCommentText ? (
-                <Textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="توضیح درخواست پردازش را وارد کنید..."
-                  className="min-h-[140px] resize-none"
-                />
-              ) : (
-                <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
-                  {(() => {
-                    const dbValue = meeting?.commentText || commentText;
-                    return dbValue && dbValue.trim() !== '' ? dbValue : DEFAULT_PROCESSING_REQUEST;
-                  })()}
-                </div>
+                          <div className="flex items-center justify-evenly pt-1">
+                            <SkipBtn
+                              icon={<Rewind className="h-6 w-6" />}
+                              label="۱۰ ثانیه عقب"
+                              onClick={() => seekBy(-10_000)}
+                            />
+                            <SkipBtn
+                              icon={
+                                playbackPaused ? (
+                                  <Play className="h-6 w-6" />
+                                ) : (
+                                  <Pause className="h-6 w-6" />
+                                )
+                              }
+                              label={playbackPaused ? "ادامه" : "مکث"}
+                              onClick={pauseOrResume}
+                            />
+                            <SkipBtn
+                              icon={<Square className="h-5 w-5 fill-current" />}
+                              label="توقف"
+                              onClick={stopPlayback}
+                            />
+                            <SkipBtn
+                              icon={<FastForward className="h-6 w-6" />}
+                              label="۱۰ ثانیه جلو"
+                              onClick={() => seekBy(10_000)}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                    </NeshastyarCard>
+                  );
+                })
               )}
-            </CardContent>
-          )}
-        </Card>
-
-        <Card className="border-destructive/20 bg-card">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <h3 className="text-base font-medium text-card-foreground">حذف جلسه</h3>
-                <p className="text-sm text-muted-foreground">
-                  این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                disabled={isDeleting}
-                className="w-full shrink-0 sm:w-auto"
-                onClick={() =>
-                  navigate(`/meeting/${meeting.id}/delete?title=${encodeURIComponent(meeting.title)}`)
-                }
-              >
-                <Trash2 className="h-4 w-4" />
-                حذف جلسه
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </AppShell>
+
+            {/* Delete Meeting Card */}
+            <NeshastyarCard>
+              <h3 className="text-[15px] font-semibold text-[#1C1B18]">
+                حذف جلسه
+              </h3>
+              <p className="mt-1 mb-3 text-[13px] text-[#66625B]">
+                این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.
+              </p>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  setDeleteConfirmed(false);
+                  setConfirmDelete(true);
+                }}
+                className="flex h-11 w-full items-center justify-center rounded-[14px] bg-[#B91C1C] text-[15px] font-semibold text-white transition hover:bg-[#991B1B] disabled:opacity-50"
+              >
+                {deleting ? "در حال حذف..." : "حذف جلسه"}
+              </button>
+              {deleteError ? (
+                <p className="mt-2 text-[13px] text-[#B91C1C]">{deleteError}</p>
+              ) : null}
+            </NeshastyarCard>
+          </>
+        )}
+      </main>
+
+      <MeetingDetailBottomBar
+        meetingId={meetingId}
+        showProcessedSections={showProcessedBar}
+      />
+
+      {/* Android-style Confirmation Dialog with Checkbox */}
+      <Dialog
+        open={confirmDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setConfirmDelete(false);
+            setDeleteConfirmed(false);
+          }
+        }}
+      >
+        <DialogContent dir="rtl" className="border-[#E8E2D5] bg-white text-right">
+          <DialogHeader>
+            <DialogTitle className="text-right text-[#1C1B18]">
+              آیا مطمئن هستید؟
+            </DialogTitle>
+            <DialogDescription className="text-right text-[14px] leading-6 text-[#404848]">
+              این عمل قابل بازگشت نیست. جلسه، ضبط صوتی، خلاصه و برچسب‌های آن برای همیشه حذف می‌شود.
+            </DialogDescription>
+          </DialogHeader>
+
+          <label className="mt-2 flex cursor-pointer items-center gap-2.5 text-[14px] text-[#404848]">
+            <input
+              type="checkbox"
+              checked={deleteConfirmed}
+              onChange={(e) => setDeleteConfirmed(e.target.checked)}
+              className="h-4 w-4 rounded border-[#E8E2D5] accent-[#B91C1C]"
+            />
+            <span>حذف این جلسه را تأیید می‌کنم</span>
+          </label>
+
+          <DialogFooter className="gap-2 sm:justify-start">
+            <button
+              type="button"
+              disabled={!deleteConfirmed || deleting}
+              onClick={() => {
+                setConfirmDelete(false);
+                void handleDeleteMeeting();
+              }}
+              className="rounded-xl bg-[#B91C1C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#991B1B] disabled:bg-[#E8E2D5] disabled:text-[#66625B]"
+            >
+              حذف جلسه
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => {
+                setConfirmDelete(false);
+                setDeleteConfirmed(false);
+              }}
+              className="rounded-xl border border-[#E8E2D5] px-4 py-2 text-sm text-[#1C1B18] hover:bg-[#F5F2EB]"
+            >
+              لغو
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
 export default MeetingDetailsOptions;
+
+function SkipBtn({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[#0D4D4D] transition hover:bg-[#D7EFED]/40"
+    >
+      {icon}
+      <span className="text-[11px] leading-[13px]">{label}</span>
+    </button>
+  );
+}

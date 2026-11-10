@@ -61,7 +61,14 @@ function placedCell(
   text: string,
   start: number,
   span: number,
-  options: Parameters<typeof cell>[2] = {},
+  options: {
+    bold?: boolean;
+    size?: number;
+    center?: boolean;
+    shade?: boolean;
+    merge?: ConstructorParameters<typeof TableCell>[0]['verticalMerge'];
+    children?: Paragraph[];
+  } = {},
 ) {
   return new TableCell({
     width: { size: spanWidth(start, span), type: WidthType.DXA },

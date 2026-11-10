@@ -1,14 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMeetingStore } from '@/store/useMeetingStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  Copy,
+  Edit3,
+  ExternalLink,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Save,
+  Share2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,1093 +21,327 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
+import { useAuthStore } from "@/store/useAuthStore";
+import { mysqlClient } from "@/lib/mysql-client";
+import { useToast } from "@/hooks/use-toast";
+import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
+import { getModelLabel, useAnalyzeModels } from "@/lib/analyzeModels";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Save, Plus, X, Sparkles, Edit, Check, Mail, Settings, MoreVertical, Copy, ExternalLink, FileText, Share2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import AppShell from '@/components/layout/AppShell';
-import RichTextEditor from '@/components/RichTextEditor';
-import { getStatusBadgeClass } from '@/lib/status';
-import AnalyzeModelSelect from '@/components/AnalyzeModelSelect';
-import { getModelLabel, useAnalyzeModels } from '@/lib/analyzeModels';
-
-import { mysqlClient } from '@/lib/mysql-client';
-import {
-  type EditableMeetingSummary,
-  parseMeetingSummaryJson,
-  jsonToEditableSummary,
   editableSummaryToJson,
-  linesToList,
   emptyEditableSummary,
-  normalizeBulletPoints,
-  formatSummaryForClipboard,
   formatEditableSummaryForClipboard,
-  isHtmlContent,
   htmlToPlainText,
-} from '@/lib/meetingSummary';
+  isHtmlContent,
+  jsonToEditableSummary,
+  parseMeetingSummaryJson,
+  type EditableMeetingSummary,
+} from "@/lib/meetingSummary";
+import {
+  formatJalaliDateTime,
+  isAnalyzingStatus,
+  isErrorStatus,
+  isProcessedStatus,
+} from "@/lib/neshastyarStatus";
+import {
+  NeshastyarCard,
+  NeshastyarField,
+  NeshastyarPrimaryButton,
+  NeshastyarSecondaryButton,
+  NeshastyarSectionHeader,
+  NeshastyarTopBar,
+  StatusChip,
+} from "@/components/neshastyar/NeshastyarUi";
+import {
+  AiEditBottomSheet,
+  MeetingDetailBottomBar,
+} from "@/components/neshastyar/MeetingDetailChrome";
 
-const nameMatchesSearch = (name: string, query: string) => {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) return false;
-  return name.toLowerCase().includes(normalizedQuery);
-};
+interface LinkedParticipant {
+  id: string;
+  name: string;
+  email?: string | null;
+}
 
-const MeetingDetail = () => {
-  const { meetingId } = useParams<{ meetingId: string }>();
+const MeetingDetail: React.FC = () => {
+  const { meetingId = "" } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  
-  const { tags, addTag } = useMeetingStore();
-  
-  const [meeting, setMeeting] = useState<any>(null);
-  const [localAllUserTags, setLocalAllUserTags] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [summary, setSummary] = useState('');
-  const [originalSummary, setOriginalSummary] = useState('');
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3B82F6');
-  const [showAddTag, setShowAddTag] = useState(false);
-  const [meetingTags, setMeetingTags] = useState<any[]>([]);
-  const [showAddParticipant, setShowAddParticipant] = useState(false);
-  const [newParticipantName, setNewParticipantName] = useState('');
-  const [newParticipantEmail, setNewParticipantEmail] = useState('');
-  const [linkedParticipants, setLinkedParticipants] = useState<any[]>([]);
-  const [localAllUserParticipants, setLocalAllUserParticipants] = useState<any[]>([]);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState('');
-  const [isEditingSummary, setIsEditingSummary] = useState(false);
-  const [summaryEditMode, setSummaryEditMode] = useState<'plain' | 'structured'>('plain');
-  const [editedSummaryFields, setEditedSummaryFields] = useState<EditableMeetingSummary>(
-    emptyEditableSummary()
-  );
+  const { user } = useAuthStore();
+  const { toast } = useToast();
+  const { data: analyzeModelsData } = useAnalyzeModels();
+
+  const API_BASE_URL = (
+    import.meta.env.VITE_API_URL || "http://localhost:3001/api"
+  ).replace(/\/$/, "");
+
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSubject, setEditSubject] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editSummaryText, setEditSummaryText] = useState("");
+
+  const [analyzeModel, setAnalyzeModel] = useState("auto");
+  const [reprocessing, setReprocessing] = useState(false);
+  const [summarySuppressed, setSummarySuppressed] = useState(false);
+
+  const [showAiEditSheet, setShowAiEditSheet] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
-  const [analyzeModel, setAnalyzeModel] = useState('auto');
-  const { data: analyzeModelsData } = useAnalyzeModels();
-  const [suggestedParticipantDialogOpen, setSuggestedParticipantDialogOpen] = useState(false);
-  const [selectedSuggestedParticipant, setSelectedSuggestedParticipant] = useState<string | null>(null);
-  const [participantNameInput, setParticipantNameInput] = useState('');
-  const [participantEmailInput, setParticipantEmailInput] = useState('');
-  const [isAddingSuggestedParticipant, setIsAddingSuggestedParticipant] = useState(false);
 
-  // Fetch meeting and all user tags from database with auto-refresh
-  const { data: meetingData, isLoading: meetingLoading } = useQuery({
-    queryKey: ['meeting', meetingId],
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
+
+  // Open AI Edit sheet automatically if navigated with ?aiEdit=1 from sub-screens
+  useEffect(() => {
+    if (searchParams.get("aiEdit") === "1") {
+      setShowAiEditSheet(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("aiEdit");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["meeting-detail", meetingId],
     queryFn: async () => {
-      if (!meetingId) {
-        console.log('🔍 No meetingId provided');
-        return null;
-      }
-      
-      console.log('🔍 Fetching meeting with ID:', meetingId);
-      
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) {
-        console.log('🔍 No user found');
-        return null;
-      }
+      if (!meetingId || !user) return null;
 
-      console.log('🔍 User ID:', user.id);
+      const [meetingRes, peopleRes] = await Promise.all([
+        mysqlClient
+          .from("meetings")
+          .select("*")
+          .eq("id", meetingId)
+          .eq("user_id", user.id)
+          .single(),
+        mysqlClient.meetingParticipants.getForMeeting(meetingId),
+      ]);
 
-      const { data: meetingData, error: meetingError } = await mysqlClient
-        .from('meetings')
-        .select('*')
-        .eq('id', meetingId)
-        .eq('user_id', user.id)
-        .single();
-
-      console.log('🔍 Meeting query result:', { meetingData, meetingError });
-      console.log('🔍 Raw meeting data:', JSON.stringify(meetingData, null, 2));
-
-      if (meetingError) {
-        console.error('Error fetching meeting:', meetingError);
-        return null;
+      if (meetingRes.error || !meetingRes.data) {
+        throw new Error(meetingRes.error?.message || "جلسه پیدا نشد");
       }
 
-      if (meetingData) {
-        // Fetch meeting tags directly with JOIN query
-        const { data: tags, error: tagError } = await mysqlClient
-          .from('meeting_tags')
-          .select('*')
-          .eq('meeting_id', meetingId);
+      const meeting = meetingRes.data;
+      const participants: LinkedParticipant[] = Array.isArray(peopleRes.data)
+        ? peopleRes.data
+        : [];
 
-        console.log('🔍 Meeting tags data:', tags, tagError);
-
-        const transformedMeeting = {
-          id: meetingData.id,
-          title: meetingData.title || `Meeting ${new Date(meetingData.meeting_date).toLocaleDateString()}`,
-          date: new Date(meetingData.meeting_date),
-          summary: meetingData.summary || '',
-          transcription: meetingData.transcription || '',
-          status: meetingData.status,
-          analyze_model: meetingData.analyze_model || null,
-          analyzing_model: meetingData.analyzing_model || null,
-          analyzed_by: meetingData.analyzed_by || null,
-          tags: tags,
-          userId: meetingData.user_id,
-        };
-
-        console.log('🔍 Final transformed meeting:', transformedMeeting);
-        return transformedMeeting;
-      }
-      return null;
+      return { meeting, participants };
     },
-    refetchOnWindowFocus: false, // Disable aggressive refetching
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    enabled: !!meetingId
+    enabled: Boolean(meetingId && user),
+    staleTime: 8_000,
+    refetchInterval: 20_000,
   });
 
-  // Separate query for status updates (with auto-refresh)
-  const { data: statusData } = useQuery({
-    queryKey: ['meeting-status', meetingId],
-    queryFn: async () => {
-      if (!meetingId) return null;
-      
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) return null;
-
-      const { data: meetingData, error: meetingError } = await mysqlClient
-        .from('meetings')
-        .select('status, summary, transcription, analyze_model, analyzing_model, analyzed_by')
-        .eq('id', meetingId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (meetingError || !meetingData) return null;
-      
-      return {
-        status: meetingData.status,
-        summary: meetingData.summary || '',
-        transcription: meetingData.transcription || '',
-        analyze_model: meetingData.analyze_model || null,
-        analyzing_model: meetingData.analyzing_model || null,
-        analyzed_by: meetingData.analyzed_by || null,
-      };
-    },
-    refetchInterval: (query) => {
-      const status = query.state.data?.status || '';
-      return status === 'در حال پردازش' || status === 'ارسال درخواست پردازش' ? 10000 : 30000;
-    },
-    refetchIntervalInBackground: false, // Disable background refetching
-    enabled: !!meetingId && !!meetingData
-  });
+  const meeting = data?.meeting ?? null;
+  const participants = data?.participants ?? [];
 
   useEffect(() => {
-    const preferred =
-      statusData?.analyze_model ||
-      meeting?.analyze_model ||
-      null;
-    if (preferred) {
-      setAnalyzeModel(preferred);
+    if (meeting?.analyze_model) {
+      setAnalyzeModel(meeting.analyze_model);
     }
-  }, [statusData?.analyze_model, meeting?.analyze_model]);
+  }, [meeting?.analyze_model]);
 
-  const { data: allUserTags = [] } = useQuery({
-    queryKey: ['user-tags'],
-    queryFn: async () => {
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) return [];
+  const rawSummary = String(meeting?.summary || "");
+  const parsedJson = useMemo(
+    () => parseMeetingSummaryJson(rawSummary),
+    [rawSummary],
+  );
 
-      const { data: allTags, error: allTagsError } = await mysqlClient
-        .from('tags')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+  const parsedSummary: EditableMeetingSummary = useMemo(() => {
+    if (parsedJson) {
+      return jsonToEditableSummary(parsedJson);
+    }
+    const plain = isHtmlContent(rawSummary)
+      ? htmlToPlainText(rawSummary)
+      : rawSummary.trim();
+    return {
+      ...emptyEditableSummary(),
+      summaryText: plain,
+      location: String(meeting?.location || ""),
+    };
+  }, [parsedJson, rawSummary, meeting?.location]);
 
-      if (allTagsError) {
-        console.error('Error fetching user tags:', allTagsError);
-        return [];
-      }
-      return allTags || [];
-    },
-    refetchInterval: 30000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: meetingParticipants = [] } = useQuery({
-    queryKey: ['meeting-participants', meetingId],
-    queryFn: async () => {
-      if (!meetingId) return [];
-
-      const { data, error } = await mysqlClient.meetingParticipants.getForMeeting(meetingId);
-      if (error) {
-        console.error('Error fetching meeting participants:', error);
-        return [];
-      }
-      return data || [];
-    },
-    enabled: !!meetingId,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: allUserParticipants = [] } = useQuery({
-    queryKey: ['user-participants'],
-    queryFn: async () => {
-      const { data, error } = await mysqlClient.participants.list();
-      if (error) {
-        console.error('Error fetching user participants:', error);
-        return [];
-      }
-      return data?.participants ?? [];
-    },
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Update local states when data changes
+  // Clear summarySuppressed once server finishes processing or fails
   useEffect(() => {
-    if (meetingData) {
-      setMeeting(meetingData);
-      setMeetingTags(meetingData.tags);
-      setSummary(meetingData.summary);
-      setEditedTitle(meetingData.title);
+    if (!meeting) return;
+    if (isProcessedStatus(meeting.status) || isErrorStatus(meeting.status)) {
+      setSummarySuppressed(false);
     }
-  }, [meetingData]);
+  }, [meeting?.status]);
 
-  useEffect(() => {
-    setLocalAllUserTags(allUserTags);
-  }, [allUserTags]);
-
-  useEffect(() => {
-    setLinkedParticipants(meetingParticipants);
-  }, [meetingParticipants]);
-
-  useEffect(() => {
-    setLocalAllUserParticipants(allUserParticipants);
-  }, [allUserParticipants]);
-
-  const participantSearchQuery = newParticipantName.trim();
-
-  const matchingParticipants = useMemo(() => {
-    if (!participantSearchQuery) {
-      return [];
-    }
-
-    return localAllUserParticipants.filter(
-      (participant) =>
-        !linkedParticipants.some((linked) => linked.id === participant.id) &&
-        nameMatchesSearch(participant.name, participantSearchQuery),
+  const startEditing = () => {
+    if (!meeting) return;
+    setEditTitle(meeting.title || "");
+    setEditSubject(parsedSummary.subject);
+    setEditLocation(parsedSummary.location || meeting.location || "");
+    setEditSummaryText(
+      isHtmlContent(parsedSummary.summaryText)
+        ? htmlToPlainText(parsedSummary.summaryText)
+        : parsedSummary.summaryText,
     );
-  }, [localAllUserParticipants, linkedParticipants, participantSearchQuery]);
-
-  const suggestedDialogMatchingParticipants = useMemo(() => {
-    const query = participantNameInput.trim();
-    if (!query) {
-      return [];
-    }
-
-    const lowerQuery = query.toLowerCase();
-
-    return localAllUserParticipants
-      .filter(
-        (participant) =>
-          !linkedParticipants.some((linked) => linked.id === participant.id) &&
-          nameMatchesSearch(participant.name, query),
-      )
-      .sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const aStarts = aName.startsWith(lowerQuery) ? 0 : 1;
-        const bStarts = bName.startsWith(lowerQuery) ? 0 : 1;
-        if (aStarts !== bStarts) return aStarts - bStarts;
-
-        const aIndex = aName.indexOf(lowerQuery);
-        const bIndex = bName.indexOf(lowerQuery);
-        if (aIndex !== bIndex) return aIndex - bIndex;
-
-        return a.name.localeCompare(b.name, 'fa');
-      })
-      .slice(0, 8);
-  }, [participantNameInput, localAllUserParticipants, linkedParticipants]);
-
-  const tagSearchQuery = newTagName.trim();
-
-  const matchingTags = useMemo(() => {
-    if (!tagSearchQuery) {
-      return [];
-    }
-
-    return localAllUserTags.filter(
-      (tag) =>
-        !meetingTags.some((linked) => linked.id === tag.id) &&
-        nameMatchesSearch(tag.name, tagSearchQuery),
-    );
-  }, [localAllUserTags, meetingTags, tagSearchQuery]);
-
-  // Update summary when status data changes (for auto-refresh)
-  // Don't update if user is currently editing
-  useEffect(() => {
-    if (statusData?.summary && statusData.summary !== summary && !isEditingSummary) {
-      setSummary(statusData.summary);
-    }
-  }, [statusData?.summary, isEditingSummary]);
-
-  if (meetingLoading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">در حال بارگذاری جزئیات جلسه...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!meeting) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">جلسه پیدا نشد</h1>
-            <Button onClick={() => navigate('/home')} variant="outline">
-              بازگشت به خانه
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const handleSaveSummary = async () => {
-    try {
-      const summaryToSave =
-        summaryEditMode === 'structured'
-          ? editableSummaryToJson(
-              editedSummaryFields,
-              parseMeetingSummaryJson(originalSummary),
-            )
-          : summary;
-
-      const { error } = await mysqlClient
-        .from('meetings')
-        .update({ summary: summaryToSave })
-        .eq('id', meeting.id);
-
-      if (error) throw error;
-
-      setSummary(summaryToSave);
-      setMeeting((prev) => ({ ...prev, summary: summaryToSave }));
-      setIsEditingSummary(false);
-      setSummaryEditMode('plain');
-      
-      // Invalidate queries to refetch latest data
-      queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
-      queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
-      
-      toast({
-        title: "خلاصه ذخیره شد",
-        description: "خلاصه جلسه با موفقیت به‌روزرسانی شد.",
-      });
-    } catch (error) {
-      console.error('Error saving summary:', error);
-      toast({
-        title: "خطا",
-        description: "ذخیره خلاصه ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
-    }
+    setFeedbackErr(null);
+    setFeedbackMsg(null);
+    setEditing(true);
   };
 
-  const handleAddTag = async () => {
-    if (newTagName.trim()) {
-      try {
-        const { data: { user } } = await mysqlClient.auth.getUser();
-        if (!user) return;
-
-        // Create new tag in database
-        const { data: newTag, error: tagError } = await mysqlClient
-          .from('tags')
-          .insert({
-            name: newTagName.trim(),
-            color: newTagColor,
-            user_id: user.id
-          })
-          .select()
-          .single();
-
-        if (tagError) throw tagError;
-
-        // Link tag to meeting
-        const { error: linkError } = await mysqlClient
-          .from('meeting_tags')
-          .insert({
-            meeting_id: meeting.id,
-            tag_id: newTag.id
-          });
-
-        if (linkError) throw linkError;
-
-        const updatedTags = [...meetingTags, newTag];
-        setMeetingTags(updatedTags);
-        setMeeting(prev => ({ ...prev, tags: updatedTags }));
-        setLocalAllUserTags(prev => [...prev, newTag]); // Add to all user tags as well
-        
-        setNewTagName('');
-        setShowAddTag(false);
-
-        refreshMeetingSummary();
-        
-        toast({
-          title: "برچسب اضافه شد",
-          description: "برچسب جدید به جلسه اضافه شد.",
-        });
-      } catch (error: any) {
-        console.error('Error adding tag:', error);
-        
-        // Handle specific error cases
-        if (error?.message?.includes('Relationship already exists') || error?.error === 'Relationship already exists') {
-          toast({
-            title: "برچسب قبلاً اضافه شده",
-            description: "این برچسب قبلاً به جلسه اضافه شده است.",
-            variant: "destructive",
-          });
-        } else if (error?.message?.includes('Tag already exists') || error?.error === 'Tag already exists') {
-          toast({
-            title: "برچسب قبلاً وجود دارد",
-            description: "برچسبی با این نام قبلاً ایجاد شده است.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "خطا",
-            description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
-            variant: "destructive",
-          });
-        }
-      }
-    }
-  };
-
-  const handleRemoveTag = async (tagId: string) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meeting-tags?meeting_id=${meeting.id}&tag_id=${tagId}`, {
-        method: 'DELETE',
-        headers: {
-          ...mysqlClient.getAuthHeaders(),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete meeting-tag relationship');
-      }
-
-      const updatedTags = meetingTags.filter(tag => tag.id !== tagId);
-      setMeetingTags(updatedTags);
-      setMeeting(prev => ({ ...prev, tags: updatedTags }));
-
-      toast({
-        title: "برچسب حذف شد",
-        description: "برچسب از جلسه حذف شد.",
-      });
-    } catch (error) {
-      console.error('Error removing tag:', error);
-      toast({
-        title: "خطا",
-        description: "حذف برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const refreshMeetingParticipants = async (participants?: any[]) => {
-    if (participants) {
-      setLinkedParticipants(participants);
-    } else {
-      queryClient.invalidateQueries({ queryKey: ['meeting-participants', meetingId] });
-    }
-    queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
-    queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
-    queryClient.invalidateQueries({ queryKey: ['user-participants'] });
-  };
-
-  const refreshMeetingSummary = () => {
-    queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
-    queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
-  };
-
-  const handleAddParticipant = async () => {
-    const trimmedName = newParticipantName.trim();
-    const trimmedEmail = newParticipantEmail.trim();
-    if (!trimmedName) return;
+  const saveEditing = async () => {
+    if (!meeting || saving) return;
+    setSaving(true);
+    setFeedbackErr(null);
+    setFeedbackMsg(null);
 
     try {
-      const { data, error } = await mysqlClient.meetingParticipants.add({
-        meetingId: meeting.id,
-        name: trimmedName,
-        email: trimmedEmail || undefined,
-      });
-
-      if (error) throw error;
-
-      const participants = data?.participants ?? [];
-      await refreshMeetingParticipants(participants);
-
-      const added = participants.find(
-        (p: { name: string }) => p.name.toLowerCase() === trimmedName.toLowerCase()
-      );
-      if (added) {
-        setLocalAllUserParticipants((prev) => {
-          const without = prev.filter((p) => p.id !== added.id);
-          return [...without, added];
-        });
-      }
-
-      setNewParticipantName('');
-      setNewParticipantEmail('');
-      setShowAddParticipant(false);
-
-      toast({
-        title: "شرکت‌کننده اضافه شد",
-        description: "شرکت‌کننده جدید به جلسه اضافه شد.",
-      });
-    } catch (error: any) {
-      console.error('Error adding participant:', error);
-      if (error?.message?.includes('already exists') || error?.error === 'Relationship already exists') {
-        toast({
-          title: "قبلاً اضافه شده",
-          description: "این شرکت‌کننده قبلاً به جلسه اضافه شده است.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "خطا",
-          description: "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleRemoveParticipant = async (participantId: string) => {
-    try {
-      const { data, error } = await mysqlClient.meetingParticipants.remove({
-        meetingId: meeting.id,
-        participantId,
-      });
-
-      if (error) throw error;
-
-      const participants = data?.participants ?? linkedParticipants.filter((p) => p.id !== participantId);
-      await refreshMeetingParticipants(participants);
-
-      toast({
-        title: "شرکت‌کننده حذف شد",
-        description: "شرکت‌کننده از جلسه حذف شد.",
-      });
-    } catch (error) {
-      console.error('Error removing participant:', error);
-      toast({
-        title: "خطا",
-        description: "حذف شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddExistingParticipant = async (participant: { id: string; name: string }) => {
-    const alreadyLinked = linkedParticipants.some((p) => p.id === participant.id);
-    if (alreadyLinked) return;
-
-    try {
-      const { data, error } = await mysqlClient.meetingParticipants.add({
-        meetingId: meeting.id,
-        participantId: participant.id,
-      });
-
-      if (error) throw error;
-
-      await refreshMeetingParticipants(data?.participants);
-
-      toast({
-        title: "شرکت‌کننده اضافه شد",
-        description: "شرکت‌کننده به جلسه اضافه شد.",
-      });
-    } catch (error: any) {
-      console.error('Error adding participant:', error);
-      if (error?.message?.includes('already exists') || error?.error === 'Relationship already exists') {
-        toast({
-          title: "قبلاً اضافه شده",
-          description: "این شرکت‌کننده قبلاً به جلسه اضافه شده است.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "خطا",
-          description: "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleAddSuggestedParticipant = async (personName: string, personEmail?: string) => {
-    const trimmedName = personName.trim();
-    const trimmedEmail = (personEmail || '').trim();
-    if (!trimmedName) return;
-
-    const existing = localAllUserParticipants.find(
-      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
-    );
-
-    if (existing && !trimmedEmail) {
-      await handleAddExistingParticipant(existing);
-      return;
-    }
-
-    try {
-      const { data, error } = await mysqlClient.meetingParticipants.add({
-        meetingId: meeting.id,
-        name: trimmedName,
-        email: trimmedEmail || undefined,
-      });
-
-      if (error) throw error;
-
-      await refreshMeetingParticipants(data?.participants);
-
-      const added = (data?.participants ?? []).find(
-        (p: { name: string }) => p.name.toLowerCase() === trimmedName.toLowerCase()
-      );
-      if (added) {
-        setLocalAllUserParticipants((prev) => {
-          const without = prev.filter((p) => p.id !== added.id);
-          return [...without, added];
-        });
-      }
-
-      toast({
-        title: "شرکت‌کننده اضافه شد",
-        description: "شرکت‌کننده با موفقیت به جلسه اضافه شد.",
-      });
-    } catch (error: any) {
-      console.error('Error adding suggested participant:', error);
-      if (error?.message?.includes('already exists') || error?.error === 'Relationship already exists') {
-        toast({
-          title: "قبلاً اضافه شده",
-          description: "این شرکت‌کننده قبلاً به جلسه اضافه شده است.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "خطا",
-          description: "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
-      }
-      throw error;
-    }
-  };
-
-  const handleOpenSuggestedParticipantDialog = (person: string) => {
-    setSelectedSuggestedParticipant(person);
-    setParticipantNameInput(person);
-    const existing = localAllUserParticipants.find(
-      (p) => p.name.toLowerCase() === person.trim().toLowerCase()
-    );
-    setParticipantEmailInput(existing?.email || '');
-    setSuggestedParticipantDialogOpen(true);
-  };
-
-  const handleSuggestedParticipantDialogChange = (open: boolean) => {
-    if (!open && isAddingSuggestedParticipant) {
-      return;
-    }
-
-    setSuggestedParticipantDialogOpen(open);
-
-    if (!open) {
-      setSelectedSuggestedParticipant(null);
-      setParticipantNameInput('');
-      setParticipantEmailInput('');
-    }
-  };
-
-  const handleConfirmAddSuggestedParticipant = async () => {
-    if (!selectedSuggestedParticipant || !meetingId) {
-      return;
-    }
-
-    const trimmedName = participantNameInput.trim();
-    const trimmedEmail = participantEmailInput.trim();
-
-    if (!trimmedName) {
-      toast({
-        title: "نام وارد نشده است",
-        description: "لطفاً یک نام معتبر برای شرکت‌کننده وارد کنید.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const originalName = selectedSuggestedParticipant.trim();
-    const nameChanged = trimmedName.toLowerCase() !== originalName.toLowerCase();
-
-    setIsAddingSuggestedParticipant(true);
-
-    try {
-      if (nameChanged) {
-        const { data: updatedMeeting, error } = await mysqlClient.meetings.renameSuggestedParticipant({
-          meetingId,
-          oldName: originalName,
-          newName: trimmedName,
-        });
-
-        if (error) {
-          throw new Error(
-            typeof error === 'string'
-              ? error
-              : error?.message || error?.error || 'تغییر نام شرکت‌کننده ناموفق بود.'
-          );
-        }
-
-        if (updatedMeeting?.summary) {
-          setSummary(updatedMeeting.summary);
-          setOriginalSummary(updatedMeeting.summary);
-          setMeeting((prev: any) => ({ ...prev, summary: updatedMeeting.summary }));
-        }
-
-        queryClient.invalidateQueries({ queryKey: ['meeting', meetingId] });
-        queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
-      }
-
-      await handleAddSuggestedParticipant(trimmedName, trimmedEmail);
-
-      setSuggestedParticipantDialogOpen(false);
-      setSelectedSuggestedParticipant(null);
-      setParticipantNameInput('');
-      setParticipantEmailInput('');
-    } catch (error: any) {
-      if (error?.message && !error.message.includes('Relationship already exists')) {
-        console.error('Error adding suggested participant:', error);
-        toast({
-          title: "خطا",
-          description: error?.message || "افزودن شرکت‌کننده ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsAddingSuggestedParticipant(false);
-    }
-  };
-
-  const handleAddExistingTag = async (tag: any) => {
-    const tagExists = meetingTags && meetingTags.some(t => t.id === tag.id);
-    if (!tagExists) {
-      try {
-        const { error } = await mysqlClient
-          .from('meeting_tags')
-          .insert({
-            meeting_id: meeting.id,
-            tag_id: tag.id
-          });
-
-        if (error) throw error;
-
-        const updatedTags = [...meetingTags, tag];
-        setMeetingTags(updatedTags);
-        setMeeting(prev => ({ ...prev, tags: updatedTags }));
-
-        refreshMeetingSummary();
-        
-        toast({
-          title: "برچسب اضافه شد",
-          description: "برچسب به جلسه اضافه شد.",
-        });
-      } catch (error: any) {
-        console.error('Error adding tag:', error);
-        
-        // Handle specific error cases
-        if (error?.message?.includes('Relationship already exists') || error?.error === 'Relationship already exists') {
-          toast({
-            title: "برچسب قبلاً اضافه شده",
-            description: "این برچسب قبلاً به جلسه اضافه شده است.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "خطا",
-            description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
-            variant: "destructive",
-          });
-        }
-      }
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
-  };
-
-  const handleAutoGenerateSummary = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meetings/${meeting.id}/analyze`,
+      const nextJson = editableSummaryToJson(
         {
-          method: 'POST',
+          subject: editSubject,
+          location: editLocation,
+          summaryText: editSummaryText,
+          people: parsedSummary.people,
+          bulletPoints: parsedSummary.bulletPoints,
+          tags: parsedSummary.tags,
+        },
+        parsedJson,
+      );
+
+      const { error: updErr } = await mysqlClient
+        .from("meetings")
+        .update({
+          title: editTitle.trim() || meeting.title,
+          summary: nextJson,
+          location: editLocation.trim() || null,
+        } as Record<string, unknown>)
+        .eq("id", meeting.id);
+
+      if (updErr) throw new Error(updErr.message || "ذخیره تغییرات ناموفق بود");
+
+      setEditing(false);
+      setFeedbackMsg("ذخیره شد");
+      await queryClient.invalidateQueries({ queryKey: ["meeting-detail", meetingId] });
+      await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    } catch (err) {
+      setFeedbackErr(err instanceof Error ? err.message : "ذخیره ناموفق بود");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestReprocess = async () => {
+    if (!meeting || reprocessing) return;
+    setReprocessing(true);
+    setFeedbackErr(null);
+    setFeedbackMsg(null);
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/meetings/${encodeURIComponent(meeting.id)}/analyze`,
+        {
+          method: "POST",
           headers: {
             ...mysqlClient.getAuthHeaders(),
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ model: analyzeModel || 'auto' }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to trigger analysis');
-      }
-
-      setMeeting((prev) => ({
-        ...prev,
-        status: 'ارسال درخواست پردازش',
-        analyze_model: analyzeModel || 'auto',
-        analyzing_model: null,
-        analyzed_by: null,
-      }));
-      queryClient.invalidateQueries({ queryKey: ['meeting-status', meetingId] });
-
-      toast({
-        title: "درخواست تولید اتوماتیک خلاصه ارسال شد",
-        description: "خلاصه جلسه پی از تکمیل به ایمیل شما ارسال خواهد شد.",
-      });
-    } catch (error) {
-      console.error('Error triggering auto summary:', error);
-      
-      toast({
-        title: "خطا",
-        description: "شروع تولید خلاصه خودکار ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSendSummaryToEmail = async () => {
-    try {
-      const currentSummary = statusData?.summary || summary;
-      if (!currentSummary || currentSummary.trim() === '') {
-        toast({
-          title: "خطا",
-          description: "خلاصه‌ای برای ارسال وجود ندارد.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Backend /sendmail — single source for summary emails (footer included).
-      const emailWebhookBase =
-        import.meta.env.VITE_EMAIL_WEBHOOK_URL ||
-        'https://www.neshastyar.com/sendmail';
-      const webhookUrl = `${emailWebhookBase.replace(/\/$/, '')}/${encodeURIComponent(meeting.id)}`;
-      console.log('🔗 Calling sendmail:', webhookUrl);
-
-      const response = await fetch(webhookUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+          body: JSON.stringify({ model: analyzeModel || "auto" }),
         },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.log('❌ Webhook error:', response.status, errorData);
-        
-        // Handle cooldown error specifically
-        if (response.status === 429 && errorData.cooldownRemaining) {
-          toast({
-            title: "لطفاً صبر کنید",
-            description: `برای ارسال ایمیل بعدی ${errorData.cooldownRemaining} ثانیه صبر کنید.`,
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        throw new Error(errorData.message || 'Failed to send email');
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.message || "درخواست پردازش ناموفق بود");
       }
 
-      const result = await response.json();
-      console.log('✅ Webhook response:', result);
-      
-      toast({
-        title: "خلاصه ارسال شد",
-        description: `خلاصه جلسه به ایمیل ${result.data.userEmail} ارسال شد.`,
-      });
-    } catch (error) {
-      console.error('Error sending summary to email:', error);
-      toast({
-        title: "خطا",
-        description: "ارسال خلاصه به ایمیل ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteMeeting = async () => {
-    if (!meeting) return;
-    
-    setIsDeleting(true);
-    try {
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      // Delete meeting_tags relationships
-      // First, get all meeting-tag relationships for this meeting
-      const { data: meetingTags, error: fetchTagsError } = await mysqlClient
-        .from('meeting_tags')
-        .select('*')
-        .eq('meeting_id', meeting.id);
-
-      if (fetchTagsError) {
-        console.error('Error fetching meeting tags:', fetchTagsError);
-      } else if (meetingTags && meetingTags.length > 0) {
-        // Delete each relationship individually
-        for (const meetingTag of meetingTags) {
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/meeting-tags?meeting_id=${meeting.id}&tag_id=${meetingTag.tag_id}`, {
-            method: 'DELETE',
-            headers: {
-              ...mysqlClient.getAuthHeaders(),
-            },
-          });
-          
-          if (!response.ok) {
-            console.error('Error deleting meeting-tag relationship:', response.statusText);
-          }
-        }
-      }
-
-      // Delete meeting record
-      const { error: meetingError } = await mysqlClient
-        .from('meetings')
-        .delete()
-        .eq('id', meeting.id);
-
-      if (meetingError) throw meetingError;
-
-      toast({
-        title: "جلسه حذف شد",
-        description: "جلسه با موفقیت حذف شد.",
-      });
-
-      // Navigate back to home
-      navigate('/home');
-    } catch (error) {
-      console.error('Error deleting meeting:', error);
-      toast({
-        title: "خطا",
-        description: "حذف جلسه ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
+      setSummarySuppressed(true);
+      setEditing(false);
+      setFeedbackMsg("درخواست پردازش ارسال شد");
+      await queryClient.invalidateQueries({ queryKey: ["meeting-detail", meetingId] });
+      await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    } catch (err) {
+      setFeedbackErr(
+        err instanceof Error ? err.message : "درخواست پردازش ناموفق بود",
+      );
     } finally {
-      setIsDeleting(false);
+      setReprocessing(false);
     }
   };
 
-  const handleEditTitle = () => {
-    setIsEditingTitle(true);
-    setEditedTitle(meeting.title);
-  };
-
-  const handleSaveTitle = async () => {
-    if (!editedTitle.trim()) {
-      toast({
-        title: "خطا",
-        description: "عنوان نمی‌تواند خالی باشد.",
-        variant: "destructive",
-      });
+  const handleCopySummary = async () => {
+    const approvedNames = participants.map((p) => p.name);
+    const clip = formatEditableSummaryForClipboard(parsedSummary, approvedNames);
+    if (!clip) {
+      setFeedbackErr("خلاصه‌ای برای کپی وجود ندارد");
       return;
     }
+    try {
+      await navigator.clipboard.writeText(clip);
+      setFeedbackMsg("موضوع، خلاصه، حاضرین تاییدشده و نکات کلیدی کپی شد");
+      setFeedbackErr(null);
+    } catch {
+      setFeedbackErr("کپی به کلیپ‌بورد با خطا مواجه شد");
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!meeting) return;
+    setFeedbackErr(null);
+    setFeedbackMsg(null);
 
     try {
-      const { error } = await mysqlClient
-        .from('meetings')
-        .update({ title: editedTitle.trim() } as any)
-        .eq('id', meeting.id);
+      const emailWebhookBase =
+        import.meta.env.VITE_EMAIL_WEBHOOK_URL ||
+        `${API_BASE_URL.replace(/\/api\/?$/, "")}/sendmail`;
+      const webhookUrl = `${emailWebhookBase.replace(/\/$/, "")}/${encodeURIComponent(
+        meeting.id,
+      )}`;
 
-      if (error) throw error;
-
-      setMeeting(prev => ({ ...prev, title: editedTitle.trim() }));
-      setIsEditingTitle(false);
-      
-      toast({
-        title: "عنوان به‌روزرسانی شد",
-        description: "عنوان جلسه با موفقیت به‌روزرسانی شد.",
+      const res = await fetch(webhookUrl, {
+        method: "GET",
+        headers: mysqlClient.getAuthHeaders(),
       });
-    } catch (error) {
-      console.error('Error saving title:', error);
-      toast({
-        title: "خطا",
-        description: "ذخیره عنوان ناموفق بود. لطفاً دوباره تلاش کنید.",
-        variant: "destructive",
-      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (res.status === 429 && json?.cooldownRemaining) {
+          throw new Error(
+            `برای ارسال ایمیل بعدی ${json.cooldownRemaining} ثانیه صبر کنید.`,
+          );
+        }
+        throw new Error(json?.message || "ارسال ایمیل ناموفق بود");
+      }
+      setFeedbackMsg(
+        json?.data?.userEmail
+          ? `خلاصه جلسه به ایمیل ${json.data.userEmail} ارسال شد.`
+          : "خلاصه جلسه به ایمیل شما ارسال شد.",
+      );
+    } catch (err) {
+      setFeedbackErr(
+        err instanceof Error ? err.message : "ارسال خلاصه به ایمیل ناموفق بود",
+      );
     }
   };
-
-  const handleCancelEditTitle = () => {
-    setIsEditingTitle(false);
-    setEditedTitle(meeting.title);
-  };
-
-  const handleCancelEditSummary = () => {
-    setIsEditingSummary(false);
-    setSummaryEditMode('plain');
-    setSummary(originalSummary);
-    setEditedSummaryFields(emptyEditableSummary());
-  };
-
-  const handleStartEditSummary = () => {
-    const currentSummary = statusData?.summary || summary;
-    const jsonData = parseMeetingSummaryJson(currentSummary);
-
-    setOriginalSummary(currentSummary);
-
-    if (jsonData) {
-      setEditedSummaryFields(jsonToEditableSummary(jsonData));
-      setSummaryEditMode('structured');
-    } else {
-      setSummary(currentSummary);
-      setSummaryEditMode('plain');
-    }
-
-    setIsEditingSummary(true);
-  };
-
-  const approvedParticipantNames = linkedParticipants
-    .map((participant) => (typeof participant?.name === 'string' ? participant.name : ''))
-    .filter((name) => name.trim().length > 0);
 
   const handleOpenShare = async () => {
-    if (!meetingId) return;
+    if (!meeting) return;
     setShareDialogOpen(true);
     setShareLoading(true);
-    setShareUrl(null);
     try {
-      const { data, error } = await mysqlClient.shareMeeting(meetingId);
-      if (error || !data?.url) {
-        throw new Error(error?.message || 'ساخت لینک صورتجلسه ناموفق بود');
+      const { data: shareData, error: shareErr } = await mysqlClient.shareMeeting(
+        meeting.id,
+      );
+      if (shareErr || !shareData?.url) {
+        throw new Error(shareErr?.message || "ساخت لینک صورتجلسه ناموفق بود");
       }
-      setShareUrl(data.url);
-    } catch (error: any) {
+      setShareUrl(shareData.url);
+    } catch (err) {
       toast({
-        title: 'خطا',
-        description: error.message || 'ساخت لینک صورتجلسه ناموفق بود',
-        variant: 'destructive',
+        title: "خطا",
+        description: err instanceof Error ? err.message : "ساخت لینک ناموفق بود",
+        variant: "destructive",
       });
     } finally {
       setShareLoading(false);
@@ -1110,1040 +349,434 @@ const MeetingDetail = () => {
   };
 
   const handleDisableShare = async () => {
-    if (!meetingId) return;
+    if (!meeting) return;
     setShareLoading(true);
     try {
-      const { error } = await mysqlClient.disableMeetingShare(meetingId);
-      if (error) throw new Error(error.message || 'غیرفعال کردن لینک ناموفق بود');
+      const { error: disErr } = await mysqlClient.disableMeetingShare(meeting.id);
+      if (disErr) throw new Error(disErr.message || "غیرفعال کردن لینک ناموفق بود");
       setShareUrl(null);
-      toast({ title: 'انجام شد', description: 'لینک اشتراک‌گذاری غیرفعال شد.' });
-    } catch (error: any) {
+      toast({ title: "لینک صورتجلسه غیرفعال شد" });
+    } catch (err) {
       toast({
-        title: 'خطا',
-        description: error.message || 'غیرفعال کردن لینک ناموفق بود',
-        variant: 'destructive',
+        title: "خطا",
+        description: err instanceof Error ? err.message : "عملیات ناموفق بود",
+        variant: "destructive",
       });
     } finally {
       setShareLoading(false);
     }
   };
 
-  const handleCopySummary = async () => {
-    let text: string | null;
+  const status = meeting?.status || "";
+  const processingFailed = isErrorStatus(status);
+  const isAnalyzing = isAnalyzingStatus(status);
+  const isProcessed = isProcessedStatus(status);
+  const showProcessed = !processingFailed && !summarySuppressed;
 
-    if (isEditingSummary) {
-      if (summaryEditMode === 'structured') {
-        text = formatEditableSummaryForClipboard(editedSummaryFields, approvedParticipantNames);
-      } else {
-        text = formatEditableSummaryForClipboard(
-          { ...emptyEditableSummary(), summaryText: summary },
-          approvedParticipantNames,
-        );
-      }
-    } else {
-      const currentSummary = statusData?.summary || summary;
-      text = formatSummaryForClipboard(currentSummary, approvedParticipantNames);
-    }
-
-    if (!text) {
-      toast({
-        title: 'خطا',
-        description: 'خلاصه‌ای برای کپی وجود ندارد.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: 'کپی شد',
-        description:
-          approvedParticipantNames.length > 0
-            ? 'موضوع، خلاصه، افراد حاضر و نکات کلیدی در کلیپ‌بورد کپی شد.'
-            : 'موضوع، خلاصه و نکات کلیدی در کلیپ‌بورد کپی شد.',
-      });
-    } catch (error) {
-      console.error('Error copying summary:', error);
-      toast({
-        title: 'خطا',
-        description: 'کپی به کلیپ‌بورد با خطا مواجه شد.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Helper function to check if summary is JSON
-  const parseJsonSummary = (summaryText: string) => parseMeetingSummaryJson(summaryText);
-
-  const handleAddSuggestedTag = async (tagName: string) => {
-    try {
-      const { data: { user } } = await mysqlClient.auth.getUser();
-      if (!user) return;
-
-      // Check if tag already exists in user's tags
-      const existingTag = localAllUserTags.find(
-        (tag) => tag.name.toLowerCase().trim() === tagName.toLowerCase().trim()
-      );
-
-      let tagToAdd = existingTag;
-
-      if (!existingTag) {
-        // Create new tag with a default color
-        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-        const { data: newTag, error: tagError } = await mysqlClient
-          .from('tags')
-          .insert({
-            name: tagName.trim(),
-            color: randomColor,
-            user_id: user.id
-          })
-          .select()
-          .single();
-
-        if (tagError) throw tagError;
-
-        tagToAdd = newTag;
-        setLocalAllUserTags(prev => [...prev, newTag]);
-      }
-
-      // Check if tag is already linked to the meeting
-      const isAlreadyLinked = meetingTags.some(mt => mt.id === tagToAdd.id);
-      
-      if (isAlreadyLinked) {
-        toast({
-          title: "برچسب قبلاً اضافه شده",
-          description: "این برچسب قبلاً به جلسه اضافه شده است.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Link tag to meeting
-      const { error: linkError } = await mysqlClient
-        .from('meeting_tags')
-        .insert({
-          meeting_id: meeting.id,
-          tag_id: tagToAdd.id
-        });
-
-      if (linkError) throw linkError;
-
-      const updatedTags = [...meetingTags, tagToAdd];
-      setMeetingTags(updatedTags);
-      setMeeting(prev => ({ ...prev, tags: updatedTags }));
-
-      refreshMeetingSummary();
-      
-      toast({
-        title: "برچسب اضافه شد",
-        description: "برچسب با موفقیت به جلسه اضافه شد.",
-      });
-    } catch (error: any) {
-      console.error('Error adding suggested tag:', error);
-      
-      if (error?.message?.includes('Relationship already exists') || error?.error === 'Relationship already exists') {
-        toast({
-          title: "برچسب قبلاً اضافه شده",
-          description: "این برچسب قبلاً به جلسه اضافه شده است.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "خطا",
-          description: "افزودن برچسب ناموفق بود. لطفاً دوباره تلاش کنید.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const renderJsonSummary = (jsonData: any) => {
-    const bulletPoints = normalizeBulletPoints(
-      jsonData['Bolet Points'] ?? jsonData['Bullet Points'],
-    );
-
-    return (
-      <div className="space-y-6 text-right" dir="rtl">
-        {/* Subject */}
-        {jsonData.Subject && (
-          <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">موضوع:</h3>
-            <p className="text-foreground leading-relaxed">{jsonData.Subject}</p>
-          </div>
-        )}
-
-        {(jsonData.Location || jsonData.location) && (
-          <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">محل تشکیل جلسه:</h3>
-            <p className="text-foreground leading-relaxed">{jsonData.Location || jsonData.location}</p>
-          </div>
-        )}
-
-        {/* Summary */}
-        {jsonData.Summary && (
-          <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">خلاصه:</h3>
-            {isHtmlContent(String(jsonData.Summary)) ? (
-              <div
-                className="rich-text-body text-foreground"
-                dangerouslySetInnerHTML={{ __html: String(jsonData.Summary) }}
-              />
-            ) : (
-              <p className="text-foreground leading-relaxed whitespace-pre-wrap">{jsonData.Summary}</p>
-            )}
-          </div>
-        )}
-
-        {/* Bullet Points */}
-        {bulletPoints.length > 0 && (
-          <div>
-            <h3 className="text-lg font-bold text-card-foreground mb-2">نکات کلیدی:</h3>
-            <ul className="list-disc list-inside space-y-2">
-              {bulletPoints.map((point, index) => (
-                <li key={index} className="text-foreground leading-relaxed">
-                  {point}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-      </div>
-    );
-  };
-
-  const currentStatus = statusData?.status || meeting?.status || '';
-  const isProcessed = currentStatus === 'پردازش شده';
-  const isProcessing =
-    currentStatus === 'در حال پردازش' || currentStatus === 'ارسال درخواست پردازش';
-  const analyzingModelKey = statusData?.analyzing_model || meeting?.analyzing_model || null;
-  const analyzedByKey = statusData?.analyzed_by || meeting?.analyzed_by || null;
-  const requestedModelKey = statusData?.analyze_model || meeting?.analyze_model || analyzeModel;
+  const analyzingModelKey = meeting?.analyzing_model || null;
+  const analyzedByKey = meeting?.analyzed_by || null;
+  const requestedModelKey = meeting?.analyze_model || analyzeModel;
   const analyzingLabel = getModelLabel(
     analyzingModelKey,
     analyzeModelsData?.models,
-    analyzeModelsData?.autoKey
+    analyzeModelsData?.autoKey,
   );
   const analyzedByLabel = getModelLabel(
     analyzedByKey,
     analyzeModelsData?.models,
-    analyzeModelsData?.autoKey
+    analyzeModelsData?.autoKey,
   );
   const requestedModelLabel = getModelLabel(
     requestedModelKey,
     analyzeModelsData?.models,
-    analyzeModelsData?.autoKey
-  );
-  const transcriptionText =
-    (typeof statusData?.transcription === 'string' ? statusData.transcription : null) ??
-    (typeof meeting?.transcription === 'string' ? meeting.transcription : '') ??
-    '';
-  const hasTranscription = Boolean(transcriptionText.trim());
-
-  const headerActions = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="گزینه‌ها">
-          <MoreVertical className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onClick={() => navigate(`/meeting/${meetingId}/meeting_details_options`)}>
-          <Settings className="me-2 h-4 w-4" />
-          گزینه‌های جلسه
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSendSummaryToEmail}>
-          <Mail className="me-2 h-4 w-4" />
-          ارسال به ایمیل
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    analyzeModelsData?.autoKey,
   );
 
   return (
-    <AppShell title={meeting.title} onBack={true} clickableBack actions={headerActions}>
-      <div className="space-y-5">
-        {/* Process request CTA */}
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="meetingAnalyzeModel">مدل تحلیل</Label>
-            <AnalyzeModelSelect
-              id="meetingAnalyzeModel"
-              value={analyzeModel}
-              onValueChange={setAnalyzeModel}
-              disabled={isProcessing}
-            />
+    <div dir="rtl" className="min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]">
+      <NeshastyarTopBar />
+
+      <main className="mx-auto w-full max-w-2xl px-4 pb-28">
+        {/* Top Row matching Android MeetingDetailScreen: Back + Edit/Save */}
+        <div className="flex items-center justify-between py-1">
+          <button
+            type="button"
+            onClick={() => navigate("/home")}
+            aria-label="بازگشت"
+            className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-[#1C1B18] hover:bg-black/5"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </button>
+
+          <div className="flex items-center gap-1">
+            {meeting && showProcessed ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/chat/new?meetingId=${encodeURIComponent(meeting.id)}`)
+                }
+                aria-label="گفتگو درباره این جلسه"
+                title="پرسش از هوش مصنوعی درباره این جلسه"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60"
+              >
+                <MessageSquare className="h-5 w-5" />
+              </button>
+            ) : null}
+
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveEditing()}
+                  aria-label="ذخیره"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60"
+                >
+                  {saving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Save className="h-5 w-5" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => setEditing(false)}
+                  aria-label="انصراف"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-[#66625B] hover:bg-black/5"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={!meeting}
+                onClick={startEditing}
+                aria-label="ویرایش"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60 disabled:opacity-40"
+              >
+                <Edit3 className="h-5 w-5" />
+              </button>
+            )}
           </div>
-          {isProcessed ? (
-            <Button
-              onClick={handleSendSummaryToEmail}
-              className="w-full border-blue-500 bg-white font-bold tracking-wide text-blue-600 shadow-lg transition-all duration-300 hover:border-blue-600 hover:bg-blue-50 hover:shadow-xl"
-              variant="outline"
-            >
-              <Mail className="h-4 w-4" />
-              ارسال به ایمیل
-            </Button>
-          ) : (
-            <Button
-              onClick={handleAutoGenerateSummary}
-              disabled={isProcessing}
-              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
-            >
-              <Sparkles className="h-4 w-4" />
-              درخواست پردازش
-            </Button>
-          )}
         </div>
 
-        {/* Meeting Info */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                {isEditingTitle ? (
-                  <div className="space-y-2">
-                    <Input
-                      value={editedTitle}
-                      onChange={(e) => setEditedTitle(e.target.value)}
-                      className="text-2xl font-bold"
-                      placeholder="عنوان جلسه"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSaveTitle();
-                        } else if (e.key === 'Escape') {
-                          handleCancelEditTitle();
-                        }
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <Button onClick={handleSaveTitle} size="sm">
-                        <Check className="h-4 w-4" />
-                        ذخیره
-                      </Button>
-                      <Button onClick={handleCancelEditTitle} variant="outline" size="sm">
-                        <X className="h-4 w-4" />
-                        لغو
-                      </Button>
-                    </div>
-                  </div>
+        {isLoading ? (
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
+          </div>
+        ) : error && !meeting ? (
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+            <p className="text-[#B91C1C]">{(error as Error).message}</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="text-sm font-semibold text-[#0F766E]"
+            >
+              تلاش مجدد
+            </button>
+          </div>
+        ) : meeting ? (
+          <div className="mt-1 space-y-3">
+            {/* Header Info matching Android */}
+            <div>
+              <p className="text-[13px] text-[#66625B]">جزئیات جلسه ضبط شده</p>
+              <div className="mt-1">
+                {editing ? (
+                  <NeshastyarField
+                    label="عنوان جلسه"
+                    value={editTitle}
+                    onChange={setEditTitle}
+                  />
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-2xl text-card-foreground">
-                      {meeting.title}
-                    </CardTitle>
-                    <Button onClick={handleEditTitle} variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <h1 className="text-[22px] font-bold leading-snug text-[#1C1B18]">
+                    {meeting.title?.trim() ? meeting.title : "جلسه"}
+                  </h1>
                 )}
-                <p className="text-sm text-muted-foreground mt-1">
-                  {meeting.fileName}
-                </p>
-<p className="text-muted-foreground mt-2">
-  {new Date(meeting.date).toLocaleDateString("fa-IR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  })}
-</p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-2">
-                <Badge
-                  variant="outline"
-                  className={`${getStatusBadgeClass(currentStatus)}`}
-                >
-                  {currentStatus}
-                </Badge>
-                {isProcessing && analyzingModelKey ? (
-                  <p className="max-w-[14rem] text-right text-xs text-muted-foreground">
-                    در حال تحلیل با {analyzingLabel}
-                  </p>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[12px] text-[#66625B]">
+                  {formatJalaliDateTime(meeting.meeting_date || meeting.created_at)}
+                </span>
+                <StatusChip status={status} />
+                {isAnalyzing && analyzingModelKey ? (
+                  <span className="text-[11px] text-[#66625B]">
+                    • در حال تحلیل با {analyzingLabel}
+                  </span>
                 ) : null}
                 {isProcessed && analyzedByKey ? (
-                  <p className="max-w-[14rem] text-right text-xs text-muted-foreground">
-                    تحلیل شده با {analyzedByLabel}
+                  <span className="text-[11px] text-[#66625B]">
+                    • تحلیل شده با {analyzedByLabel}
                     {requestedModelKey &&
-                    requestedModelKey !== 'auto' &&
+                    requestedModelKey !== "auto" &&
                     analyzedByKey !== requestedModelKey
-                      ? ` (fallback از ${requestedModelLabel})`
-                      : ''}
-                  </p>
+                      ? ` (جایگزین ${requestedModelLabel})`
+                      : ""}
+                  </span>
                 ) : null}
               </div>
             </div>
-          </CardHeader>
-        </Card>
 
-        {(isProcessed || hasTranscription) && (
-          <div className="space-y-2">
-            {isProcessed && (
-              <Button
-                onClick={handleAutoGenerateSummary}
-                className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 font-bold tracking-wide text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:via-pink-600 hover:to-purple-700 hover:shadow-xl"
-              >
-                <Sparkles className="h-4 w-4" />
-                درخواست پردازش مجدد
-              </Button>
-            )}
-            {hasTranscription && (
-              <Button
-                onClick={() => navigate(`/meeting/${meetingId}/transcription`)}
-                variant="outline"
-                className="w-full font-bold tracking-wide"
-              >
-                <FileText className="h-4 w-4" />
-                مشاهده جزییات صحبت های جلسه
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Summary */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="text-lg text-card-foreground">خلاصه جلسه</CardTitle>
-              <div className="flex flex-col gap-2 xs:flex-row">
-                {isEditingSummary ? (
-                  <>
-                    <Button onClick={handleSaveSummary} size="sm" className="w-full sm:w-auto">
-                      <Save className="h-4 w-4" />
-                      ذخیره
-                    </Button>
-                    <Button
-                      onClick={handleCancelEditSummary}
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                    >
-                      <X className="h-4 w-4" />
-                      لغو
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleCopySummary}
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                    >
-                      <Copy className="h-4 w-4" />
-                      کپی
-                    </Button>
-                    {isProcessed && (
-                      <Button
-                        onClick={handleOpenShare}
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                      >
-                        <Share2 className="h-4 w-4" />
-                        صورتجلسه
-                      </Button>
-                    )}
-                    <Button
-                      onClick={handleStartEditSummary}
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                    >
-                      <Edit className="h-4 w-4" />
-                      ویرایش
-                    </Button>
-                  </>
-                )}
+            {/* Error Banner if Processing Failed */}
+            {processingFailed ? (
+              <div className="rounded-[12px] bg-[#FDF2F0] p-3.5 text-[14px] leading-7 text-[#B91C1C]">
+                {parsedSummary.summaryText ||
+                  rawSummary.trim() ||
+                  "پردازش جلسه با خطا مواجه شد."}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const currentSummary = statusData?.summary || summary;
-              const jsonData = parseJsonSummary(currentSummary);
-              
-              if (isEditingSummary) {
-                if (summaryEditMode === 'structured') {
-                  return (
-                    <div className="space-y-4 text-right" dir="rtl">
-                      <div className="space-y-2">
-                        <Label htmlFor="summary-subject">موضوع</Label>
-                        <Input
-                          id="summary-subject"
-                          value={editedSummaryFields.subject}
-                          onChange={(e) =>
-                            setEditedSummaryFields((prev) => ({
-                              ...prev,
-                              subject: e.target.value,
-                            }))
-                          }
-                          placeholder="موضوع جلسه"
-                        />
-                      </div>
+            ) : null}
 
-                      <div className="space-y-2">
-                        <Label htmlFor="summary-location">محل تشکیل جلسه</Label>
-                        <Input
-                          id="summary-location"
-                          value={editedSummaryFields.location}
-                          onChange={(e) =>
-                            setEditedSummaryFields((prev) => ({
-                              ...prev,
-                              location: e.target.value,
-                            }))
-                          }
-                          placeholder="اگر در جلسه گفته شده باشد"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="summary-text">خلاصه</Label>
-                        <RichTextEditor
-                          value={editedSummaryFields.summaryText}
-                          onChange={(html) =>
-                            setEditedSummaryFields((prev) => ({
-                              ...prev,
-                              summaryText: html,
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="summary-people">افراد پیشنهادی (هر نام در یک خط)</Label>
-                        <Textarea
-                          id="summary-people"
-                          value={editedSummaryFields.people.join('\n')}
-                          onChange={(e) =>
-                            setEditedSummaryFields((prev) => ({
-                              ...prev,
-                              people: linesToList(e.target.value),
-                            }))
-                          }
-                          placeholder="هر نام را در یک خط جداگانه بنویسید"
-                          className="min-h-[100px] resize-y"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="summary-bullets">نکات کلیدی (هر مورد در یک خط)</Label>
-                        <Textarea
-                          id="summary-bullets"
-                          value={editedSummaryFields.bulletPoints.join('\n')}
-                          onChange={(e) =>
-                            setEditedSummaryFields((prev) => ({
-                              ...prev,
-                              bulletPoints: linesToList(e.target.value),
-                            }))
-                          }
-                          placeholder="هر نکته را در یک خط جداگانه بنویسید"
-                          className="min-h-[120px] resize-y"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="summary-tags">برچسب‌های پیشنهادی (هر مورد در یک خط)</Label>
-                        <Textarea
-                          id="summary-tags"
-                          value={editedSummaryFields.tags.join('\n')}
-                          onChange={(e) =>
-                            setEditedSummaryFields((prev) => ({
-                              ...prev,
-                              tags: linesToList(e.target.value),
-                            }))
-                          }
-                          placeholder="هر برچسب را در یک خط جداگانه بنویسید"
-                          className="min-h-[80px] resize-y"
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <RichTextEditor
-                    value={summary}
-                    onChange={setSummary}
-                  />
-                );
-              }
-              
-              if (!currentSummary) {
-                // If no summary exists, show Textarea
-                // User must click Edit button to enter edit mode and see Save button
-                return (
-                  <Textarea
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    placeholder="خلاصه جلسه را وارد کنید..."
-                    className="min-h-[200px] resize-none"
-                  />
-                );
-              }
-              
-              if (jsonData) {
-                return renderJsonSummary(jsonData);
-              }
-              
-              if (isHtmlContent(currentSummary)) {
-                return (
-                  <div
-                    className="rich-text-body text-foreground"
-                    dir="rtl"
-                    dangerouslySetInnerHTML={{ __html: currentSummary }}
-                  />
-                );
-              }
-
-              return (
-                <div className="text-right whitespace-pre-wrap text-foreground" dir="rtl">
-                  {currentSummary}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* Participants */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">افراد حاضر در جلسه</CardTitle>
-              <Button
-                onClick={() => {
-                  setShowAddParticipant(true);
-                  setNewParticipantName('');
-                  setNewParticipantEmail('');
-                }}
-                size="sm"
-                variant="outline"
-              >
-                <Plus className="h-4 w-4" />
-                افزودن شرکت‌کننده
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {linkedParticipants.length > 0 ? (
-                  linkedParticipants.map((participant) => (
-                    <div
-                      key={participant.id}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border bg-blue-50 border-blue-400 text-blue-900"
-                    >
-                      {participant.name}
-                      <button
-                        onClick={() => handleRemoveParticipant(participant.id)}
-                        className="hover:opacity-70"
-                        aria-label={`حذف ${participant.name}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    هیچ شرکت‌کننده‌ای برای این جلسه ثبت نشده است.
-                  </p>
-                )}
-              </div>
-
-              {(() => {
-                const currentSummary = statusData?.summary || summary;
-                const jsonData = parseJsonSummary(currentSummary);
-                const suggestedPeople =
-                  jsonData?.['People in meetings'] && Array.isArray(jsonData['People in meetings'])
-                    ? jsonData['People in meetings']
-                    : [];
-                const unassignedSuggestedPeople = suggestedPeople.filter(
-                  (person: string) =>
-                    !linkedParticipants.some(
-                      (p) => p.name.toLowerCase().trim() === person.toLowerCase().trim()
-                    )
-                );
-
-                if (unassignedSuggestedPeople.length === 0) return null;
-
-                return (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">
-                      شرکت‌کنندگان پیشنهادی:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {unassignedSuggestedPeople.map((person: string, index: number) => (
-                        <button
-                          key={index}
-                          onClick={() => handleOpenSuggestedParticipantDialog(person)}
-                          className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
-                        >
-                          {person}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {showAddParticipant && (
-                <div className="border border-border rounded-lg p-4 space-y-3">
-                  <Input
-                    placeholder="نام شرکت‌کننده"
-                    value={newParticipantName}
-                    onChange={(e) => setNewParticipantName(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="email"
-                    placeholder="ایمیل شرکت‌کننده (اختیاری)"
-                    value={newParticipantEmail}
-                    onChange={(e) => setNewParticipantEmail(e.target.value)}
-                    className="flex-1"
-                    dir="ltr"
-                  />
-
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">
-                      شرکت‌کنندگان موجود:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {participantSearchQuery.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          برای جستجو، نام شرکت‌کننده را در کادر بالا تایپ کنید.
-                        </p>
-                      ) : matchingParticipants.length > 0 ? (
-                        matchingParticipants.map((participant) => (
-                          <button
-                            key={participant.id}
-                            onClick={() => {
-                              handleAddExistingParticipant(participant);
-                              setNewParticipantName('');
-                              setNewParticipantEmail('');
-                            }}
-                            className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors bg-muted/40"
-                          >
-                            {participant.name}
-                            {participant.email ? ` · ${participant.email}` : ''}
-                          </button>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          شرکت‌کننده‌ای با این نام پیدا نشد. با دکمه «افزودن شرکت‌کننده» می‌توانید فرد جدید بسازید.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddParticipant} size="sm">
-                      افزودن شرکت‌کننده
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowAddParticipant(false);
-                        setNewParticipantName('');
-                        setNewParticipantEmail('');
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      لغو
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tags */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">برچسب‌ها</CardTitle>
-              <Button
-                onClick={() => {
-                  setShowAddTag(true);
-                  setNewTagName('');
-                }}
-                size="sm"
-                variant="outline"
-              >
-                <Plus className="h-4 w-4" />
-                افزودن برچسب
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Current Tags */}
-              <div className="flex flex-wrap gap-2">
-                {meeting.tags && meeting.tags.length > 0 ? (
-                  meeting.tags.map((tag) => (
-                    <div
-                      key={tag.id}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border bg-green-100 border-green-500 text-green-800"
-                    >
-                      {tag.name}
-                      <button
-                        onClick={() => handleRemoveTag(tag.id)}
-                        className="hover:opacity-70"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    هیچ برچسبی برای این جلسه تعریف نشده است.
-                  </p>
-                )}
-              </div>
-
-              {/* Suggested Tags from Summary */}
-              {(() => {
-                const currentSummary = statusData?.summary || summary;
-                const jsonData = parseJsonSummary(currentSummary);
-                const suggestedTags = jsonData?.Tags && Array.isArray(jsonData.Tags) ? jsonData.Tags : [];
-                const unassignedSuggestedTags = suggestedTags.filter(
-                  (tag: string) => !meetingTags.some(
-                    mt => mt.name.toLowerCase().trim() === tag.toLowerCase().trim()
-                  )
-                );
-
-                if (unassignedSuggestedTags.length === 0) return null;
-
-                return (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">
-                      برچسب‌های پیشنهادی:
-                      <span className="text-xs font-normal me-2">(برای افزودن کلیک کنید)</span>
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {unassignedSuggestedTags.map((tag: string, index: number) => (
-                        <button
-                          key={index}
-                          onClick={() => handleAddSuggestedTag(tag)}
-                          className="px-3 py-1 rounded-full text-sm font-medium border bg-yellow-100 border-yellow-400 text-yellow-900 hover:bg-yellow-200 hover:border-yellow-500 cursor-pointer transition-all transform hover:scale-105"
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Add New Tag */}
-              {showAddTag && (
-                <div className="border border-border rounded-lg p-4 space-y-3">
-                  <div className="flex gap-3">
-                    <Input
-                      placeholder="نام برچسب"
-                      value={newTagName}
-                      onChange={(e) => setNewTagName(e.target.value)}
-                      className="flex-1"
-                    />
-                    <input
-                      type="color"
-                      value={newTagColor}
-                      onChange={(e) => setNewTagColor(e.target.value)}
-                      className="w-12 h-10 rounded border border-border cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Available Tags */}
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">
-                      برچسب‌های موجود:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {tagSearchQuery.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          برای جستجو، نام برچسب را در کادر بالا تایپ کنید.
-                        </p>
-                      ) : matchingTags.length > 0 ? (
-                        matchingTags.map((tag) => (
-                          <button
-                            key={tag.id}
-                            onClick={() => {
-                              handleAddExistingTag(tag);
-                              setNewTagName('');
-                            }}
-                            className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors"
-                            style={{
-                              backgroundColor: `${tag.color}10`,
-                              borderColor: `${tag.color}40`,
-                              color: tag.color,
-                            }}
-                          >
-                            {tag.name}
-                          </button>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          برچسبی با این نام پیدا نشد. با دکمه «افزودن برچسب» می‌توانید برچسب جدید بسازید.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddTag} size="sm">
-                      افزودن برچسب
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowAddTag(false);
-                        setNewTagName('');
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      لغو
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-          <DialogContent className="text-right" dir="rtl">
-            <DialogHeader>
-              <DialogTitle>صورتجلسه</DialogTitle>
-              <DialogDescription>
-                این لینک را برای دیگران بفرستید. آن‌ها صورتجلسه را می‌بینند و می‌توانند آن را چاپ یا دانلود کنند.
-              </DialogDescription>
-            </DialogHeader>
-            {shareLoading ? (
-              <p className="text-sm text-muted-foreground">در حال ساخت لینک...</p>
-            ) : shareUrl ? (
-              <div className="space-y-3">
-                <Input readOnly value={shareUrl} onFocus={(event) => event.target.select()} />
-                <DialogFooter className="gap-2 sm:justify-start">
-                  <Button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(shareUrl);
-                      toast({ title: 'کپی شد', description: 'لینک صورتجلسه کپی شد.' });
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                    کپی لینک
-                  </Button>
-                  <Button variant="outline" onClick={() => window.open(shareUrl, '_blank', 'noopener')}>
-                    <ExternalLink className="h-4 w-4" />
-                    باز کردن
-                  </Button>
-                  <Button variant="ghost" onClick={handleDisableShare} disabled={shareLoading}>
-                    غیرفعال کردن لینک
-                  </Button>
-                </DialogFooter>
-              </div>
-            ) : (
-              <DialogFooter className="sm:justify-start">
-                <Button onClick={handleOpenShare}>ساخت لینک جدید</Button>
-              </DialogFooter>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={suggestedParticipantDialogOpen} onOpenChange={handleSuggestedParticipantDialogChange}>
-          <DialogContent className="text-right" dir="rtl">
-            <DialogHeader>
-              <DialogTitle>افزودن شرکت‌کننده</DialogTitle>
-              <DialogDescription>
-                نام شرکت‌کننده را در صورت نیاز ویرایش کنید. این نام در خلاصه جلسه و متن رونویسی نیز به‌روزرسانی می‌شود.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="suggested-participant-name">نام شرکت‌کننده</Label>
-                <Input
-                  id="suggested-participant-name"
-                  value={participantNameInput}
-                  onChange={(e) => setParticipantNameInput(e.target.value)}
-                  placeholder="نام شرکت‌کننده"
-                  disabled={isAddingSuggestedParticipant}
-                  autoComplete="off"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleConfirmAddSuggestedParticipant();
-                    }
-                  }}
+            {/* AI Executive Summary Card matching Android */}
+            {showProcessed ? (
+              <NeshastyarCard className="space-y-3.5">
+                <NeshastyarSectionHeader
+                  title="خلاصه اجرایی هوش مصنوعی"
+                  icon={<Sparkles className="h-5 w-5" />}
+                  iconColor="#C88A2E"
                 />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="suggested-participant-email">ایمیل شرکت‌کننده</Label>
-                <Input
-                  id="suggested-participant-email"
-                  type="email"
-                  value={participantEmailInput}
-                  onChange={(e) => setParticipantEmailInput(e.target.value)}
-                  placeholder="email@example.com"
-                  disabled={isAddingSuggestedParticipant}
-                  autoComplete="off"
-                  dir="ltr"
+                <DetailTextPart
+                  label="موضوع"
+                  value={parsedSummary.subject}
+                  draft={editSubject}
+                  editing={editing}
+                  onChange={setEditSubject}
                 />
-              </div>
 
-              {participantNameInput.trim().length > 0 && (
-                <div className="pt-1">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    شرکت‌کنندگان موجود:
-                  </p>
-                  {suggestedDialogMatchingParticipants.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {suggestedDialogMatchingParticipants.map((participant) => (
-                        <button
-                          key={participant.id}
-                          type="button"
-                          onClick={() => {
-                            setParticipantNameInput(participant.name);
-                            setParticipantEmailInput(participant.email || '');
-                          }}
-                          disabled={isAddingSuggestedParticipant}
-                          className="px-3 py-1 rounded-full text-sm font-medium border border-border hover:bg-muted transition-colors bg-muted/40 disabled:opacity-50"
-                        >
-                          {participant.name}
-                          {participant.email ? ` · ${participant.email}` : ''}
-                        </button>
-                      ))}
-                    </div>
+                {editing ||
+                parsedSummary.location.trim() ||
+                editLocation.trim() ? (
+                  <DetailTextPart
+                    label="محل تشکیل جلسه"
+                    value={parsedSummary.location}
+                    draft={editLocation}
+                    editing={editing}
+                    onChange={setEditLocation}
+                  />
+                ) : null}
+
+                <div>
+                  {editing ? (
+                    <NeshastyarField
+                      label="خلاصه"
+                      value={editSummaryText}
+                      onChange={setEditSummaryText}
+                      multiline
+                      rows={6}
+                    />
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      شرکت‌کننده‌ای با این نام پیدا نشد. با همین نام جدید اضافه می‌شود.
-                    </p>
+                    <>
+                      <p className="text-[14px] font-semibold text-[#404848]">
+                        خلاصه
+                      </p>
+                      {!parsedSummary.summaryText.trim() ? (
+                        <p className="mt-1 text-[15px] text-[#66625B]">
+                          {isAnalyzing ? "در حال آماده‌سازی خلاصه جلسه…" : "—"}
+                        </p>
+                      ) : isHtmlContent(parsedSummary.summaryText) ? (
+                        <div
+                          className="rich-text-body mt-1 text-[15px] text-[#1C1B18]"
+                          dangerouslySetInnerHTML={{
+                            __html: parsedSummary.summaryText,
+                          }}
+                        />
+                      ) : (
+                        <p className="mt-1 whitespace-pre-wrap text-[15px] leading-7 text-[#1C1B18]">
+                          {parsedSummary.summaryText}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
-              )}
-            </div>
+              </NeshastyarCard>
+            ) : (
+              <NeshastyarCard>
+                <div className="flex items-center gap-2.5 py-2 text-[#66625B]">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#0D4D4D]" />
+                  <span className="text-[14px]">
+                    درخواست پردازش ارسال شده و جلسه در حال تحلیل است…
+                  </span>
+                </div>
+              </NeshastyarCard>
+            )}
 
-            <DialogFooter className="gap-2 sm:justify-start">
-              <Button
-                onClick={handleConfirmAddSuggestedParticipant}
-                disabled={isAddingSuggestedParticipant || !participantNameInput.trim()}
-              >
-                {isAddingSuggestedParticipant ? 'در حال افزودن...' : 'افزودن به لیست'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleSuggestedParticipantDialogChange(false)}
-                disabled={isAddingSuggestedParticipant}
-              >
-                لغو
-              </Button>
+            {/* Action Buttons Row: Copy, Email, and Web's Shareable صورتجلسه */}
+            {processingFailed ? (
+              <div className="space-y-2.5">
+                <AnalyzeModelSelect
+                  value={analyzeModel}
+                  onValueChange={setAnalyzeModel}
+                  disabled={reprocessing}
+                />
+                <NeshastyarPrimaryButton
+                  loading={reprocessing}
+                  onClick={() => void requestReprocess()}
+                >
+                  درخواست پردازش مجدد
+                </NeshastyarPrimaryButton>
+              </div>
+            ) : showProcessed ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <NeshastyarSecondaryButton
+                  onClick={() => void handleCopySummary()}
+                  icon={<Copy className="h-4 w-4" />}
+                >
+                  کپی
+                </NeshastyarSecondaryButton>
+
+                <NeshastyarSecondaryButton
+                  onClick={() => void handleSendEmail()}
+                  icon={<Mail className="h-4 w-4" />}
+                >
+                  ایمیل
+                </NeshastyarSecondaryButton>
+
+                {isProcessed ? (
+                  <NeshastyarSecondaryButton
+                    onClick={() => void handleOpenShare()}
+                    icon={<Share2 className="h-4 w-4" />}
+                    className="col-span-2 sm:col-span-1"
+                  >
+                    صورتجلسه
+                  </NeshastyarSecondaryButton>
+                ) : null}
+              </div>
+            ) : null}
+
+            {feedbackMsg ? (
+              <p className="text-[14px] text-[#0F766E]">{feedbackMsg}</p>
+            ) : null}
+            {feedbackErr ? (
+              <p className="text-[14px] text-[#B91C1C]">{feedbackErr}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </main>
+
+      {/* Android 5-item MeetingDetailBottomBar */}
+      <MeetingDetailBottomBar
+        meetingId={meetingId}
+        showProcessedSections={showProcessed}
+        onAiEdit={() => setShowAiEditSheet(true)}
+      />
+
+      {/* AI Smart Edit Sheet */}
+      <AiEditBottomSheet
+        open={showAiEditSheet}
+        meetingId={meetingId}
+        onOpenChange={setShowAiEditSheet}
+        onEdited={(res) => {
+          setSummarySuppressed(false);
+          setEditing(false);
+          setFeedbackMsg(
+            res.changes_summary?.trim() || "ویرایش هوشمند انجام و ذخیره شد",
+          );
+          setFeedbackErr(null);
+        }}
+      />
+
+      {/* Shareable Minutes Report Dialog (Web exclusive preserved) */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent dir="rtl" className="border-[#E8E2D5] bg-white text-right">
+          <DialogHeader>
+            <DialogTitle className="text-right text-[#1C1B18]">
+              صورتجلسه
+            </DialogTitle>
+            <DialogDescription className="text-right text-[#404848]">
+              این لینک را برای دیگران بفرستید. آن‌ها صورتجلسه را می‌بینند و می‌توانند آن را ویرایش، چاپ یا دانلود کنند.
+            </DialogDescription>
+          </DialogHeader>
+
+          {shareLoading ? (
+            <p className="text-sm text-[#66625B]">در حال ساخت لینک...</p>
+          ) : shareUrl ? (
+            <div className="space-y-3">
+              <input
+                readOnly
+                dir="ltr"
+                value={shareUrl}
+                onFocus={(e) => e.target.select()}
+                className="h-11 w-full rounded-[12px] border border-[#E8E2D5] bg-[#F5F2EB] px-3 text-left text-sm text-[#1C1B18]"
+              />
+              <DialogFooter className="flex flex-wrap gap-2 sm:justify-start">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(shareUrl);
+                    toast({ title: "کپی شد", description: "لینک صورتجلسه کپی شد." });
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0D4D4D] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F766E]"
+                >
+                  <Copy className="h-4 w-4" />
+                  کپی لینک
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.open(shareUrl, "_blank", "noopener")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#E8E2D5] px-4 py-2 text-sm text-[#1C1B18] hover:bg-[#F5F2EB]"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  باز کردن
+                </button>
+                <button
+                  type="button"
+                  disabled={shareLoading}
+                  onClick={() => void handleDisableShare()}
+                  className="rounded-xl px-3 py-2 text-sm text-[#B91C1C] hover:bg-[#FDF2F0]"
+                >
+                  غیرفعال کردن لینک
+                </button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <DialogFooter className="sm:justify-start">
+              <NeshastyarPrimaryButton onClick={() => void handleOpenShare()}>
+                ساخت لینک جدید
+              </NeshastyarPrimaryButton>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </AppShell>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
 export default MeetingDetail;
+
+function DetailTextPart({
+  label,
+  value,
+  draft,
+  editing,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  draft: string;
+  editing: boolean;
+  onChange: (value: string) => void;
+}) {
+  if (editing) {
+    return (
+      <NeshastyarField
+        label={label}
+        value={draft}
+        onChange={onChange}
+      />
+    );
+  }
+  return (
+    <div>
+      <p className="text-[14px] font-semibold text-[#404848]">{label}</p>
+      <p
+        className={`mt-1 text-[15px] leading-7 ${
+          value.trim() ? "text-[#1C1B18]" : "text-[#66625B]"
+        }`}
+      >
+        {value.trim() || "—"}
+      </p>
+    </div>
+  );
+}

@@ -1,356 +1,430 @@
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
-import { Mic, Sparkles, Users, Search } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
-import androidVersionFile from "../../android-app/versioning.txt?raw";
-import { HOME_FAQS } from "@/seo/seoConfig";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://neshastyar.com/api").replace(/\/$/, "");
-const ANDROID_VERSION = androidVersionFile.trim();
+const GIS_SCRIPT = "https://accounts.google.com/gsi/client";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
-type LatestApk = {
-  filename: string;
-  downloadUrl: string;
-};
+function loadGisScript(): Promise<void> {
+  if (window.google?.accounts?.id) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${GIS_SCRIPT}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Failed to load Google script")), {
+        once: true,
+      });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = GIS_SCRIPT;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google script"));
+    document.head.appendChild(script);
+  });
+}
 
 const Landing = () => {
   const navigate = useNavigate();
-  const [latestApk, setLatestApk] = useState<LatestApk | null>(null);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [homeScreenAdded, setHomeScreenAdded] = useState(false);
-  const [homeScreenHint, setHomeScreenHint] = useState<string | null>(null);
+  const { login, loginWithGoogle } = useAuthStore();
+  const { toast } = useToast();
+
+  const [showEmailSheet, setShowEmailSheet] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [landingError, setLandingError] = useState<string | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+
+  const googleHostRef = useRef<HTMLDivElement>(null);
+
+  const handleGoogleCredential = useCallback(
+    async (idToken: string) => {
+      setLandingError(null);
+      setGoogleLoading(true);
+      try {
+        await loginWithGoogle(idToken);
+        toast({
+          title: "خوش آمدید!",
+          description: "با حساب گوگل وارد شدید.",
+        });
+        navigate("/home");
+      } catch (error) {
+        setLandingError((error as Error).message || "خطا در ورود با گوگل");
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [loginWithGoogle, navigate, toast],
+  );
+
+  const credentialCallbackRef = useRef(handleGoogleCredential);
+  useEffect(() => {
+    credentialCallbackRef.current = handleGoogleCredential;
+  }, [handleGoogleCredential]);
 
   useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
     let cancelled = false;
 
-    fetch(`${API_BASE_URL}/android/latest`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        if (!cancelled && payload?.data) {
-          const data = payload.data;
-          setLatestApk({
-            ...data,
-            downloadUrl:
-              data.downloadUrl ||
-              `${API_BASE_URL}/android/latest/download/${data.filename}`,
-          });
-        }
-      })
-      .catch(() => {
-        // Keep the download button even if version lookup fails.
-      });
+    (async () => {
+      try {
+        await loadGisScript();
+        if (cancelled || !googleHostRef.current || !window.google?.accounts?.id) return;
+
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: { credential?: string }) => {
+            if (!response?.credential) {
+              setLandingError("توکن گوگل دریافت نشد.");
+              return;
+            }
+            await credentialCallbackRef.current(response.credential);
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        googleHostRef.current.innerHTML = "";
+        window.google.accounts.id.renderButton(googleHostRef.current, {
+          type: "standard",
+          theme: "filled_black",
+          size: "large",
+          text: "continue_with",
+          shape: "pill",
+          logo_alignment: "left",
+          width: 380,
+          locale: "fa",
+        });
+
+        setGoogleReady(true);
+      } catch {
+        setGoogleReady(false);
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  useEffect(() => {
-    if (isHomeScreenApp()) setHomeScreenAdded(true);
+  const handleFallbackGoogleClick = () => {
+    if (googleLoading || emailLoading) return;
+    setLandingError(null);
+    navigate("/login");
+  };
 
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setHomeScreenAdded(true);
-      setInstallPrompt(null);
-      setHomeScreenHint(null);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (emailLoading || googleLoading) return;
+    setSheetError(null);
+    setEmailLoading(true);
 
-  async function addWebAppToHomeScreen() {
-    if (homeScreenAdded) return;
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      setInstallPrompt(null);
-      if (choice.outcome === "accepted") setHomeScreenAdded(true);
-      return;
-    }
-    if (isIos() && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: "نشست یار", url: `${window.location.origin}/` });
-        setHomeScreenHint("در برگه اشتراک‌گذاری، «افزودن به صفحه اصلی» را انتخاب کنید.");
-      } catch (error) {
-        if (!(error instanceof DOMException) || error.name !== "AbortError") {
-          setHomeScreenHint("در Safari دکمه اشتراک‌گذاری را بزنید و «افزودن به صفحه اصلی» را انتخاب کنید.");
-        }
+    try {
+      await login(email.trim(), password);
+      setShowEmailSheet(false);
+      toast({
+        title: "خوش آمدید!",
+        description: "شما با موفقیت وارد شدید.",
+      });
+      navigate("/home");
+    } catch (error) {
+      const errorMessage = (error as Error).message || "";
+      if (
+        errorMessage.includes("Email not verified") ||
+        errorMessage.includes("verify your email")
+      ) {
+        setSheetError(
+          "لطفاً ابتدا ایمیل خود را تأیید کنید. لینک تأیید به ایمیل شما ارسال شده است.",
+        );
+      } else {
+        setSheetError("ایمیل یا رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.");
       }
-      return;
+    } finally {
+      setEmailLoading(false);
     }
-    setHomeScreenHint(
-      isIos()
-        ? "در Safari دکمه اشتراک‌گذاری را بزنید و «افزودن به صفحه اصلی» را انتخاب کنید."
-        : "از منوی مرورگر، نصب برنامه یا افزودن به صفحه اصلی را انتخاب کنید.",
-    );
-  }
+  };
 
-  const apkDownloadHref = latestApk?.downloadUrl || `${API_BASE_URL}/android/latest/download`;
+  const busy = emailLoading || googleLoading;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur safe-top supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center justify-between py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-soft">
-              <span className="text-lg font-bold text-primary-foreground">ن</span>
-            </div>
-            <span className="text-lg font-semibold text-foreground sm:text-xl">نشست یار</span>
+    <div
+      dir="rtl"
+      className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#003535]"
+    >
+      {/* Full-bleed scenic halftone illustration matching Android landing page */}
+      <picture className="pointer-events-none absolute inset-0 select-none">
+        <source media="(min-width: 768px)" srcSet="/landing-bg-desktop.jpg" />
+        <img
+          src="/landing-bg-mobile.jpg"
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover object-center"
+        />
+      </picture>
+
+      {/* Content overlay */}
+      <main className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col items-center px-6 safe-top safe-bottom">
+        {/* Top Logo */}
+        <div className="flex items-center gap-2.5 pt-9 sm:pt-11">
+          <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#003535] shadow-sm">
+            <WorkspacesIcon className="h-[22px] w-[22px] text-white" />
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/login')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              ورود
-            </Button>
-            <Button 
-              size="sm"
-              onClick={() => navigate('/signup')}
-              className="bg-primary hover:bg-primary/90"
-            >
-              شروع کنید
-            </Button>
-          </div>
+          <span className="text-[28px] font-black tracking-tight text-[#003535] sm:text-[30px]">
+            نشست‌یار
+          </span>
         </div>
-      </header>
 
-      {/* Hero Section */}
-      <section className="container mx-auto py-12 text-center sm:py-16">
-        <div className="mx-auto max-w-4xl">
-          {/* Microphone Icon */}
-          <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-glow">
-            <Mic className="h-10 w-10 text-primary-foreground" />
-          </div>
+        <div className="flex-1" />
 
-          {/* Headline */}
-          <h1 className="mb-6 text-3xl font-bold leading-tight sm:text-4xl md:text-6xl">
-           یک پایگاه دانش قابل جستجو 
-            از تمام مکالمات خود ایجاد کنید
-          </h1>
+        {/* Center Editorial Tagline */}
+        <h1
+          className="text-center text-[26px] font-semibold leading-[42px] text-[#003535] drop-shadow-[0_1px_10px_rgba(251,249,244,0.65)] sm:text-[34px] sm:leading-[56px]"
+          style={{ fontFamily: "'Noto Naskh Arabic', 'Vazirmatn', Georgia, serif" }}
+        >
+          شما در جلسه حاضر باشید،
+          <br />
+          نشست‌یار یادداشت‌ها را می‌نویسد.
+        </h1>
 
-          {/* Description */}
-          <p className="mx-auto mb-8 max-w-2xl text-base text-muted-foreground sm:text-xl">
-            جلسات خود را با هوش مصنوعی خلاصه سازی کنید، ساماندهی کنید و هرگز مباحث مهم را از دست ندهید.
-            نشست یار کاملاً رایگان است.
-          </p>
+        <div className="flex-[1.15]" />
 
-          {/* CTA Buttons */}
-          <div className="mb-16 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-            <Button 
-              size="lg" 
-              onClick={() => navigate('/signup')}
-              className="bg-primary hover:bg-primary/90 px-8 py-4 text-lg"
+        {/* Bottom Actions + Legal Note */}
+        <div className="w-full max-w-[380px]">
+          {landingError && !showEmailSheet ? (
+            <div
+              role="alert"
+              className="mb-3 w-full rounded-xl bg-[#B91C1C]/85 px-3 py-2 text-center text-[13px] text-white"
             >
-              رایگان ثبت نام کنید ←
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              onClick={() => navigate('/login')}
-              className="px-8 py-4 text-lg"
-            >
-              ورود
-            </Button>
-          </div>
-
-          <div className="mx-auto mb-8 w-full max-w-3xl rounded-[28px] bg-[#121418] p-4 text-white shadow-medium sm:p-6">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <a
-                href={apkDownloadHref}
-                download={latestApk?.filename}
-                className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-emerald-400/80 bg-emerald-950/50 px-4 py-7 shadow-[0_0_28px_rgba(52,211,153,0.22)] transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                aria-label="دانلود آخرین نسخه اپلیکیشن اندروید"
-              >
-                <AndroidMark />
-                <span className="text-sm font-semibold sm:text-base">اپلیکیشن اندروید</span>
-              </a>
-              <button
-                type="button"
-                onClick={addWebAppToHomeScreen}
-                className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-zinc-800/70 px-4 py-7 text-zinc-100 transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
-                aria-label="افزودن نشست یار به صفحه اصلی"
-              >
-                <AppleMark />
-                <span className="text-sm font-semibold sm:text-base">اپلیکیشن iOS</span>
-                <span className="text-xs leading-5 text-zinc-300">
-                  {homeScreenAdded ? "به صفحه اصلی اضافه شد" : "افزودن به صفحه اصلی"}
-                </span>
-              </button>
+              {landingError}
             </div>
+          ) : null}
 
-            <div className="mt-4 flex items-center gap-4 rounded-2xl bg-black/35 p-4 sm:gap-6 sm:p-5">
-              <div className="shrink-0 rounded-2xl bg-white p-2">
-                <QRCodeSVG
-                  value={apkDownloadHref}
-                  size={112}
-                  level="M"
-                  bgColor="#ffffff"
-                  fgColor="#111111"
-                  aria-label="کد QR دانلود اپلیکیشن اندروید"
-                />
+          {/* Continue with Google */}
+          <div className="relative h-[58px] w-full">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleFallbackGoogleClick}
+              className="relative flex h-[58px] w-full items-center justify-center rounded-[30px] bg-[#003535] px-[22px] text-[16px] font-semibold text-white shadow-[0_8px_24px_rgba(0,25,25,0.35)] transition hover:bg-[#064646] active:scale-[0.99] disabled:opacity-75"
+            >
+              {googleLoading ? (
+                <Loader2 className="h-[22px] w-[22px] animate-spin text-white" />
+              ) : (
+                <>
+                  <span className="pointer-events-none absolute right-[22px] flex items-center">
+                    <GoogleLogo className="h-[22px] w-[22px]" />
+                  </span>
+                  <span>ادامه با گوگل</span>
+                </>
+              )}
+            </button>
+
+            {GOOGLE_CLIENT_ID ? (
+              <div
+                aria-hidden={!googleReady}
+                className={`absolute inset-0 flex items-center justify-center overflow-hidden rounded-[30px] opacity-[0.01] ${
+                  googleReady && !busy ? "cursor-pointer" : "pointer-events-none"
+                }`}
+              >
+                <div ref={googleHostRef} className="scale-y-[1.45]" />
               </div>
-              <p className="text-sm leading-7 text-zinc-100 sm:text-base">
-                برای دریافت آدرس اپلیکیشن اندروید، دوربین گوشی خود را روی کد QR (شکل مربع) بگیرید تا اسکن شود.
-              </p>
-            </div>
-            <p className="mt-3 text-center text-xs text-zinc-400">
-              {`دانلود مستقیم برای اندروید • نسخه ${ANDROID_VERSION}`}
-            </p>
-            {homeScreenHint ? (
-              <p className="mt-2 text-center text-xs leading-6 text-zinc-300">{homeScreenHint}</p>
             ) : null}
           </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="container mx-auto py-12 sm:py-16">
-        <div className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
-          {/* AI-Powered Summaries */}
-          <Card className="text-center p-6 border border-border/50 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground">خلاصه‌سازی هوشمند</h3>
-              <p className="text-muted-foreground">
-                به طور خودکار خلاصه‌های جامع جلسات با نکات کلیدی، تصمیمات و بینش‌ها با استفاده از فناوری پیشرفته هوش مصنوعی تولید کنید.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Action Item Extraction */}
-          <Card className="text-center p-6 border border-border/50 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground">استخراج موارد عملی</h3>
-              <p className="text-muted-foreground">
-                هرگز پیگیری را از دست ندهید. هوش مصنوعی موارد عملی، مهلت‌ها و تکالیف را از مکالمات شما شناسایی و استخراج می‌کند.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Searchable Archive */}
-          <Card className="text-center p-6 border border-border/50 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Search className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground">آرشیو قابل جستجو</h3>
-              <p className="text-muted-foreground">
-                یک پایگاه دانش قابل جستجو از تمام جلسات خود بسازید. هر بحث، تصمیم یا جزئیات را فوراً پیدا کنید.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="container mx-auto py-12 sm:py-16" aria-labelledby="faq-heading">
-        <div className="mx-auto max-w-3xl">
-          <h2 id="faq-heading" className="mb-8 text-center text-2xl font-bold text-foreground sm:text-3xl">
-            سوالات متداول
-          </h2>
-          <div className="space-y-4">
-            {HOME_FAQS.map((faq) => (
-              <article key={faq.question} className="rounded-xl border border-border/50 bg-card p-5 text-right shadow-soft sm:p-6">
-                <h3 className="mb-2 text-lg font-semibold text-foreground">{faq.question}</h3>
-                <p className="leading-8 text-muted-foreground">{faq.answer}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Bottom CTA Section */}
-      <section className="bg-muted/30 py-12 sm:py-16">
-        <div className="container mx-auto text-center">
-          <h2 className="mb-4 text-2xl font-bold text-foreground sm:text-3xl">
-            آماده انقلاب در جلسات خود هستید؟
-          </h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            به هزاران متخصصی بپیوندید که از نشست یار برای پربارتر و عملی‌تر کردن 
-            جلسات خود استفاده می‌کنند.
-          </p>
-          <Button 
-            size="lg" 
-            onClick={() => navigate('/signup')}
-            className="bg-primary hover:bg-primary/90 px-8 py-4 text-lg"
+          {/* Continue with Email */}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setSheetError(null);
+              setShowEmailSheet(true);
+            }}
+            className="relative mt-3 flex h-[58px] w-full items-center justify-center rounded-[30px] bg-[#003535] px-[22px] text-[16px] font-semibold text-white shadow-[0_8px_24px_rgba(0,25,25,0.35)] transition hover:bg-[#064646] active:scale-[0.99] disabled:opacity-75"
           >
-            رایگان شروع کنید ←
-          </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            کاملاً رایگان • نیازی به پرداخت نیست
-          </p>
-        </div>
-      </section>
+            <span className="pointer-events-none absolute right-[22px] flex items-center">
+              <Mail className="h-[22px] w-[22px] text-white" />
+            </span>
+            <span>ادامه با ایمیل</span>
+          </button>
 
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4 text-center space-y-2">
-          <p className="text-sm text-muted-foreground">
-            امنیت سازمانی و تطبیق با GDPR
-          </p>
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} نشست یار
+          <p className="pb-5 pt-4 text-center text-[13px] leading-[22px] text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]">
+            با ادامه، شرایط استفاده و حریم خصوصی نشست‌یار را می‌پذیرید.
           </p>
         </div>
-      </footer>
+      </main>
+
+      {/* Email Login Bottom Sheet (matches Android ModalBottomSheet) */}
+      <Drawer open={showEmailSheet} onOpenChange={setShowEmailSheet}>
+        <DrawerContent
+          dir="rtl"
+          className="border-[#E8E2D5] bg-[#FBF9F4] text-[#1C1B18] rounded-t-[24px]"
+        >
+          <div className="mx-auto w-full max-w-md px-6 pb-7 pt-4">
+            <DrawerTitle className="text-right text-[22px] font-bold text-[#1C1B18]">
+              ورود با ایمیل
+            </DrawerTitle>
+            <DrawerDescription className="sr-only">
+              فرم ورود به نشست‌یار با ایمیل و رمز عبور
+            </DrawerDescription>
+
+            <form onSubmit={handleEmailSubmit} className="mt-5 space-y-3">
+              {/* Email Field */}
+              <div>
+                <label
+                  htmlFor="landing-email"
+                  className="mb-1.5 block text-right text-xs font-medium text-[#66625B]"
+                >
+                  ایمیل
+                </label>
+                <div className="relative flex items-center">
+                  <Mail className="pointer-events-none absolute right-3.5 h-5 w-5 text-[#0F766E]" />
+                  <input
+                    id="landing-email"
+                    type="email"
+                    required
+                    autoFocus
+                    dir="ltr"
+                    placeholder="example@mail.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (sheetError) setSheetError(null);
+                    }}
+                    className="h-[52px] w-full rounded-[14px] border border-[#E8E2D5] bg-[#F5F2EB] pl-4 pr-11 text-left text-[15px] text-[#1C1B18] placeholder:text-[#66625B]/70 focus:border-[#0D4D4D] focus:outline-none focus:ring-1 focus:ring-[#0D4D4D]"
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label
+                  htmlFor="landing-password"
+                  className="mb-1.5 block text-right text-xs font-medium text-[#66625B]"
+                >
+                  رمز عبور
+                </label>
+                <div className="relative flex items-center">
+                  <Lock className="pointer-events-none absolute right-3.5 h-5 w-5 text-[#0F766E]" />
+                  <input
+                    id="landing-password"
+                    type={passwordVisible ? "text" : "password"}
+                    required
+                    dir="ltr"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (sheetError) setSheetError(null);
+                    }}
+                    className="h-[52px] w-full rounded-[14px] border border-[#E8E2D5] bg-[#F5F2EB] pl-11 pr-11 text-left text-[15px] text-[#1C1B18] focus:border-[#0D4D4D] focus:outline-none focus:ring-1 focus:ring-[#0D4D4D]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPasswordVisible((prev) => !prev)}
+                    aria-label={passwordVisible ? "پنهان کردن رمز عبور" : "نمایش رمز عبور"}
+                    className="absolute left-3 flex h-8 w-8 items-center justify-center rounded-full text-[#66625B] hover:bg-black/5"
+                  >
+                    {passwordVisible ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-0.5 text-right">
+                <Link
+                  to="/forgot-password"
+                  onClick={() => setShowEmailSheet(false)}
+                  className="inline-block text-[13px] text-[#66625B] transition-colors hover:text-[#0D4D4D]"
+                >
+                  فراموشی رمز عبور؟
+                </Link>
+              </div>
+
+              {sheetError ? (
+                <p role="alert" className="text-right text-[13px] text-[#B91C1C]">
+                  {sheetError}
+                </p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={emailLoading}
+                className="mt-2 flex h-[52px] w-full items-center justify-center rounded-[14px] bg-[#0D4D4D] text-[16px] font-semibold text-white transition hover:bg-[#0F766E] disabled:opacity-50"
+              >
+                {emailLoading ? (
+                  <Loader2 className="h-[22px] w-[22px] animate-spin text-white" />
+                ) : (
+                  "ورود"
+                )}
+              </button>
+
+              <div className="flex items-center justify-center gap-1 pt-3 text-[14px]">
+                <span className="text-[#404848]">حساب کاربری ندارید؟</span>
+                <Link
+                  to="/signup"
+                  onClick={() => setShowEmailSheet(false)}
+                  className="font-semibold text-[#0F766E] underline hover:text-[#0D4D4D]"
+                >
+                  ثبت‌نام کنید
+                </Link>
+              </div>
+            </form>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
 
 export default Landing;
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
-function isIos() {
-  const ua = navigator.userAgent;
-  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-
-function isHomeScreenApp() {
+function WorkspacesIcon({ className }: { className?: string }) {
   return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
-function AndroidMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-12 w-12 text-emerald-400" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <path
         fill="currentColor"
-        d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85a.637.637 0 0 0-.83.22l-1.88 3.24a11.46 11.46 0 0 0-8.94 0L5.65 5.67a.643.643 0 0 0-.87-.2c-.28.18-.37.54-.22.83L6.4 9.48C4.3 11.05 2.8 13.7 2.5 16.7h19c-.3-3-1.8-5.65-3.9-7.22zM7 14.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm10 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"
+        d="M6 13c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm6-10C9.8 3 8 4.8 8 7s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm6 10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4z"
       />
     </svg>
   );
 }
 
-function AppleMark() {
+function GoogleLogo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-12 w-12 text-zinc-100" aria-hidden="true">
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
       <path
-        fill="currentColor"
-        d="M16.37 12.72c-.03-2.45 2-3.63 2.09-3.69-1.14-1.67-2.92-1.9-3.55-1.93-1.51-.15-2.95.89-3.72.89-.77 0-1.96-.87-3.22-.84-1.66.02-3.19.96-4.04 2.45-1.72 2.99-.44 7.42 1.24 9.85.82 1.19 1.8 2.52 3.08 2.47 1.24-.05 1.7-.8 3.2-.8 1.49 0 1.91.8 3.22.77 1.33-.02 2.17-1.21 2.98-2.41.94-1.37 1.33-2.7 1.35-2.77-.03-.01-2.59-1-2.63-3.99zM14.34 6.3c.68-.82 1.14-1.97 1.01-3.11-1 .04-2.2.66-2.91 1.49-.64.74-1.2 1.92-1.05 3.05 1.1.09 2.23-.56 2.95-1.43z"
+        fill="#FFC107"
+        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
       />
     </svg>
   );
