@@ -41,7 +41,6 @@ import {
   AiEditBottomSheet,
   MeetingDetailBottomBar,
   MeetingTopSectionActions,
-  ShareMinutesSheet,
 } from "@/components/neshastyar/MeetingDetailChrome";
 
 interface LinkedParticipant {
@@ -74,11 +73,7 @@ const MeetingDetail: React.FC = () => {
   const [summarySuppressed, setSummarySuppressed] = useState(false);
 
   const [showAiEditSheet, setShowAiEditSheet] = useState(false);
-  const [shareSheetOpen, setShareSheetOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
 
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
@@ -313,10 +308,12 @@ const MeetingDetail: React.FC = () => {
     }
   };
 
-  const ensureShareLink = async () => {
+  const handleOpenShare = async () => {
     if (!meeting || shareLoading) return;
+    const popup = window.open("about:blank", "_blank");
     setShareLoading(true);
-    setShareError(null);
+    setFeedbackErr(null);
+    setFeedbackMsg(null);
     try {
       const { data: shareData, error: shareErr } = await mysqlClient.shareMeeting(
         meeting.id,
@@ -327,41 +324,16 @@ const MeetingDetail: React.FC = () => {
             "ساخت لینک صورتجلسه ناموفق بود",
         );
       }
-      setShareUrl(shareData.url);
-      const token =
-        shareData.token ||
-        shareData.url.split("/report/")[1]?.split("?")[0] ||
-        "";
-      setShareToken(token || null);
+      if (popup) {
+        popup.opener = null;
+        popup.location.href = shareData.url;
+      } else {
+        window.location.assign(shareData.url);
+      }
     } catch (err) {
-      setShareError(
+      popup?.close();
+      setFeedbackErr(
         err instanceof Error ? err.message : "ساخت لینک صورتجلسه ناموفق بود",
-      );
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
-  const handleOpenShare = () => {
-    if (!meeting) return;
-    setShareSheetOpen(true);
-    void ensureShareLink();
-  };
-
-  const handleDisableShare = async () => {
-    if (!meeting || shareLoading) return;
-    setShareLoading(true);
-    setShareError(null);
-    try {
-      const { error: disErr } = await mysqlClient.disableMeetingShare(meeting.id);
-      if (disErr) throw new Error(disErr.message || "غیرفعال کردن لینک ناموفق بود");
-      setShareUrl(null);
-      setShareToken(null);
-      setFeedbackMsg("لینک صورتجلسه غیرفعال شد");
-      setFeedbackErr(null);
-    } catch (err) {
-      setShareError(
-        err instanceof Error ? err.message : "غیرفعال کردن لینک ناموفق بود",
       );
     } finally {
       setShareLoading(false);
@@ -575,8 +547,11 @@ const MeetingDetail: React.FC = () => {
                   </NeshastyarSecondaryButton>
                 </div>
                 {isProcessed ? (
-                  <NeshastyarSecondaryButton onClick={handleOpenShare}>
-                    صورتجلسه (مشاهده و اشتراک)
+                  <NeshastyarSecondaryButton
+                    disabled={shareLoading}
+                    onClick={() => void handleOpenShare()}
+                  >
+                    {shareLoading ? "در حال باز کردن..." : "صورتجلسه (مشاهده و اشتراک)"}
                   </NeshastyarSecondaryButton>
                 ) : null}
               </div>
@@ -611,20 +586,6 @@ const MeetingDetail: React.FC = () => {
           );
           setFeedbackErr(null);
         }}
-      />
-
-      <ShareMinutesSheet
-        open={shareSheetOpen}
-        loading={shareLoading}
-        shareUrl={shareUrl}
-        shareToken={shareToken}
-        error={shareError}
-        onOpenChange={(open) => {
-          if (!open) setShareError(null);
-          setShareSheetOpen(open);
-        }}
-        onCreateLink={() => void ensureShareLink()}
-        onDisableLink={() => void handleDisableShare()}
       />
     </div>
   );

@@ -416,9 +416,6 @@ fun NeshastyarNavHost(
                             Routes.MeetingTags.route,
                         )
                     },
-                    onOpenReport = { token ->
-                        navController.navigate(Routes.MeetingReport.create(token))
-                    },
                 )
             }
             composable(

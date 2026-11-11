@@ -35,19 +35,18 @@ import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,8 +56,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -82,10 +79,19 @@ fun MeetingDetailScreen(
     onBack: () -> Unit,
     onParticipants: () -> Unit = {},
     onTags: () -> Unit = {},
-    onOpenReport: (token: String) -> Unit = {},
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    LaunchedEffect(state.browserUrl) {
+        val url = state.browserUrl ?: return@LaunchedEffect
+        viewModel.consumeBrowserUrl()
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+        }.onFailure {
+            Toast.makeText(context, "باز کردن مرورگر ناموفق بود", Toast.LENGTH_SHORT).show()
+        }
+    }
     val clipboard = LocalClipboardManager.current
     val copySummary = {
         val text = viewModel.summaryClipboardText()
@@ -308,8 +314,9 @@ fun MeetingDetailScreen(
                             if (isProcessed) {
                                 Spacer(Modifier.height(8.dp))
                                 NeshastyarSecondaryButton(
-                                    text = "صورتجلسه (مشاهده و اشتراک)",
-                                    onClick = viewModel::openShareSheet,
+                                    text = if (state.shareLoading) "در حال باز کردن..." else "صورتجلسه (مشاهده و اشتراک)",
+                                    onClick = viewModel::openMinutesInBrowser,
+                                    enabled = !state.shareLoading,
                                 )
                             }
                         }
@@ -338,146 +345,6 @@ fun MeetingDetailScreen(
         )
     }
 
-    if (state.showShareSheet) {
-        ShareMinutesBottomSheet(
-            loading = state.shareLoading,
-            shareUrl = state.shareUrl,
-            shareToken = state.shareToken,
-            error = state.shareError,
-            onOpenReport = { token ->
-                viewModel.dismissShareSheet()
-                onOpenReport(token)
-            },
-            onCreateLink = viewModel::ensureShareLink,
-            onDisableLink = viewModel::disableShareLink,
-            onDismiss = viewModel::dismissShareSheet,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ShareMinutesBottomSheet(
-    loading: Boolean,
-    shareUrl: String?,
-    shareToken: String?,
-    error: String?,
-    onOpenReport: (String) -> Unit,
-    onCreateLink: () -> Unit,
-    onDisableLink: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = NeshastyarColors.Background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            SectionHeader(
-                title = "صورتجلسه قابل اشتراک",
-                subtitle = "مشاهده، ویرایش جدول تصمیمات، ذخیره PDF و اشتراک‌گذاری لینک",
-                icon = Icons.Default.Description,
-                iconTint = NeshastyarColors.PrimaryBright,
-            )
-            Spacer(Modifier.height(14.dp))
-
-            when {
-                loading -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 20.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(
-                            color = NeshastyarColors.Primary,
-                            modifier = Modifier.size(26.dp),
-                            strokeWidth = 2.5.dp,
-                        )
-                    }
-                }
-                !shareUrl.isNullOrBlank() -> {
-                    NeshastyarTextField(
-                        value = shareUrl,
-                        onValueChange = {},
-                        label = "لینک عمومی صورتجلسه",
-                        enabled = false,
-                        textStyle = LocalTextStyle.current.copy(
-                            textDirection = TextDirection.Ltr,
-                            textAlign = TextAlign.Left,
-                            fontSize = 13.sp,
-                        ),
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    if (!shareToken.isNullOrBlank()) {
-                        NeshastyarPrimaryButton(
-                            text = "باز کردن و ویرایش صورتجلسه",
-                            icon = Icons.Default.Description,
-                            onClick = { onOpenReport(shareToken) },
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        NeshastyarSecondaryButton(
-                            text = "کپی لینک",
-                            onClick = {
-                                clipboard.setText(AnnotatedString(shareUrl))
-                                Toast.makeText(context, "لینک صورتجلسه کپی شد", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                        NeshastyarSecondaryButton(
-                            text = "اشتراک‌گذاری",
-                            onClick = {
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, shareUrl)
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, "اشتراک‌گذاری صورتجلسه"))
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-
-                    Spacer(Modifier.height(6.dp))
-                    TextButton(
-                        onClick = onDisableLink,
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    ) {
-                        Text("غیرفعال کردن لینک", color = NeshastyarColors.Error, fontSize = 13.sp)
-                    }
-                }
-                else -> {
-                    NeshastyarPrimaryButton(
-                        text = "ساخت لینک جدید صورتجلسه",
-                        icon = Icons.Default.Share,
-                        onClick = onCreateLink,
-                    )
-                }
-            }
-
-            if (error != null) {
-                Text(
-                    text = error,
-                    color = NeshastyarColors.Error,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

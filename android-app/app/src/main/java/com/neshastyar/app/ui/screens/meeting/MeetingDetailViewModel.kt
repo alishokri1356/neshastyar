@@ -60,6 +60,7 @@ data class MeetingDetailUiState(
     val shareUrl: String? = null,
     val shareToken: String? = null,
     val shareError: String? = null,
+    val browserUrl: String? = null,
     val pointsSaving: Boolean = false,
 )
 
@@ -246,6 +247,38 @@ class MeetingDetailViewModel @Inject constructor(
             },
         )
     }
+
+    fun openMinutesInBrowser() {
+        if (_ui.value.shareLoading) return
+        viewModelScope.launch {
+            _ui.update { it.copy(shareLoading = true, error = null, browserUrl = null) }
+            meetingsRepository.shareMeeting(meetingId).fold(
+                onSuccess = { result ->
+                    val url = result.url?.takeIf { it.isNotBlank() }
+                    _ui.update {
+                        if (url == null) {
+                            it.copy(
+                                shareLoading = false,
+                                error = "ساخت لینک صورتجلسه ناموفق بود",
+                            )
+                        } else {
+                            it.copy(shareLoading = false, browserUrl = url, error = null)
+                        }
+                    }
+                },
+                onFailure = { e ->
+                    _ui.update {
+                        it.copy(
+                            shareLoading = false,
+                            error = e.message ?: "ساخت لینک صورتجلسه ناموفق بود",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun consumeBrowserUrl() = _ui.update { it.copy(browserUrl = null) }
 
     fun openShareSheet() {
         _ui.update {
