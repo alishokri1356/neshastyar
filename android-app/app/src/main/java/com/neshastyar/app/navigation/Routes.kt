@@ -58,6 +58,9 @@ sealed class Routes(val route: String) {
     data object MeetingBulletPoints : Routes("meeting/{meetingId}/points") {
         fun create(id: String) = "meeting/$id/points"
     }
+    data object MeetingMinutes : Routes("meeting/{meetingId}/minutes") {
+        fun create(id: String) = "meeting/$id/minutes"
+    }
     data object MeetingDelete : Routes("meeting/{meetingId}/delete") {
         fun create(id: String) = "meeting/$id/delete"
     }

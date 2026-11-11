@@ -1,7 +1,10 @@
 package com.neshastyar.app.ui.screens.meeting
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,12 +20,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.material3.AlertDialog
@@ -31,7 +38,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +48,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -676,14 +684,52 @@ fun MeetingBulletPointsScreen(
             )
         },
     ) {
-        NeshastyarCard {
-            SectionHeader(
-                title = "نکات / نقاط تصمیم‌گیری",
-                icon = Icons.Default.CheckCircle,
-            )
-            Spacer(Modifier.height(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(1f)) {
+                    SectionHeader(
+                        title = "نکات کلیدی",
+                        subtitle = if (rows.isEmpty()) null else "${persianDigits(rows.size)} مورد",
+                        icon = Icons.Default.CheckCircle,
+                    )
+                }
+                if (state.pointsSaving) {
+                    CircularProgressIndicator(
+                        color = NeshastyarColors.Primary,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
             if (rows.isEmpty()) {
-                Text("نکته‌ای ثبت نشده", color = NeshastyarColors.TextMuted)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(NeshastyarColors.Surface)
+                        .border(1.dp, NeshastyarColors.Outline, RoundedCornerShape(16.dp))
+                        .padding(vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(NeshastyarColors.PrimaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = NeshastyarColors.Primary)
+                    }
+                    Text(
+                        "هنوز نکته‌ای ثبت نشده",
+                        color = NeshastyarColors.TextMuted,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
             rows.forEachIndexed { index, row ->
                 BulletDecisionCard(
@@ -698,20 +744,32 @@ fun MeetingBulletPointsScreen(
                     onDelete = { pendingDelete = index },
                 )
             }
-            OutlinedButton(
-                onClick = viewModel::addBulletRow,
-                enabled = !state.pointsSaving,
-                modifier = Modifier.padding(top = 8.dp),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, NeshastyarColors.Primary.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                    .clickable(enabled = !state.pointsSaving, onClick = viewModel::addBulletRow)
+                    .padding(vertical = 14.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Text("ردیف خالی", modifier = Modifier.padding(start = 6.dp))
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = NeshastyarColors.Primary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    "افزودن نکته",
+                    color = NeshastyarColors.Primary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
             }
             if (state.error != null) {
-                Text(
-                    state.error!!,
-                    color = NeshastyarColors.Error,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                Text(state.error!!, color = NeshastyarColors.Error, fontSize = 13.sp)
             }
         }
     }
@@ -745,8 +803,8 @@ fun MeetingBulletPointsScreen(
     pendingDelete?.let { index ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("حذف ردیف") },
-            text = { Text("این ردیف تصمیم حذف شود؟") },
+            title = { Text("حذف نکته") },
+            text = { Text("این نکته حذف شود؟") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteBulletRow(index)
@@ -767,6 +825,7 @@ private class BulletFieldEditor(
     val onSave: (String) -> Unit,
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BulletDecisionCard(
     index: Int,
@@ -775,47 +834,126 @@ private fun BulletDecisionCard(
     onEdit: (title: String, value: String, singleLine: Boolean, part: String) -> Unit,
     onDelete: () -> Unit,
 ) {
-    Column(
+    val shape = RoundedCornerShape(16.dp)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .background(NeshastyarColors.SurfaceVariant, RoundedCornerShape(12.dp))
-            .padding(12.dp),
+            .clip(shape)
+            .background(NeshastyarColors.Surface)
+            .border(1.dp, NeshastyarColors.Outline, shape)
+            .padding(start = 14.dp, end = 4.dp, top = 14.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(NeshastyarColors.Primary),
+            contentAlignment = Alignment.Center,
+        ) {
             Text(
-                "ردیف ${index + 1}",
-                fontWeight = FontWeight.SemiBold,
-                color = NeshastyarColors.TextPrimary,
-                modifier = Modifier.weight(1f),
+                persianDigits(index + 1),
+                color = NeshastyarColors.OnPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
             )
-            IconButton(onClick = onDelete, enabled = enabled) {
-                Icon(Icons.Default.Delete, contentDescription = "حذف ردیف", tint = NeshastyarColors.Error)
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp),
+        ) {
+            Text(
+                text = row.text.ifBlank { "متن نکته را بنویسید" },
+                color = if (row.text.isBlank()) NeshastyarColors.TextMuted else NeshastyarColors.TextPrimary,
+                fontSize = 15.sp,
+                lineHeight = 24.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(enabled = enabled) { onEdit("متن نکته", row.text, false, "text") }
+                    .padding(vertical = 4.dp),
+            )
+            FlowRow(
+                modifier = Modifier.padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                BulletMetaChip(
+                    icon = Icons.Outlined.Person,
+                    label = "مسئول",
+                    value = row.assignee,
+                    enabled = enabled,
+                ) { onEdit("مسئول", row.assignee, true, "assignee") }
+                BulletMetaChip(
+                    icon = Icons.Outlined.Event,
+                    label = "مهلت",
+                    value = row.deadline,
+                    enabled = enabled,
+                ) { onEdit("مهلت", row.deadline, true, "deadline") }
             }
         }
-        BulletDecisionField("تصمیم اتخاذ شده", row.text.ifBlank { "—" }, enabled) {
-            onEdit("تصمیم اتخاذ شده", row.text, false, "text")
-        }
-        BulletDecisionField("مسئول", row.assignee.ifBlank { "—" }, enabled) {
-            onEdit("مسئول", row.assignee, true, "assignee")
-        }
-        BulletDecisionField("مهلت زمانی", row.deadline.ifBlank { "—" }, enabled) {
-            onEdit("مهلت زمانی", row.deadline, true, "deadline")
+        IconButton(onClick = onDelete, enabled = enabled) {
+            Icon(
+                Icons.Outlined.DeleteOutline,
+                contentDescription = "حذف نکته",
+                tint = NeshastyarColors.TextMuted,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun BulletDecisionField(
+private fun BulletMetaChip(
+    icon: ImageVector,
     label: String,
     value: String,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Text(label, color = NeshastyarColors.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-    Text(value, color = NeshastyarColors.TextPrimary, modifier = Modifier.padding(top = 2.dp))
-    TextButton(onClick = onClick, enabled = enabled) { Text("ویرایش") }
+    val filled = value.isNotBlank()
+    val shape = RoundedCornerShape(999.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .then(
+                if (filled) {
+                    Modifier.background(NeshastyarColors.PrimaryContainer.copy(alpha = 0.7f))
+                } else {
+                    Modifier.border(1.dp, NeshastyarColors.Outline, shape)
+                },
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (filled) NeshastyarColors.Primary else NeshastyarColors.TextMuted,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        if (filled) {
+            Text("$label: ", color = NeshastyarColors.Primary.copy(alpha = 0.7f), fontSize = 13.sp)
+            Text(
+                value,
+                color = NeshastyarColors.Primary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Text("افزودن $label", color = NeshastyarColors.TextMuted, fontSize = 13.sp)
+        }
+    }
 }
+
+private fun persianDigits(number: Int): String =
+    number.toString().map { if (it in '0'..'9') '۰' + (it - '0') else it }.joinToString("")
 
 @Composable
 private fun MeetingSectionScaffold(

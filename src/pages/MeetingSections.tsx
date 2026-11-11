@@ -956,20 +956,22 @@ export const MeetingBulletPointsPage: React.FC = () => {
         />
       }
     >
-      <NeshastyarCard>
+      <div className="flex items-center justify-between px-1">
         <NeshastyarSectionHeader
-          title="نکات / نقاط تصمیم‌گیری"
+          title="نکات کلیدی"
+          subtitle={rows.length ? `${rows.length.toLocaleString("fa-IR")} مورد` : undefined}
           icon={<CheckCircle2 className="h-5 w-5" />}
         />
-        <DecisionRowsEditor
-          rows={rows}
-          disabled={saving}
-          onEdit={(index, part, value) => applyEdit({ type: "edit", index, part, value })}
-          onAdd={() => applyEdit({ type: "add" })}
-          onDelete={(index) => applyEdit({ type: "delete", index })}
-        />
-        {rowError ? <p className="mt-2 text-[13px] text-[#B91C1C]">{rowError}</p> : null}
-      </NeshastyarCard>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin text-[#0D4D4D]" /> : null}
+      </div>
+      <DecisionRowsEditor
+        rows={rows}
+        disabled={saving}
+        onEdit={(index, part, value) => applyEdit({ type: "edit", index, part, value })}
+        onAdd={() => applyEdit({ type: "add" })}
+        onDelete={(index) => applyEdit({ type: "delete", index })}
+      />
+      {rowError ? <p className="text-[13px] text-[#B91C1C]">{rowError}</p> : null}
     </SectionScaffold>
   );
 };

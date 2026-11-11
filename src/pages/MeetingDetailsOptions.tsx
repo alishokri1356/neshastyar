@@ -399,9 +399,7 @@ const MeetingDetailsOptions: React.FC = () => {
             </NeshastyarSecondaryButton>
           </div>
         ) : (
-          <>
-            {/* Special Instructions + Model Picker + Reprocess + Show Conversation */}
-            <NeshastyarCard className="space-y-3">
+          <NeshastyarCard className="space-y-3">
               <NeshastyarField
                 label="توضیحات خاص"
                 placeholder="توضیحات خاص خود را وارد کنید…"
@@ -447,26 +445,23 @@ const MeetingDetailsOptions: React.FC = () => {
               {errorMsg ? (
                 <p className="text-[13px] text-[#B91C1C]">{errorMsg}</p>
               ) : null}
-            </NeshastyarCard>
 
-            {/* Audio Files Section matching Android MeetingOptionsScreen */}
-            <div className="space-y-2">
-              <h2 className="text-[15px] font-semibold text-[#404848]">
-                فایل‌های صوتی
-              </h2>
+              <div className="border-t border-[#E8E2D5] pt-3">
+                <h2 className="text-[15px] font-semibold text-[#404848]">
+                  فایل‌های صوتی
+                </h2>
+              </div>
 
               {playbackError ? (
                 <p className="text-[13px] text-[#B91C1C]">{playbackError}</p>
               ) : null}
 
               {data.files.length === 0 ? (
-                <NeshastyarCard className="p-3.5">
-                  <p className="text-[14px] text-[#66625B]">
-                    هیچ فایل صوتی برای این جلسه یافت نشد.
-                  </p>
-                </NeshastyarCard>
+                <p className="text-[14px] text-[#66625B]">
+                  هیچ فایل صوتی برای این جلسه یافت نشد.
+                </p>
               ) : (
-                data.files.map((file) => {
+                data.files.map((file, index) => {
                   const isPlaying = file.id === playingFileId;
                   const isPreparing = file.id === preparingFileId;
                   const totalMs = Math.max(
@@ -475,7 +470,10 @@ const MeetingDetailsOptions: React.FC = () => {
                   );
 
                   return (
-                    <NeshastyarCard key={file.id} className="p-3">
+                    <div
+                      key={file.id}
+                      className={index > 0 ? "border-t border-[#E8E2D5] pt-3" : undefined}
+                    >
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -558,14 +556,12 @@ const MeetingDetailsOptions: React.FC = () => {
                           </div>
                         </div>
                       ) : null}
-                    </NeshastyarCard>
+                    </div>
                   );
                 })
               )}
-            </div>
 
-            {/* Delete Meeting Card */}
-            <NeshastyarCard>
+              <div className="border-t border-[#E8E2D5] pt-3">
               <h3 className="text-[15px] font-semibold text-[#1C1B18]">
                 حذف جلسه
               </h3>
@@ -586,8 +582,8 @@ const MeetingDetailsOptions: React.FC = () => {
               {deleteError ? (
                 <p className="mt-2 text-[13px] text-[#B91C1C]">{deleteError}</p>
               ) : null}
+              </div>
             </NeshastyarCard>
-          </>
         )}
       </main>
 

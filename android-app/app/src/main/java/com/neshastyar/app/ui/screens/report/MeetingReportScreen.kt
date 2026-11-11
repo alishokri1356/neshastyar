@@ -251,6 +251,218 @@ fun MeetingReportScreen(
 }
 
 @Composable
+fun MeetingMinutesScreen(
+    onBack: () -> Unit,
+    viewModel: MeetingMinutesViewModel = hiltViewModel(),
+) {
+    val state by viewModel.ui.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var editor by remember { mutableStateOf<ReportEditor?>(null) }
+    var pendingDelete by remember { mutableStateOf<Int?>(null) }
+    var copied by remember { mutableStateOf(false) }
+    var printJob by remember { mutableIntStateOf(0) }
+    var printHtml by remember { mutableStateOf("") }
+    val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) viewModel.uploadLogo(uri)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NeshastyarColors.Background),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت")
+                }
+                Text(
+                    text = "صورتجلسه",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = {
+                        val report = state.report ?: return@TextButton
+                        printHtml = reportHtml(report)
+                        printJob += 1
+                    },
+                    enabled = state.report != null,
+                ) { Text("چاپ") }
+            }
+
+            when {
+                state.loading -> LoadingPane()
+                state.report == null -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = state.error ?: state.notice ?: "صورتجلسه پیدا نشد",
+                            color = if (state.error != null) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                NeshastyarColors.TextSecondary
+                            },
+                            textAlign = TextAlign.Center,
+                        )
+                        Button(onClick = viewModel::open, modifier = Modifier.padding(top = 16.dp)) {
+                            Text(
+                                if (state.token == null && state.error == null) {
+                                    "ساخت لینک جدید صورتجلسه"
+                                } else {
+                                    "تلاش دوباره"
+                                },
+                            )
+                        }
+                    }
+                }
+                else -> ReportBody(
+                    report = state.report!!,
+                    logo = state.logo,
+                    saving = state.saving,
+                    error = state.error,
+                    notice = if (copied) "لینک کپی شد" else state.notice,
+                    onDismissMessage = {
+                        copied = false
+                        viewModel.clearNotice()
+                    },
+                    onEdit = { editor = it },
+                    onSaveTitle = viewModel::saveTitle,
+                    onSaveDate = viewModel::saveDate,
+                    onSaveLocation = viewModel::saveLocation,
+                    onSaveOrgName = viewModel::saveOrgName,
+                    onSaveParticipants = viewModel::saveParticipants,
+                    onSaveDecision = viewModel::saveDecision,
+                    onAddDecision = viewModel::addDecision,
+                    onDeleteDecision = { pendingDelete = it },
+                    onPickLogo = { logoPicker.launch("image/*") },
+                    onCopy = {
+                        copyText(context, state.shareUrl?.takeIf { it.isNotBlank() } ?: publicReportUrl(state.token.orEmpty()))
+                        copied = true
+                    },
+                    topContent = {
+                        val url = state.shareUrl?.takeIf { it.isNotBlank() }
+                            ?: publicReportUrl(state.token.orEmpty())
+                        Text(
+                            text = "لینک عمومی صورتجلسه",
+                            color = NeshastyarColors.TextMuted,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        Text(
+                            text = url,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = {
+                                copyText(context, url)
+                                copied = true
+                            }) { Text("کپی لینک") }
+                            TextButton(onClick = { shareReport(context, state.token.orEmpty()) }) {
+                                Text("اشتراک")
+                            }
+                        }
+                        TextButton(onClick = viewModel::disableLink) {
+                            Text("غیرفعال کردن لینک", color = NeshastyarColors.Error)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    },
+                )
+            }
+        }
+
+        editor?.let { current ->
+            var draft by remember(current) { mutableStateOf(current.initial) }
+            AlertDialog(
+                onDismissRequest = { editor = null },
+                title = { Text(current.title) },
+                text = {
+                    Column {
+                        if (current.hint.isNotBlank()) {
+                            Text(
+                                text = current.hint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NeshastyarColors.TextMuted,
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                        }
+                        OutlinedTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = current.singleLine,
+                            minLines = if (current.singleLine) 1 else 3,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        current.onSave(draft)
+                        editor = null
+                    }) { Text("ذخیره") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editor = null }) { Text("انصراف") }
+                },
+            )
+        }
+
+        pendingDelete?.let { index ->
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text("حذف ردیف") },
+                text = { Text("این ردیف تصمیم حذف شود؟") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteDecision(index)
+                        pendingDelete = null
+                    }) { Text("حذف") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) { Text("انصراف") }
+                },
+            )
+        }
+
+        if (printJob > 0) {
+            AndroidView(
+                factory = { ctx -> WebView(ctx) },
+                update = { webView ->
+                    if (webView.tag == printJob) return@AndroidView
+                    webView.tag = printJob
+                    webView.webViewClient = object : WebViewClient() {
+                        private var printed = false
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            if (printed) return
+                            printed = true
+                            val manager = webView.context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+                            manager.print(
+                                "صورتجلسه",
+                                webView.createPrintDocumentAdapter("صورتجلسه"),
+                                PrintAttributes.Builder().build(),
+                            )
+                        }
+                    }
+                    webView.loadDataWithBaseURL(null, printHtml, "text/html", "UTF-8", null)
+                },
+                modifier = Modifier
+                    .size(1.dp)
+                    .align(Alignment.TopStart),
+            )
+        }
+    }
+}
+
+@Composable
 private fun LoadingPane() {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -280,6 +492,7 @@ private fun ReportBody(
     onDeleteDecision: (Int) -> Unit,
     onPickLogo: () -> Unit,
     onCopy: () -> Unit,
+    topContent: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -287,6 +500,7 @@ private fun ReportBody(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
+        topContent()
         if (saving) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

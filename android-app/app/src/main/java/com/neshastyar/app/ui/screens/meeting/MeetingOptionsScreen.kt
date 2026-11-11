@@ -12,10 +12,10 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Box
@@ -27,8 +27,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Forward10
@@ -434,166 +432,164 @@ fun MeetingOptionsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp, bottom = 16.dp),
         ) {
-        NeshastyarCard {
-            NeshastyarTextField(
-                value = state.comment,
-                onValueChange = vm::onComment,
-                label = "توضیحات خاص",
-                placeholder = "توضیحات خاص خود را وارد کنید…",
-                singleLine = false,
-                minLines = 4,
-            )
-            Spacer(Modifier.height(10.dp))
-            AnalyzeModelPicker(
-                value = state.analyzeModel,
-                models = state.analyzeModels,
-                autoKey = state.autoKey,
-                label = "مدل هوش مصنوعی تحلیل",
-                enabled = !state.reanalyzing,
-                onValueChange = vm::onAnalyzeModel,
-            )
-            Spacer(Modifier.height(10.dp))
-            NeshastyarPrimaryButton(
-                text = "پردازش مجدد",
-                onClick = vm::reanalyze,
-                loading = state.reanalyzing,
-            )
-            if (state.processed) {
-                Spacer(Modifier.height(10.dp))
-                NeshastyarSecondaryButton(
-                    text = "نمایش جزییات مکالمات",
-                    onClick = onShowConversation,
+            NeshastyarCard {
+                NeshastyarTextField(
+                    value = state.comment,
+                    onValueChange = vm::onComment,
+                    label = "توضیحات خاص",
+                    placeholder = "توضیحات خاص خود را وارد کنید…",
+                    singleLine = false,
+                    minLines = 4,
                 )
-            }
-            if (state.message != null) {
-                Text(state.message!!, color = NeshastyarColors.PrimaryBright, modifier = Modifier.padding(top = 8.dp))
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        Text("فایل‌های صوتی", fontWeight = FontWeight.SemiBold, color = NeshastyarColors.TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        if (state.playbackError != null) {
-            Text(state.playbackError!!, color = NeshastyarColors.Error, modifier = Modifier.padding(bottom = 8.dp))
-        }
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(state.files, key = { it.id ?: it.file_name ?: it.hashCode().toString() }) { f ->
-                val isPlaying = f.id != null && f.id == state.playingFileId
-                val isPreparing = f.id != null && f.id == state.preparingFileId
-                NeshastyarCard(contentPadding = PaddingValues(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = { vm.togglePlay(f) },
-                            enabled = !isPlaying || state.playbackPaused,
-                        ) {
-                            when {
-                                isPreparing -> CircularProgressIndicator(
-                                    color = NeshastyarColors.PrimaryBright,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                                else -> Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = "پخش",
-                                    tint = NeshastyarColors.PrimaryBright,
-                                )
+                Spacer(Modifier.height(10.dp))
+                AnalyzeModelPicker(
+                    value = state.analyzeModel,
+                    models = state.analyzeModels,
+                    autoKey = state.autoKey,
+                    label = "مدل هوش مصنوعی تحلیل",
+                    enabled = !state.reanalyzing,
+                    onValueChange = vm::onAnalyzeModel,
+                )
+                Spacer(Modifier.height(10.dp))
+                NeshastyarPrimaryButton(
+                    text = "پردازش مجدد",
+                    onClick = vm::reanalyze,
+                    loading = state.reanalyzing,
+                )
+                if (state.processed) {
+                    Spacer(Modifier.height(10.dp))
+                    NeshastyarSecondaryButton(
+                        text = "نمایش جزییات مکالمات",
+                        onClick = onShowConversation,
+                    )
+                }
+                if (state.message != null) {
+                    Text(state.message!!, color = NeshastyarColors.PrimaryBright, modifier = Modifier.padding(top = 8.dp))
+                }
+                OptionsDivider(Modifier.padding(top = 16.dp, bottom = 12.dp))
+                Text("فایل‌های صوتی", fontWeight = FontWeight.SemiBold, color = NeshastyarColors.TextSecondary)
+                if (state.playbackError != null) {
+                    Text(state.playbackError!!, color = NeshastyarColors.Error, modifier = Modifier.padding(top = 8.dp))
+                }
+                if (state.files.isEmpty()) {
+                    Text(
+                        "هیچ فایل صوتی برای این جلسه یافت نشد.",
+                        color = NeshastyarColors.TextMuted,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                state.files.forEachIndexed { index, f ->
+                    if (index > 0) OptionsDivider(Modifier.padding(top = 4.dp))
+                    val isPlaying = f.id != null && f.id == state.playingFileId
+                    val isPreparing = f.id != null && f.id == state.preparingFileId
+                    Column(modifier = Modifier.padding(top = 4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { vm.togglePlay(f) },
+                                enabled = !isPlaying || state.playbackPaused,
+                            ) {
+                                when {
+                                    isPreparing -> CircularProgressIndicator(
+                                        color = NeshastyarColors.PrimaryBright,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                    else -> Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = "پخش",
+                                        tint = NeshastyarColors.PrimaryBright,
+                                    )
+                                }
                             }
-                        }
-                        Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                            Text(
-                                f.file_name ?: f.id ?: "فایل",
-                                color = NeshastyarColors.TextPrimary,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            if (isPreparing) {
-                                Text("در حال شروع پخش…", color = NeshastyarColors.TextMuted)
-                            } else if (!isPlaying) {
-                                val totalMs = f.duration?.let { (it * 1000).toLong() } ?: 0L
-                                if (totalMs > 0L) {
-                                    Text(formatDurationMs(totalMs), color = NeshastyarColors.TextMuted)
+                            Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                                Text(
+                                    f.file_name ?: f.id ?: "فایل",
+                                    color = NeshastyarColors.TextPrimary,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                if (isPreparing) {
+                                    Text("در حال شروع پخش…", color = NeshastyarColors.TextMuted)
+                                } else if (!isPlaying) {
+                                    val totalMs = f.duration?.let { (it * 1000).toLong() } ?: 0L
+                                    if (totalMs > 0L) {
+                                        Text(formatDurationMs(totalMs), color = NeshastyarColors.TextMuted)
+                                    }
                                 }
                             }
                         }
-                    }
-                    if (isPlaying) {
-                        val totalMs = state.playbackDurationMs.coerceAtLeast(1L)
-                        Spacer(Modifier.height(8.dp))
-                        AudioPlaybackTimeline(
-                            positionMs = state.playbackPositionMs,
-                            durationMs = totalMs,
-                            onSeek = vm::seekTo,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            AudioSkipButton(
-                                icon = Icons.Default.Replay10,
-                                label = "۱۰ ثانیه عقب",
-                                onClick = { vm.seekBy(-10_000) },
+                        if (isPlaying) {
+                            val totalMs = state.playbackDurationMs.coerceAtLeast(1L)
+                            AudioPlaybackTimeline(
+                                positionMs = state.playbackPositionMs,
+                                durationMs = totalMs,
+                                onSeek = vm::seekTo,
                             )
-                            AudioSkipButton(
-                                icon = if (state.playbackPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                label = if (state.playbackPaused) "ادامه" else "مکث",
-                                onClick = vm::pauseOrResume,
-                            )
-                            AudioSkipButton(
-                                icon = Icons.Default.Stop,
-                                label = "توقف",
-                                onClick = vm::stopPlayback,
-                            )
-                            AudioSkipButton(
-                                icon = Icons.Default.Forward10,
-                                label = "۱۰ ثانیه جلو",
-                                onClick = { vm.seekBy(10_000) },
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AudioSkipButton(
+                                    icon = Icons.Default.Replay10,
+                                    label = "۱۰ ثانیه عقب",
+                                    onClick = { vm.seekBy(-10_000) },
+                                )
+                                AudioSkipButton(
+                                    icon = if (state.playbackPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                    label = if (state.playbackPaused) "ادامه" else "مکث",
+                                    onClick = vm::pauseOrResume,
+                                )
+                                AudioSkipButton(
+                                    icon = Icons.Default.Stop,
+                                    label = "توقف",
+                                    onClick = vm::stopPlayback,
+                                )
+                                AudioSkipButton(
+                                    icon = Icons.Default.Forward10,
+                                    label = "۱۰ ثانیه جلو",
+                                    onClick = { vm.seekBy(10_000) },
+                                )
+                            }
                         }
                     }
                 }
-            }
-            item {
-                Spacer(Modifier.height(8.dp))
-                NeshastyarCard {
+                OptionsDivider(Modifier.padding(top = 12.dp, bottom = 12.dp))
+                Text(
+                    "حذف جلسه",
+                    fontWeight = FontWeight.SemiBold,
+                    color = NeshastyarColors.TextPrimary,
+                )
+                Text(
+                    "این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.",
+                    color = NeshastyarColors.TextMuted,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
+                )
+                Button(
+                    onClick = {
+                        deleteConfirmed = false
+                        confirmDelete = true
+                    },
+                    enabled = !state.deleting,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeshastyarColors.Error,
+                        contentColor = androidx.compose.ui.graphics.Color.White,
+                    ),
+                ) {
+                    Text(if (state.deleting) "در حال حذف..." else "حذف جلسه")
+                }
+                if (state.deleteError != null) {
                     Text(
-                        "حذف جلسه",
-                        fontWeight = FontWeight.SemiBold,
-                        color = NeshastyarColors.TextPrimary,
+                        state.deleteError!!,
+                        color = NeshastyarColors.Error,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
-                    Text(
-                        "این جلسه و ضبط صوتی آن را برای همیشه حذف کنید.",
-                        color = NeshastyarColors.TextMuted,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
-                    )
-                    Button(
-                        onClick = {
-                            deleteConfirmed = false
-                            confirmDelete = true
-                        },
-                        enabled = !state.deleting,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NeshastyarColors.Error,
-                            contentColor = androidx.compose.ui.graphics.Color.White,
-                        ),
-                    ) {
-                        Text(if (state.deleting) "در حال حذف..." else "حذف جلسه")
-                    }
-                    if (state.deleteError != null) {
-                        Text(
-                            state.deleteError!!,
-                            color = NeshastyarColors.Error,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    }
                 }
             }
-        }
         }
     }
 
@@ -656,6 +652,16 @@ fun MeetingOptionsScreen(
             containerColor = NeshastyarColors.Surface,
         )
     }
+}
+
+@Composable
+private fun OptionsDivider(modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(NeshastyarColors.Outline.copy(alpha = 0.7f)),
+    )
 }
 
 @Composable

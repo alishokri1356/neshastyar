@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   FileText,
   ListChecks,
-  Loader2,
   Menu,
   Mic,
   Sparkles,
@@ -24,7 +23,6 @@ import {
   NeshastyarSectionHeader,
 } from "@/components/neshastyar/NeshastyarUi";
 import { useSpeechInput } from "@/components/neshastyar/SpeechInputSheet";
-import { useToast } from "@/hooks/use-toast";
 import { aiEditMeetingApi, type AiEditMeetingResponse } from "@/lib/neshastyarApi";
 import { cn } from "@/lib/utils";
 
@@ -199,129 +197,6 @@ function BarAction({
         {label}
       </span>
     </button>
-  );
-}
-
-export function ShareMinutesSheet({
-  open,
-  loading,
-  shareUrl,
-  shareToken,
-  error,
-  onOpenChange,
-  onCreateLink,
-  onDisableLink,
-}: {
-  open: boolean;
-  loading: boolean;
-  shareUrl: string | null;
-  shareToken: string | null;
-  error: string | null;
-  onOpenChange: (open: boolean) => void;
-  onCreateLink: () => void;
-  onDisableLink: () => void;
-}) {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const copyLink = async () => {
-    if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toast({ title: "لینک صورتجلسه کپی شد" });
-    } catch {
-      toast({ title: "کپی لینک ناموفق بود", variant: "destructive" });
-    }
-  };
-
-  const shareLink = async () => {
-    if (!shareUrl) return;
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: "صورتجلسه", text: shareUrl, url: shareUrl });
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-      }
-    }
-    await copyLink();
-  };
-
-  return (
-    <Drawer
-      open={open}
-      onOpenChange={(next) => {
-        if (loading && !next) return;
-        onOpenChange(next);
-      }}
-    >
-      <DrawerContent
-        dir="rtl"
-        className="rounded-t-[24px] border-[#E8E2D5] bg-[#FBF9F4] text-[#1C1B18]"
-      >
-        <div className="mx-auto w-full max-w-lg px-5 pb-6 pt-4">
-          <DrawerTitle className="sr-only">صورتجلسه قابل اشتراک</DrawerTitle>
-          <NeshastyarSectionHeader
-            title="صورتجلسه قابل اشتراک"
-            subtitle="مشاهده، ویرایش جدول تصمیمات، ذخیره PDF و اشتراک‌گذاری لینک"
-            icon={<FileText className="h-5 w-5" />}
-            iconColor="#0F766E"
-          />
-          <DrawerDescription className="sr-only">
-            مشاهده، ویرایش جدول تصمیمات، ذخیره PDF و اشتراک‌گذاری لینک
-          </DrawerDescription>
-
-          <div className="mt-3.5">
-            {loading ? (
-              <div className="flex justify-center py-5">
-                <Loader2 className="h-6 w-6 animate-spin text-[#0D4D4D]" />
-              </div>
-            ) : shareUrl ? (
-              <div className="space-y-3">
-                <NeshastyarField
-                  label="لینک عمومی صورتجلسه"
-                  value={shareUrl}
-                  onChange={() => undefined}
-                  dir="ltr"
-                  disabled
-                />
-                {shareToken ? (
-                  <NeshastyarPrimaryButton
-                    onClick={() => {
-                      onOpenChange(false);
-                      navigate(`/report/${encodeURIComponent(shareToken)}`);
-                    }}
-                  >
-                    باز کردن و ویرایش صورتجلسه
-                  </NeshastyarPrimaryButton>
-                ) : null}
-                <div className="grid grid-cols-2 gap-2">
-                  <NeshastyarSecondaryButton onClick={() => void copyLink()}>
-                    کپی لینک
-                  </NeshastyarSecondaryButton>
-                  <NeshastyarSecondaryButton onClick={() => void shareLink()}>
-                    اشتراک‌گذاری
-                  </NeshastyarSecondaryButton>
-                </div>
-                <button
-                  type="button"
-                  onClick={onDisableLink}
-                  className="mx-auto block px-3 py-1.5 text-[13px] text-[#B91C1C]"
-                >
-                  غیرفعال کردن لینک
-                </button>
-              </div>
-            ) : (
-              <NeshastyarPrimaryButton onClick={onCreateLink}>
-                ساخت لینک جدید صورتجلسه
-              </NeshastyarPrimaryButton>
-            )}
-          </div>
-
-          {error ? <p className="mt-2 text-[13px] text-[#B91C1C]">{error}</p> : null}
-        </div>
-      </DrawerContent>
-    </Drawer>
   );
 }
 

@@ -41,6 +41,7 @@ import ParticipantsManager from "./pages/ParticipantsManager";
 import TagManager from "./pages/TagManager";
 import AccountManagement from "./pages/AccountManagement";
 import MeetingReport from "./pages/MeetingReport";
+import MeetingMinutesPage from "./pages/MeetingMinutes";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminUsers from "./pages/admin/AdminUsers";
 
@@ -176,6 +177,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <MeetingAddTagsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/meeting/:meetingId/minutes"
+              element={
+                <ProtectedRoute>
+                  <MeetingMinutesPage />
                 </ProtectedRoute>
               }
             />
