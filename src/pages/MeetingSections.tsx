@@ -26,7 +26,10 @@ import {
   NeshastyarSubHeader,
   NeshastyarTopBar,
 } from "@/components/neshastyar/NeshastyarUi";
-import { MeetingDetailBottomBar } from "@/components/neshastyar/MeetingDetailChrome";
+import {
+  MeetingDetailBottomBar,
+  MeetingTopSectionActions,
+} from "@/components/neshastyar/MeetingDetailChrome";
 
 interface TagItem {
   id: string;
@@ -110,6 +113,7 @@ function SectionScaffold({
   error,
   onRetry,
   showProcessedSections = true,
+  headerActions,
   children,
 }: {
   meetingId: string;
@@ -119,13 +123,14 @@ function SectionScaffold({
   error?: string | null;
   onRetry: () => void;
   showProcessedSections?: boolean;
+  headerActions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div dir="rtl" className="min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]">
       <NeshastyarTopBar />
       <main className="mx-auto w-full max-w-2xl px-4 pb-24">
-        <NeshastyarSubHeader title={title} onBack={backTo} />
+        <NeshastyarSubHeader title={title} onBack={backTo} actions={headerActions} />
         {loading ? (
           <div className="flex min-h-[45vh] items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-[#0D4D4D]" />
@@ -242,6 +247,13 @@ export const MeetingParticipantsPage: React.FC = () => {
       error={error ? (error as Error).message : null}
       onRetry={() => void refetch()}
       showProcessedSections={!isErrorStatus(data?.meeting?.status)}
+      headerActions={
+        <MeetingTopSectionActions
+          meetingId={meetingId}
+          showParticipants
+          participantsSelected
+        />
+      }
     >
       <NeshastyarCard>
         <NeshastyarSectionHeader
@@ -611,6 +623,15 @@ export const MeetingTagsPage: React.FC = () => {
       error={error ? (error as Error).message : null}
       onRetry={() => void refetch()}
       showProcessedSections={!isErrorStatus(data?.meeting?.status)}
+      headerActions={
+        <MeetingTopSectionActions
+          meetingId={meetingId}
+          showParticipants={
+            Boolean(data?.meeting) && !isErrorStatus(data?.meeting?.status)
+          }
+          tagsSelected
+        />
+      }
     >
       <NeshastyarCard>
         <NeshastyarSectionHeader
@@ -895,6 +916,14 @@ export const MeetingBulletPointsPage: React.FC = () => {
       error={error ? (error as Error).message : null}
       onRetry={() => void refetch()}
       showProcessedSections={!isErrorStatus(data?.meeting?.status)}
+      headerActions={
+        <MeetingTopSectionActions
+          meetingId={meetingId}
+          showParticipants={
+            Boolean(data?.meeting) && !isErrorStatus(data?.meeting?.status)
+          }
+        />
+      }
     >
       <NeshastyarCard>
         <NeshastyarSectionHeader

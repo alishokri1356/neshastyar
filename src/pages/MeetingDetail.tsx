@@ -3,28 +3,13 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  Copy,
   Edit3,
-  ExternalLink,
   Loader2,
-  Mail,
-  MessageSquare,
   Save,
-  Share2,
   Sparkles,
-  X,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/useAuthStore";
 import { mysqlClient } from "@/lib/mysql-client";
-import { useToast } from "@/hooks/use-toast";
 import AnalyzeModelSelect from "@/components/AnalyzeModelSelect";
 import { getModelLabel, useAnalyzeModels } from "@/lib/analyzeModels";
 import {
@@ -39,7 +24,6 @@ import {
 } from "@/lib/meetingSummary";
 import {
   formatJalaliDateTime,
-  isAnalyzingStatus,
   isErrorStatus,
   isProcessedStatus,
 } from "@/lib/neshastyarStatus";
@@ -55,6 +39,8 @@ import {
 import {
   AiEditBottomSheet,
   MeetingDetailBottomBar,
+  MeetingTopSectionActions,
+  ShareMinutesSheet,
 } from "@/components/neshastyar/MeetingDetailChrome";
 
 interface LinkedParticipant {
@@ -69,7 +55,6 @@ const MeetingDetail: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { toast } = useToast();
   const { data: analyzeModelsData } = useAnalyzeModels();
 
   const API_BASE_URL = (
@@ -88,9 +73,11 @@ const MeetingDetail: React.FC = () => {
   const [summarySuppressed, setSummarySuppressed] = useState(false);
 
   const [showAiEditSheet, setShowAiEditSheet] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
@@ -325,43 +312,56 @@ const MeetingDetail: React.FC = () => {
     }
   };
 
-  const handleOpenShare = async () => {
-    if (!meeting) return;
-    setShareDialogOpen(true);
+  const ensureShareLink = async () => {
+    if (!meeting || shareLoading) return;
     setShareLoading(true);
+    setShareError(null);
     try {
       const { data: shareData, error: shareErr } = await mysqlClient.shareMeeting(
         meeting.id,
       );
       if (shareErr || !shareData?.url) {
-        throw new Error(shareErr?.message || "ساخت لینک صورتجلسه ناموفق بود");
+        throw new Error(
+          (shareErr as { message?: string } | null)?.message ||
+            "ساخت لینک صورتجلسه ناموفق بود",
+        );
       }
       setShareUrl(shareData.url);
+      const token =
+        shareData.token ||
+        shareData.url.split("/report/")[1]?.split("?")[0] ||
+        "";
+      setShareToken(token || null);
     } catch (err) {
-      toast({
-        title: "خطا",
-        description: err instanceof Error ? err.message : "ساخت لینک ناموفق بود",
-        variant: "destructive",
-      });
+      setShareError(
+        err instanceof Error ? err.message : "ساخت لینک صورتجلسه ناموفق بود",
+      );
     } finally {
       setShareLoading(false);
     }
   };
 
-  const handleDisableShare = async () => {
+  const handleOpenShare = () => {
     if (!meeting) return;
+    setShareSheetOpen(true);
+    void ensureShareLink();
+  };
+
+  const handleDisableShare = async () => {
+    if (!meeting || shareLoading) return;
     setShareLoading(true);
+    setShareError(null);
     try {
       const { error: disErr } = await mysqlClient.disableMeetingShare(meeting.id);
       if (disErr) throw new Error(disErr.message || "غیرفعال کردن لینک ناموفق بود");
       setShareUrl(null);
-      toast({ title: "لینک صورتجلسه غیرفعال شد" });
+      setShareToken(null);
+      setFeedbackMsg("لینک صورتجلسه غیرفعال شد");
+      setFeedbackErr(null);
     } catch (err) {
-      toast({
-        title: "خطا",
-        description: err instanceof Error ? err.message : "عملیات ناموفق بود",
-        variant: "destructive",
-      });
+      setShareError(
+        err instanceof Error ? err.message : "غیرفعال کردن لینک ناموفق بود",
+      );
     } finally {
       setShareLoading(false);
     }
@@ -369,13 +369,11 @@ const MeetingDetail: React.FC = () => {
 
   const status = meeting?.status || "";
   const processingFailed = isErrorStatus(status);
-  const isAnalyzing = isAnalyzingStatus(status);
   const isProcessed = isProcessedStatus(status);
   const showProcessed = !processingFailed && !summarySuppressed;
 
   const analyzingModelKey = meeting?.analyzing_model || null;
   const analyzedByKey = meeting?.analyzed_by || null;
-  const requestedModelKey = meeting?.analyze_model || analyzeModel;
   const analyzingLabel = getModelLabel(
     analyzingModelKey,
     analyzeModelsData?.models,
@@ -386,80 +384,46 @@ const MeetingDetail: React.FC = () => {
     analyzeModelsData?.models,
     analyzeModelsData?.autoKey,
   );
-  const requestedModelLabel = getModelLabel(
-    requestedModelKey,
-    analyzeModelsData?.models,
-    analyzeModelsData?.autoKey,
-  );
 
   return (
     <div dir="rtl" className="min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]">
       <NeshastyarTopBar />
 
       <main className="mx-auto w-full max-w-2xl px-4 pb-28">
-        {/* Top Row matching Android MeetingDetailScreen: Back + Edit/Save */}
-        <div className="flex items-center justify-between py-1">
+        <div className="flex items-center gap-1 py-1">
           <button
             type="button"
             onClick={() => navigate("/home")}
             aria-label="بازگشت"
-            className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-[#1C1B18] hover:bg-black/5"
+            className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#1C1B18] hover:bg-black/5"
           >
             <ArrowRight className="h-5 w-5" />
           </button>
-
-          <div className="flex items-center gap-1">
-            {meeting && showProcessed ? (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`/chat/new?meetingId=${encodeURIComponent(meeting.id)}`)
-                }
-                aria-label="گفتگو درباره این جلسه"
-                title="پرسش از هوش مصنوعی درباره این جلسه"
-                className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60"
-              >
-                <MessageSquare className="h-5 w-5" />
-              </button>
-            ) : null}
-
-            {editing ? (
-              <>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void saveEditing()}
-                  aria-label="ذخیره"
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60"
-                >
-                  {saving ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Save className="h-5 w-5" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => setEditing(false)}
-                  aria-label="انصراف"
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-[#66625B] hover:bg-black/5"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </>
+          <div className="flex-1" />
+          {meeting ? (
+            <MeetingTopSectionActions
+              meetingId={meetingId}
+              showParticipants={showProcessed}
+            />
+          ) : null}
+          <button
+            type="button"
+            disabled={!meeting || saving}
+            onClick={() => {
+              if (editing) void saveEditing();
+              else startEditing();
+            }}
+            aria-label={editing ? "ذخیره" : "ویرایش"}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60 disabled:opacity-40"
+          >
+            {saving ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : editing ? (
+              <Save className="h-5 w-5" />
             ) : (
-              <button
-                type="button"
-                disabled={!meeting}
-                onClick={startEditing}
-                aria-label="ویرایش"
-                className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED]/60 disabled:opacity-40"
-              >
-                <Edit3 className="h-5 w-5" />
-              </button>
+              <Edit3 className="h-5 w-5" />
             )}
-          </div>
+          </button>
         </div>
 
         {isLoading ? (
@@ -501,30 +465,23 @@ const MeetingDetail: React.FC = () => {
                   {formatJalaliDateTime(meeting.meeting_date || meeting.created_at)}
                 </span>
                 <StatusChip status={status} />
-                {isAnalyzing && analyzingModelKey ? (
+                {!isProcessed && !processingFailed && analyzingModelKey ? (
                   <span className="text-[11px] text-[#66625B]">
                     • در حال تحلیل با {analyzingLabel}
                   </span>
-                ) : null}
-                {isProcessed && analyzedByKey ? (
+                ) : isProcessed && analyzedByKey ? (
                   <span className="text-[11px] text-[#66625B]">
                     • تحلیل شده با {analyzedByLabel}
-                    {requestedModelKey &&
-                    requestedModelKey !== "auto" &&
-                    analyzedByKey !== requestedModelKey
-                      ? ` (جایگزین ${requestedModelLabel})`
-                      : ""}
                   </span>
                 ) : null}
               </div>
             </div>
 
             {/* Error Banner if Processing Failed */}
-            {processingFailed ? (
+            {processingFailed &&
+            (parsedSummary.summaryText.trim() || rawSummary.trim()) ? (
               <div className="rounded-[12px] bg-[#FDF2F0] p-3.5 text-[14px] leading-7 text-[#B91C1C]">
-                {parsedSummary.summaryText ||
-                  rawSummary.trim() ||
-                  "پردازش جلسه با خطا مواجه شد."}
+                {parsedSummary.summaryText.trim() || rawSummary.trim()}
               </div>
             ) : null}
 
@@ -572,9 +529,7 @@ const MeetingDetail: React.FC = () => {
                         خلاصه
                       </p>
                       {!parsedSummary.summaryText.trim() ? (
-                        <p className="mt-1 text-[15px] text-[#66625B]">
-                          {isAnalyzing ? "در حال آماده‌سازی خلاصه جلسه…" : "—"}
-                        </p>
+                        <p className="mt-1 text-[15px] text-[#66625B]">—</p>
                       ) : isHtmlContent(parsedSummary.summaryText) ? (
                         <div
                           className="rich-text-body mt-1 text-[15px] text-[#1C1B18]"
@@ -591,16 +546,7 @@ const MeetingDetail: React.FC = () => {
                   )}
                 </div>
               </NeshastyarCard>
-            ) : (
-              <NeshastyarCard>
-                <div className="flex items-center gap-2.5 py-2 text-[#66625B]">
-                  <Loader2 className="h-5 w-5 animate-spin text-[#0D4D4D]" />
-                  <span className="text-[14px]">
-                    درخواست پردازش ارسال شده و جلسه در حال تحلیل است…
-                  </span>
-                </div>
-              </NeshastyarCard>
-            )}
+            ) : null}
 
             {/* Action Buttons Row: Copy, Email, and Web's Shareable صورتجلسه */}
             {processingFailed ? (
@@ -618,28 +564,18 @@ const MeetingDetail: React.FC = () => {
                 </NeshastyarPrimaryButton>
               </div>
             ) : showProcessed ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <NeshastyarSecondaryButton
-                  onClick={() => void handleCopySummary()}
-                  icon={<Copy className="h-4 w-4" />}
-                >
-                  کپی
-                </NeshastyarSecondaryButton>
-
-                <NeshastyarSecondaryButton
-                  onClick={() => void handleSendEmail()}
-                  icon={<Mail className="h-4 w-4" />}
-                >
-                  ایمیل
-                </NeshastyarSecondaryButton>
-
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <NeshastyarSecondaryButton onClick={() => void handleCopySummary()}>
+                    کپی
+                  </NeshastyarSecondaryButton>
+                  <NeshastyarSecondaryButton onClick={() => void handleSendEmail()}>
+                    ایمیل
+                  </NeshastyarSecondaryButton>
+                </div>
                 {isProcessed ? (
-                  <NeshastyarSecondaryButton
-                    onClick={() => void handleOpenShare()}
-                    icon={<Share2 className="h-4 w-4" />}
-                    className="col-span-2 sm:col-span-1"
-                  >
-                    صورتجلسه
+                  <NeshastyarSecondaryButton onClick={handleOpenShare}>
+                    صورتجلسه (مشاهده و اشتراک)
                   </NeshastyarSecondaryButton>
                 ) : null}
               </div>
@@ -655,7 +591,6 @@ const MeetingDetail: React.FC = () => {
         ) : null}
       </main>
 
-      {/* Android 5-item MeetingDetailBottomBar */}
       <MeetingDetailBottomBar
         meetingId={meetingId}
         showProcessedSections={showProcessed}
@@ -677,68 +612,19 @@ const MeetingDetail: React.FC = () => {
         }}
       />
 
-      {/* Shareable Minutes Report Dialog (Web exclusive preserved) */}
-      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent dir="rtl" className="border-[#E8E2D5] bg-white text-right">
-          <DialogHeader>
-            <DialogTitle className="text-right text-[#1C1B18]">
-              صورتجلسه
-            </DialogTitle>
-            <DialogDescription className="text-right text-[#404848]">
-              این لینک را برای دیگران بفرستید. آن‌ها صورتجلسه را می‌بینند و می‌توانند آن را ویرایش، چاپ یا دانلود کنند.
-            </DialogDescription>
-          </DialogHeader>
-
-          {shareLoading ? (
-            <p className="text-sm text-[#66625B]">در حال ساخت لینک...</p>
-          ) : shareUrl ? (
-            <div className="space-y-3">
-              <input
-                readOnly
-                dir="ltr"
-                value={shareUrl}
-                onFocus={(e) => e.target.select()}
-                className="h-11 w-full rounded-[12px] border border-[#E8E2D5] bg-[#F5F2EB] px-3 text-left text-sm text-[#1C1B18]"
-              />
-              <DialogFooter className="flex flex-wrap gap-2 sm:justify-start">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(shareUrl);
-                    toast({ title: "کپی شد", description: "لینک صورتجلسه کپی شد." });
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0D4D4D] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F766E]"
-                >
-                  <Copy className="h-4 w-4" />
-                  کپی لینک
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(shareUrl, "_blank", "noopener")}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#E8E2D5] px-4 py-2 text-sm text-[#1C1B18] hover:bg-[#F5F2EB]"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  باز کردن
-                </button>
-                <button
-                  type="button"
-                  disabled={shareLoading}
-                  onClick={() => void handleDisableShare()}
-                  className="rounded-xl px-3 py-2 text-sm text-[#B91C1C] hover:bg-[#FDF2F0]"
-                >
-                  غیرفعال کردن لینک
-                </button>
-              </DialogFooter>
-            </div>
-          ) : (
-            <DialogFooter className="sm:justify-start">
-              <NeshastyarPrimaryButton onClick={() => void handleOpenShare()}>
-                ساخت لینک جدید
-              </NeshastyarPrimaryButton>
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ShareMinutesSheet
+        open={shareSheetOpen}
+        loading={shareLoading}
+        shareUrl={shareUrl}
+        shareToken={shareToken}
+        error={shareError}
+        onOpenChange={(open) => {
+          if (!open) setShareError(null);
+          setShareSheetOpen(open);
+        }}
+        onCreateLink={() => void ensureShareLink()}
+        onDisableLink={() => void handleDisableShare()}
+      />
     </div>
   );
 };

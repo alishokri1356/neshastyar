@@ -29,7 +29,10 @@ import {
   NeshastyarSubHeader,
   NeshastyarTopBar,
 } from "@/components/neshastyar/NeshastyarUi";
-import { MeetingDetailBottomBar } from "@/components/neshastyar/MeetingDetailChrome";
+import {
+  MeetingDetailBottomBar,
+  MeetingTopSectionActions,
+} from "@/components/neshastyar/MeetingDetailChrome";
 
 interface AudioFileItem {
   id: string;
@@ -371,6 +374,14 @@ const MeetingDetailsOptions: React.FC = () => {
         <NeshastyarSubHeader
           title="گزینه‌های جلسه"
           onBack={`/meeting/${meetingId}`}
+          actions={
+            <MeetingTopSectionActions
+              meetingId={meetingId}
+              showParticipants={
+                Boolean(data?.meeting) && !isErrorStatus(data?.meeting?.status)
+              }
+            />
+          }
         />
 
         {isLoading ? (
