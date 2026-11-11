@@ -135,7 +135,7 @@ function SectionScaffold({
   return (
     <div dir="rtl" className="min-h-[100dvh] bg-[#FBF9F4] text-[#1C1B18]">
       <NeshastyarTopBar />
-      <main className="mx-auto w-full max-w-2xl px-4 pb-24">
+      <main className="mx-auto w-full max-w-2xl overflow-x-hidden px-4 pb-24">
         <NeshastyarSubHeader title={title} onBack={backTo} actions={headerActions} />
         {loading ? (
           <div className="flex min-h-[45vh] items-center justify-center">

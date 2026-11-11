@@ -7,12 +7,14 @@ function CellEditor({
   value,
   rows = 2,
   disabled,
+  className = "",
   onSave,
 }: {
   label: string;
   value: string;
   rows?: number;
   disabled?: boolean;
+  className?: string;
   onSave: (value: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -41,18 +43,19 @@ function CellEditor({
   };
 
   return (
-    <td className="relative border border-[#E8E2D5] px-2 py-2 align-top">
+    <div className={`relative min-w-0 border-t border-[#E8E2D5] px-3 py-2.5 ${className}`}>
+      <p className="mb-1 text-[12px] font-semibold text-[#66625B]">{label}</p>
       <button
         type="button"
         aria-label={`ویرایش ${label}`}
         disabled={disabled || saving}
         onClick={start}
-        className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED] disabled:opacity-40"
+        className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-[#0D4D4D] hover:bg-[#D7EFED] disabled:opacity-40"
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
       {open ? (
-        <div className="space-y-2 pl-7">
+        <div className="space-y-2 pl-8">
           <textarea
             value={draft}
             rows={rows}
@@ -84,11 +87,15 @@ function CellEditor({
           </div>
         </div>
       ) : (
-        <p className={`whitespace-pre-wrap pl-7 text-[14px] leading-6 ${value.trim() ? "text-[#1C1B18]" : "text-[#66625B]"}`}>
+        <p
+          className={`break-words pl-8 text-[14px] leading-6 ${
+            value.trim() ? "text-[#1C1B18]" : "text-[#66625B]"
+          }`}
+        >
           {value.trim() || "—"}
         </p>
       )}
-    </td>
+    </div>
   );
 }
 
@@ -109,85 +116,71 @@ export function DecisionRowsEditor({
   const [deleting, setDeleting] = useState<number | null>(null);
 
   return (
-    <div className="mt-3 overflow-x-auto">
-      <table className="w-full min-w-[640px] border-collapse text-right">
-        <thead>
-          <tr className="bg-[#F5F2EB] text-[13px] font-semibold text-[#404848]">
-            <th className="w-14 border border-[#E8E2D5] px-2 py-2">ردیف</th>
-            <th className="border border-[#E8E2D5] px-2 py-2">تصمیم اتخاذ شده</th>
-            <th className="w-36 border border-[#E8E2D5] px-2 py-2">مسئول</th>
-            <th className="w-36 border border-[#E8E2D5] px-2 py-2">مهلت زمانی</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="border border-[#E8E2D5] px-3 py-4 text-[14px] text-[#66625B]">
-                نکته‌ای ثبت نشده
-              </td>
-            </tr>
-          ) : (
-            rows.map((row, index) => {
-              const hasContent = Boolean(row.text || row.assignee || row.deadline);
-              return (
-                <tr key={`${index}:${row.text}:${row.assignee}:${row.deadline}`}>
-                  <td className="border border-[#E8E2D5] px-2 py-2 text-center align-top text-[14px] text-[#1C1B18]">
-                    <button
-                      type="button"
-                      aria-label={`حذف ردیف ${index + 1}`}
-                      title="حذف ردیف"
-                      disabled={disabled || deleting === index}
-                      onClick={() => {
-                        if (hasContent && !window.confirm(`ردیف ${index + 1} حذف شود؟`)) return;
-                        setDeleting(index);
-                        void onDelete(index).catch(() => undefined).finally(() => setDeleting(null));
-                      }}
-                      className="mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-[#B91C1C] hover:bg-[#FDF2F0] disabled:opacity-40"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    {index + 1}
-                  </td>
-                  <CellEditor
-                    label="تصمیم اتخاذ شده"
-                    value={row.text}
-                    rows={3}
-                    disabled={disabled}
-                    onSave={(value) => onEdit(index, "text", value)}
-                  />
-                  <CellEditor
-                    label="مسئول"
-                    value={row.assignee}
-                    disabled={disabled}
-                    onSave={(value) => onEdit(index, "assignee", value)}
-                  />
-                  <CellEditor
-                    label="مهلت زمانی"
-                    value={row.deadline}
-                    disabled={disabled}
-                    onSave={(value) => onEdit(index, "deadline", value)}
-                  />
-                </tr>
-              );
-            })
-          )}
-          <tr>
-            <td colSpan={4} className="border border-[#E8E2D5] px-2 py-2 text-center">
-              <button
-                type="button"
-                disabled={disabled || adding}
-                onClick={() => {
-                  setAdding(true);
-                  void onAdd().catch(() => undefined).finally(() => setAdding(false));
-                }}
-                className="text-[14px] font-semibold text-[#0D4D4D] disabled:opacity-40"
-              >
-                {adding ? "..." : "+ افزودن ردیف"}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="mt-3 space-y-3">
+      {rows.length === 0 ? (
+        <p className="text-[14px] text-[#66625B]">نکته‌ای ثبت نشده</p>
+      ) : (
+        rows.map((row, index) => {
+          const hasContent = Boolean(row.text || row.assignee || row.deadline);
+          return (
+            <article
+              key={`${index}:${row.text}:${row.assignee}:${row.deadline}`}
+              className="overflow-hidden rounded-xl border border-[#E8E2D5]"
+            >
+              <div className="flex items-center justify-between bg-[#F5F2EB] px-3 py-2">
+                <span className="text-[13px] font-semibold text-[#404848]">ردیف {index + 1}</span>
+                <button
+                  type="button"
+                  aria-label={`حذف ردیف ${index + 1}`}
+                  title="حذف ردیف"
+                  disabled={disabled || deleting === index}
+                  onClick={() => {
+                    if (hasContent && !window.confirm(`ردیف ${index + 1} حذف شود؟`)) return;
+                    setDeleting(index);
+                    void onDelete(index).catch(() => undefined).finally(() => setDeleting(null));
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[#B91C1C] hover:bg-[#FDF2F0] disabled:opacity-40"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <CellEditor
+                label="تصمیم اتخاذ شده"
+                value={row.text}
+                rows={3}
+                disabled={disabled}
+                onSave={(value) => onEdit(index, "text", value)}
+              />
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2">
+                <CellEditor
+                  label="مسئول"
+                  value={row.assignee}
+                  disabled={disabled}
+                  onSave={(value) => onEdit(index, "assignee", value)}
+                />
+                <CellEditor
+                  label="مهلت زمانی"
+                  value={row.deadline}
+                  disabled={disabled}
+                  className="min-[420px]:border-s"
+                  onSave={(value) => onEdit(index, "deadline", value)}
+                />
+              </div>
+            </article>
+          );
+        })
+      )}
+      <button
+        type="button"
+        disabled={disabled || adding}
+        onClick={() => {
+          setAdding(true);
+          void onAdd().catch(() => undefined).finally(() => setAdding(false));
+        }}
+        className="w-full rounded-xl border border-[#E8E2D5] py-2.5 text-[14px] font-semibold text-[#0D4D4D] disabled:opacity-40"
+      >
+        {adding ? "..." : "+ افزودن ردیف"}
+      </button>
     </div>
   );
 }
