@@ -1,6 +1,8 @@
 package com.neshastyar.app.ui.screens.meeting
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.material3.AlertDialog
@@ -27,6 +31,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,6 +55,7 @@ import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.theme.NeshastyarColors
+import com.neshastyar.app.util.MeetingDecisionRow
 import com.neshastyar.app.util.MeetingSummaryParser
 import com.neshastyar.app.util.StatusStyle
 
@@ -653,6 +659,9 @@ fun MeetingBulletPointsScreen(
     val showParticipants = state.meeting != null &&
         !StatusStyle.isErrorStatus(state.meeting?.status) &&
         !state.summarySuppressed
+    val rows = MeetingSummaryParser.decisionRows(state.meeting?.summary)
+    var editor by remember { mutableStateOf<BulletFieldEditor?>(null) }
+    var pendingDelete by remember { mutableStateOf<Int?>(null) }
     MeetingSectionScaffold(
         title = "نکات",
         onBack = onBack,
@@ -673,19 +682,139 @@ fun MeetingBulletPointsScreen(
                 icon = Icons.Default.CheckCircle,
             )
             Spacer(Modifier.height(8.dp))
-            if (state.summary.bulletPoints.isEmpty()) {
+            if (rows.isEmpty()) {
                 Text("نکته‌ای ثبت نشده", color = NeshastyarColors.TextMuted)
-            } else {
-                state.summary.bulletPoints.forEach { point ->
-                    Text(
-                        "• $point",
-                        color = NeshastyarColors.TextPrimary,
-                        modifier = Modifier.padding(vertical = 3.dp),
-                    )
-                }
+            }
+            rows.forEachIndexed { index, row ->
+                BulletDecisionCard(
+                    index = index,
+                    row = row,
+                    enabled = !state.pointsSaving,
+                    onEdit = { title, value, singleLine, part ->
+                        editor = BulletFieldEditor(title, value, singleLine) { draft ->
+                            viewModel.saveBulletPart(index, part, draft)
+                        }
+                    },
+                    onDelete = { pendingDelete = index },
+                )
+            }
+            OutlinedButton(
+                onClick = viewModel::addBulletRow,
+                enabled = !state.pointsSaving,
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text("ردیف خالی", modifier = Modifier.padding(start = 6.dp))
+            }
+            if (state.error != null) {
+                Text(
+                    state.error!!,
+                    color = NeshastyarColors.Error,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }
+
+    editor?.let { current ->
+        var draft by remember(current) { mutableStateOf(current.initial) }
+        AlertDialog(
+            onDismissRequest = { editor = null },
+            title = { Text(current.title) },
+            text = {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = current.singleLine,
+                    minLines = if (current.singleLine) 1 else 3,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    current.onSave(draft)
+                    editor = null
+                }) { Text("ذخیره") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editor = null }) { Text("انصراف") }
+            },
+        )
+    }
+
+    pendingDelete?.let { index ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("حذف ردیف") },
+            text = { Text("این ردیف تصمیم حذف شود؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteBulletRow(index)
+                    pendingDelete = null
+                }) { Text("حذف") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("انصراف") }
+            },
+        )
+    }
+}
+
+private class BulletFieldEditor(
+    val title: String,
+    val initial: String,
+    val singleLine: Boolean,
+    val onSave: (String) -> Unit,
+)
+
+@Composable
+private fun BulletDecisionCard(
+    index: Int,
+    row: MeetingDecisionRow,
+    enabled: Boolean,
+    onEdit: (title: String, value: String, singleLine: Boolean, part: String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .background(NeshastyarColors.SurfaceVariant, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "ردیف ${index + 1}",
+                fontWeight = FontWeight.SemiBold,
+                color = NeshastyarColors.TextPrimary,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDelete, enabled = enabled) {
+                Icon(Icons.Default.Delete, contentDescription = "حذف ردیف", tint = NeshastyarColors.Error)
+            }
+        }
+        BulletDecisionField("تصمیم اتخاذ شده", row.text.ifBlank { "—" }, enabled) {
+            onEdit("تصمیم اتخاذ شده", row.text, false, "text")
+        }
+        BulletDecisionField("مسئول", row.assignee.ifBlank { "—" }, enabled) {
+            onEdit("مسئول", row.assignee, true, "assignee")
+        }
+        BulletDecisionField("مهلت زمانی", row.deadline.ifBlank { "—" }, enabled) {
+            onEdit("مهلت زمانی", row.deadline, true, "deadline")
+        }
+    }
+}
+
+@Composable
+private fun BulletDecisionField(
+    label: String,
+    value: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Text(label, color = NeshastyarColors.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    Text(value, color = NeshastyarColors.TextPrimary, modifier = Modifier.padding(top = 2.dp))
+    TextButton(onClick = onClick, enabled = enabled) { Text("ویرایش") }
 }
 
 @Composable

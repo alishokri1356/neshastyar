@@ -22,6 +22,7 @@ import {
   parseMeetingSummaryJson,
   type EditableMeetingSummary,
 } from "@/lib/meetingSummary";
+import { preserveDecisionRows } from "@/lib/meetingDecisions";
 import {
   formatJalaliDateTime,
   isErrorStatus,
@@ -203,7 +204,7 @@ const MeetingDetail: React.FC = () => {
         .from("meetings")
         .update({
           title: editTitle.trim() || meeting.title,
-          summary: nextJson,
+          summary: preserveDecisionRows(parsedJson, nextJson),
           location: editLocation.trim() || null,
         } as Record<string, unknown>)
         .eq("id", meeting.id);

@@ -17,6 +17,12 @@ import {
   jsonToEditableSummary,
   parseMeetingSummaryJson,
 } from "@/lib/meetingSummary";
+import {
+  applySummaryDecisionEdit,
+  decisionRowsFromSummary,
+  type DecisionEdit,
+} from "@/lib/meetingDecisions";
+import { DecisionRowsEditor } from "@/components/neshastyar/DecisionRowsEditor";
 import { isErrorStatus } from "@/lib/neshastyarStatus";
 import {
   NeshastyarCard,
@@ -903,9 +909,34 @@ export const MeetingAddTagsPage: React.FC = () => {
 
 export const MeetingBulletPointsPage: React.FC = () => {
   const { meetingId = "" } = useParams<{ meetingId: string }>();
+  const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useMeetingSectionData(meetingId);
+  const [saving, setSaving] = useState(false);
+  const [rowError, setRowError] = useState<string | null>(null);
 
-  const bulletPoints = data?.parsed.bulletPoints ?? [];
+  const rows = decisionRowsFromSummary(String(data?.meeting?.summary || ""));
+
+  const applyEdit = async (edit: DecisionEdit) => {
+    if (!data?.meeting || saving) return;
+    setSaving(true);
+    setRowError(null);
+    try {
+      const next = applySummaryDecisionEdit(String(data.meeting.summary || ""), edit);
+      const { error: updErr } = await mysqlClient
+        .from("meetings")
+        .update({ summary: next } as Record<string, unknown>)
+        .eq("id", meetingId);
+      if (updErr) throw new Error(updErr.message || "ذخیره انجام نشد");
+      await queryClient.invalidateQueries({ queryKey: ["meeting-detail", meetingId] });
+      await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "ذخیره انجام نشد";
+      setRowError(message);
+      throw err instanceof Error ? err : new Error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SectionScaffold
@@ -930,17 +961,14 @@ export const MeetingBulletPointsPage: React.FC = () => {
           title="نکات / نقاط تصمیم‌گیری"
           icon={<CheckCircle2 className="h-5 w-5" />}
         />
-        <div className="mt-3 space-y-2">
-          {bulletPoints.length === 0 ? (
-            <p className="text-[14px] text-[#66625B]">نکته‌ای ثبت نشده</p>
-          ) : (
-            bulletPoints.map((point, idx) => (
-              <p key={idx} className="text-[15px] leading-7 text-[#1C1B18]">
-                • {point}
-              </p>
-            ))
-          )}
-        </div>
+        <DecisionRowsEditor
+          rows={rows}
+          disabled={saving}
+          onEdit={(index, part, value) => applyEdit({ type: "edit", index, part, value })}
+          onAdd={() => applyEdit({ type: "add" })}
+          onDelete={(index) => applyEdit({ type: "delete", index })}
+        />
+        {rowError ? <p className="mt-2 text-[13px] text-[#B91C1C]">{rowError}</p> : null}
       </NeshastyarCard>
     </SectionScaffold>
   );

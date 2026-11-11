@@ -4,6 +4,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
+data class MeetingDecisionRow(
+    val text: String = "",
+    val assignee: String = "",
+    val deadline: String = "",
+)
+
 data class ParsedMeetingSummary(
     val subject: String = "",
     val summaryText: String = "",
@@ -348,4 +354,205 @@ object MeetingSummaryParser {
             else -> item.toString().trim()
         }
     }
+
+    fun decisionRows(summary: String?): List<MeetingDecisionRow> {
+        val obj = summary?.takeIf { it.isNotBlank() }?.let { parseSummaryObject(it) } ?: return emptyList()
+        return decisionSlots(copyItems(rawBulletArray(obj))).map { it.decision }
+    }
+
+    fun summaryWithDecisionEdit(summary: String?, index: Int, part: String, value: String): String {
+        val obj = editableSummaryObject(summary)
+        val key = bulletArrayKey(obj)
+        val items = copyItems(rawBulletArray(obj))
+        val slot = decisionSlots(items).getOrNull(index) ?: return summary.orEmpty()
+        val next = slot.decision.copy(
+            text = if (part == "text") cleanDecisionValue(value) else slot.decision.text,
+            assignee = if (part == "assignee") cleanDecisionValue(value) else slot.decision.assignee,
+            deadline = if (part == "deadline") cleanDecisionValue(value) else slot.decision.deadline,
+        )
+        items[slot.rawIndex] = canonicalDecision(next)
+        writeDecisionItems(obj, key, items)
+        return obj.toString()
+    }
+
+    fun summaryWithAddedDecision(summary: String?): String {
+        val obj = editableSummaryObject(summary)
+        val key = bulletArrayKey(obj)
+        val items = copyItems(rawBulletArray(obj))
+        items.add("")
+        writeDecisionItems(obj, key, items)
+        return obj.toString()
+    }
+
+    fun summaryWithDeletedDecision(summary: String?, index: Int): String {
+        val obj = editableSummaryObject(summary)
+        val key = bulletArrayKey(obj)
+        val items = copyItems(rawBulletArray(obj))
+        val slot = decisionSlots(items).getOrNull(index) ?: return summary.orEmpty()
+        items.removeAt(slot.rawIndex)
+        writeDecisionItems(obj, key, items)
+        return obj.toString()
+    }
+
+    /** Raw نکته rows, so a later summary save does not flatten مسئول and مهلت زمانی. */
+    fun existingBulletArray(obj: JSONObject): JSONArray? {
+        val key = bulletKeys.firstOrNull { name ->
+            val value = obj.opt(name)
+            value is JSONArray && value.length() > 0
+        } ?: bulletKeys.firstOrNull { obj.opt(it) is JSONArray } ?: return null
+        val value = obj.opt(key) as? JSONArray ?: return null
+        return JSONArray(value.toString())
+    }
+
+    private fun editableSummaryObject(summary: String?): JSONObject {
+        if (!summary.isNullOrBlank()) {
+            parseSummaryObject(summary)?.let { return it }
+            return JSONObject().put("Summary", summary.trim())
+        }
+        return JSONObject()
+    }
+
+    private fun bulletArrayKey(obj: JSONObject): String {
+        return bulletKeys.firstOrNull { name ->
+            val value = obj.opt(name)
+            value is JSONArray && value.length() > 0
+        } ?: bulletKeys.firstOrNull { obj.opt(it) is JSONArray } ?: bulletKeys.first()
+    }
+
+    private fun rawBulletArray(obj: JSONObject): JSONArray {
+        val value = obj.opt(bulletArrayKey(obj))
+        return if (value is JSONArray) value else JSONArray()
+    }
+
+    private fun copyItems(array: JSONArray): MutableList<Any?> {
+        return MutableList(array.length()) { index ->
+            val value = array.opt(index)
+            if (value == null || value == JSONObject.NULL) "" else value
+        }
+    }
+
+    private fun writeDecisionItems(obj: JSONObject, key: String, items: List<Any?>) {
+        val array = JSONArray()
+        for (item in items) {
+            when (item) {
+                null -> array.put("")
+                is JSONObject -> array.put(JSONObject(item.toString()))
+                is Boolean -> array.put(item)
+                else -> array.put(item.toString())
+            }
+        }
+        obj.put(key, array)
+        for (other in bulletKeys) {
+            if (other != key) obj.remove(other)
+        }
+    }
+
+    private data class DecisionSlot(val rawIndex: Int, val decision: MeetingDecisionRow)
+
+    private fun decisionSlots(items: List<Any?>): List<DecisionSlot> {
+        val slots = mutableListOf<DecisionSlot>()
+        items.forEachIndexed { index, item ->
+            val decision = decisionFromItem(item)
+            if (item == "" || decision.text.isNotEmpty() || decision.assignee.isNotEmpty() || decision.deadline.isNotEmpty()) {
+                slots += DecisionSlot(index, decision)
+            }
+        }
+        return slots
+    }
+
+    private fun decisionFromItem(item: Any?): MeetingDecisionRow {
+        if (item is String) return decisionFromFields(splitDecisionLabels(item), item)
+        if (item !is JSONObject) {
+            val text = formatBullet(item)
+            return decisionFromFields(splitDecisionLabels(text), text)
+        }
+        val keys = item.keys().asSequence().toList()
+        val fields = keys.mapNotNull { key ->
+            val raw = item.opt(key)
+            val text = if (raw == null || raw == JSONObject.NULL) "" else raw.toString().trim()
+            if (text.isEmpty()) null else DecisionField(decisionLabelKind(key), cleanDecisionValue(text))
+        }
+        val joined = keys.joinToString(" — ") { key -> "$key: ${item.opt(key) ?: ""}" }
+        val labeled = splitDecisionLabels(joined)
+        return decisionFromFields(if (labeled.isNotEmpty()) labeled else fields, joined)
+    }
+
+    private data class DecisionField(val kind: String, val value: String)
+
+    private fun decisionFromFields(fields: List<DecisionField>, fallbackText: String): MeetingDecisionRow {
+        var text = ""
+        var assignee = ""
+        var follower = ""
+        var deadline = ""
+        for (field in fields) {
+            when (field.kind) {
+                "deadline" -> if (deadline.isEmpty()) deadline = field.value
+                "assignee" -> if (assignee.isEmpty()) assignee = field.value
+                "follower" -> if (follower.isEmpty()) follower = field.value
+                else -> if (text.isEmpty()) text = field.value
+            }
+        }
+        val onlyLabeled = fields.isNotEmpty() && decisionLabelStart.containsMatchIn(fallbackText)
+        if (text.isEmpty() && !onlyLabeled) {
+            text = cleanDecisionValue(
+                fallbackText.replace(Regex("^\\s*تصمیم(?:\\s+اتخاذ\\s+شده)?\\s*[:：]\\s*"), ""),
+            )
+        }
+        return MeetingDecisionRow(text, assignee.ifBlank { follower }, deadline)
+    }
+
+    private fun splitDecisionLabels(source: String): List<DecisionField> {
+        val matches = decisionLabelPattern.findAll(source).toList()
+        if (matches.isEmpty()) return emptyList()
+        return matches.mapIndexedNotNull { index, match ->
+            val end = if (index + 1 < matches.size) matches[index + 1].range.first else source.length
+            val value = cleanDecisionValue(
+                source.substring(match.range.last + 1, end).replace(Regex("[\\s.،؛\\-—]+$"), ""),
+            )
+            if (value.isEmpty()) null else DecisionField(decisionLabelKind(match.groupValues[1]), value)
+        }
+    }
+
+    private fun decisionLabelKind(label: String): String {
+        val key = label.trim().lowercase()
+        if (key == "deadline" || key == "due" || Regex("زمان|مهلت|موعد|تاریخ انجام").containsMatchIn(label)) {
+            return "deadline"
+        }
+        if (Regex("مسئول|assignee|owner", RegexOption.IGNORE_CASE).containsMatchIn(label)) {
+            return if (label.contains("پیگیری")) "follower" else "assignee"
+        }
+        return "text"
+    }
+
+    private fun cleanDecisionValue(value: String): String = value.replace(Regex("\\s+"), " ").trim()
+
+    private fun canonicalDecision(row: MeetingDecisionRow): String {
+        val parts = mutableListOf<String>()
+        if (row.text.isNotEmpty()) parts += "تصمیم: ${row.text}"
+        if (row.assignee.isNotEmpty()) parts += "مسئول: ${row.assignee}"
+        if (row.deadline.isNotEmpty()) parts += "مهلت زمانی: ${row.deadline}"
+        return parts.joinToString(" ")
+    }
+
+    private val decisionLabels = listOf(
+        "تصمیم اتخاذ شده",
+        "زمان انجام",
+        "مهلت زمانی",
+        "تاریخ انجام",
+        "مسئول پیگیری",
+        "مسئول اجرا",
+        "deadline",
+        "تصمیم",
+        "مسئول",
+        "مهلت",
+        "موعد",
+        "زمان",
+        "due",
+    )
+
+    private val decisionLabelPattern = Regex("(${decisionLabels.joinToString("|")})\\s*[:：]")
+    private val decisionLabelStart = Regex(
+        "^\\s*(${decisionLabels.joinToString("|")})\\s*[:：]",
+        RegexOption.IGNORE_CASE,
+    )
 }

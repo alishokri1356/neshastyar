@@ -60,6 +60,7 @@ data class MeetingDetailUiState(
     val shareUrl: String? = null,
     val shareToken: String? = null,
     val shareError: String? = null,
+    val pointsSaving: Boolean = false,
 )
 
 @HiltViewModel
@@ -140,7 +141,15 @@ class MeetingDetailViewModel @Inject constructor(
             put("Location", snapshot.editLocation.trim())
             put("Summary", snapshot.editSummaryText)
             put("People in meetings", JSONArray(snapshot.summary.people))
-            put("Bolet Points", JSONArray(snapshot.summary.bulletPoints))
+            val keptBullets = if (snapshot.summary.isJson && snapshot.summary.rawText.isNotBlank()) {
+                runCatching {
+                    MeetingSummaryParser.existingBulletArray(JSONObject(snapshot.summary.rawText))
+                }.getOrNull()
+            } else {
+                null
+            }
+            put("Bolet Points", keptBullets ?: JSONArray(snapshot.summary.bulletPoints))
+            remove("Bullet Points")
             put("Tags", JSONArray(snapshot.summary.tags))
         }.toString()
         meetingsRepository.update(meetingId, UpdateMeetingRequest(summary = json)).fold(
@@ -160,6 +169,46 @@ class MeetingDetailViewModel @Inject constructor(
                 }
             },
             onFailure = { e -> _ui.update { it.copy(error = e.message) } },
+        )
+    }
+
+    fun saveBulletPart(index: Int, part: String, value: String) = saveBulletSummary {
+        MeetingSummaryParser.summaryWithDecisionEdit(it, index, part, value)
+    }
+
+    fun addBulletRow() = saveBulletSummary { MeetingSummaryParser.summaryWithAddedDecision(it) }
+
+    fun deleteBulletRow(index: Int) = saveBulletSummary {
+        MeetingSummaryParser.summaryWithDeletedDecision(it, index)
+    }
+
+    private fun saveBulletSummary(transform: (String?) -> String) = viewModelScope.launch {
+        if (_ui.value.pointsSaving) return@launch
+        val currentSummary = _ui.value.meeting?.summary
+        _ui.update { it.copy(pointsSaving = true, error = null) }
+        meetingsRepository.update(
+            meetingId,
+            UpdateMeetingRequest(summary = transform(currentSummary)),
+        ).fold(
+            onSuccess = { meeting ->
+                val parsed = MeetingSummaryParser.parse(meeting.summary, meeting.people)
+                _ui.update {
+                    it.copy(
+                        pointsSaving = false,
+                        meeting = meeting,
+                        summary = parsed,
+                        error = null,
+                    )
+                }
+            },
+            onFailure = { e ->
+                _ui.update {
+                    it.copy(
+                        pointsSaving = false,
+                        error = e.message ?: "ذخیره نکات ناموفق بود",
+                    )
+                }
+            },
         )
     }
 
