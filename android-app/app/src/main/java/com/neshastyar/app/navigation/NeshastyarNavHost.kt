@@ -48,7 +48,6 @@ import com.neshastyar.app.ui.screens.participants.ParticipantDetailScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantsListScreen
 import com.neshastyar.app.ui.screens.participants.ParticipantsManageScreen
 import com.neshastyar.app.ui.screens.record.RecordScreen
-import com.neshastyar.app.ui.screens.report.MeetingMinutesScreen
 import com.neshastyar.app.ui.screens.report.MeetingReportScreen
 import com.neshastyar.app.ui.screens.splash.SplashScreen
 import com.neshastyar.app.ui.screens.tags.TagDetailScreen
@@ -98,7 +97,6 @@ fun NeshastyarNavHost(
         Routes.MeetingTags.route,
         Routes.MeetingAddTags.route,
         Routes.MeetingBulletPoints.route,
-        Routes.MeetingMinutes.route,
         Routes.MeetingOptions.route,
         Routes.MeetingConversation.route,
     )
@@ -418,8 +416,8 @@ fun NeshastyarNavHost(
                             Routes.MeetingTags.route,
                         )
                     },
-                    onOpenMinutes = {
-                        navController.navigate(Routes.MeetingMinutes.create(meetingIdArg))
+                    onOpenReport = { token ->
+                        navController.navigate(Routes.MeetingReport.create(token))
                     },
                 )
             }
@@ -487,12 +485,6 @@ fun NeshastyarNavHost(
                         )
                     },
                 )
-            }
-            composable(
-                Routes.MeetingMinutes.route,
-                arguments = listOf(navArgument("meetingId") { type = NavType.StringType }),
-            ) {
-                MeetingMinutesScreen(onBack = { navController.popBackStack() })
             }
             composable(
                 Routes.MeetingOptions.route,
