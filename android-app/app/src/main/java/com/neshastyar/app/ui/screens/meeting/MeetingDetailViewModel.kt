@@ -59,6 +59,7 @@ data class MeetingDetailUiState(
     val shareLoading: Boolean = false,
     val shareUrl: String? = null,
     val shareToken: String? = null,
+    val shareCanEdit: Boolean = true,
     val shareError: String? = null,
     val browserUrl: String? = null,
     val pointsSaving: Boolean = false,
@@ -292,8 +293,37 @@ class MeetingDetailViewModel @Inject constructor(
     }
 
     fun dismissShareSheet() {
-        if (_ui.value.shareLoading) return
         _ui.update { it.copy(showShareSheet = false, shareError = null) }
+    }
+
+    fun viewSharedMinutes() {
+        val url = _ui.value.shareUrl?.takeIf { it.isNotBlank() } ?: return
+        _ui.update { it.copy(browserUrl = url) }
+    }
+
+    fun setShareCanEdit(canEdit: Boolean) = viewModelScope.launch {
+        val previous = _ui.value.shareCanEdit
+        _ui.update { it.copy(shareCanEdit = canEdit, shareError = null) }
+        meetingsRepository.updateShareCanEdit(meetingId, canEdit).fold(
+            onSuccess = { result ->
+                _ui.update {
+                    it.copy(
+                        shareCanEdit = result.canEdit != false,
+                        shareUrl = result.url?.takeIf { url -> url.isNotBlank() } ?: it.shareUrl,
+                        shareToken = result.token?.takeIf { token -> token.isNotBlank() } ?: it.shareToken,
+                        shareError = null,
+                    )
+                }
+            },
+            onFailure = { e ->
+                _ui.update {
+                    it.copy(
+                        shareCanEdit = previous,
+                        shareError = e.message ?: "ذخیره اجازه ویرایش ناموفق بود",
+                    )
+                }
+            },
+        )
     }
 
     fun ensureShareLink() = viewModelScope.launch {
@@ -308,6 +338,7 @@ class MeetingDetailViewModel @Inject constructor(
                         shareLoading = false,
                         shareUrl = url,
                         shareToken = token,
+                        shareCanEdit = result.canEdit != false,
                         shareError = null,
                     )
                 }

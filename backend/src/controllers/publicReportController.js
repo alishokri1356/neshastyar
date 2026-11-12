@@ -59,6 +59,12 @@ class PublicReportController {
           message: 'این صورتجلسه پیدا نشد یا لینک آن غیرفعال شده است',
         });
       }
+      if (Number(meeting.share_can_edit) === 0) {
+        return res.status(403).json({
+          error: 'Editing disabled',
+          message: 'ویرایش این صورتجلسه برای دارنده لینک بسته است',
+        });
+      }
 
       const relativePath = path.join('uploads', 'logos', req.file.filename);
       await userService.setOrgLogo(meeting.user_id, relativePath);

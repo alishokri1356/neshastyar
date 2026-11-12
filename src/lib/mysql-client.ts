@@ -930,7 +930,31 @@ class MySQLClient {
       });
       const data = await response.json();
       if (!response.ok) return { data: null, error: data };
-      return { data: data as { token: string; url: string; enabled: boolean }, error: null };
+      return {
+        data: data as { token: string; url: string; enabled: boolean; canEdit?: boolean },
+        error: null,
+      };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
+  setMeetingShareCanEdit = async (meetingId: string, canEdit: boolean) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/share`, {
+        method: 'PATCH',
+        headers: {
+          ...this.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ canEdit }),
+      });
+      const data = await response.json();
+      if (!response.ok) return { data: null, error: data };
+      return {
+        data: data as { token: string; url: string; enabled: boolean; canEdit?: boolean },
+        error: null,
+      };
     } catch (error) {
       return { data: null, error };
     }

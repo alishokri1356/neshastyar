@@ -35,6 +35,7 @@ import {
 import {
   MeetingDetailBottomBar,
   MeetingTopSectionActions,
+  SmartEditButton,
 } from "@/components/neshastyar/MeetingDetailChrome";
 
 interface TagItem {
@@ -324,6 +325,8 @@ export const MeetingParticipantsPage: React.FC = () => {
       {feedback.err ? (
         <p className="text-[13px] text-[#B91C1C]">{feedback.err}</p>
       ) : null}
+
+      <SmartEditButton meetingId={meetingId} />
 
       <Dialog
         open={Boolean(selectedPerson)}
@@ -972,6 +975,7 @@ export const MeetingBulletPointsPage: React.FC = () => {
         onDelete={(index) => applyEdit({ type: "delete", index })}
       />
       {rowError ? <p className="text-[13px] text-[#B91C1C]">{rowError}</p> : null}
+      <SmartEditButton meetingId={meetingId} />
     </SectionScaffold>
   );
 };

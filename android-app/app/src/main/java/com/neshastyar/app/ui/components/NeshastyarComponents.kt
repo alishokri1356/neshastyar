@@ -2,6 +2,7 @@ package com.neshastyar.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -149,6 +151,44 @@ fun NeshastyarSecondaryButton(
         border = androidx.compose.foundation.BorderStroke(1.dp, NeshastyarColors.Primary.copy(alpha = 0.55f)),
     ) {
         Text(text, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+fun NeshastyarSmartEditButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val shape = NeshastyarButtonShape
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFFD7EFED), Color(0xFFFDE8C4)),
+                ),
+            )
+            .border(1.dp, Color(0xFFE4C48A), shape)
+            .clickable(enabled = enabled, onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = NeshastyarColors.Secondary,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text,
+            color = NeshastyarColors.Primary,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

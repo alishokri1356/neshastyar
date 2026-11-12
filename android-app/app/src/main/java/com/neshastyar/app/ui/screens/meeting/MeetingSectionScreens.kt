@@ -60,6 +60,7 @@ import com.neshastyar.app.data.api.ParticipantDto
 import com.neshastyar.app.data.api.TagDto
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
+import com.neshastyar.app.ui.components.NeshastyarSmartEditButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.theme.NeshastyarColors
@@ -168,6 +169,22 @@ fun MeetingParticipantsScreen(
             onClick = onAddParticipants,
         )
         SectionMessage(message = state.message, error = state.error)
+        Spacer(Modifier.height(12.dp))
+        NeshastyarSmartEditButton(
+            text = "ویرایش هوشمند",
+            onClick = viewModel::openAiEditSheet,
+        )
+    }
+    if (state.showAiEditSheet) {
+        AiEditBottomSheet(
+            prompt = state.aiPrompt,
+            loading = state.aiEditing,
+            error = state.aiEditError,
+            onPromptChange = viewModel::onAiPromptChange,
+            onDictation = viewModel::appendAiDictation,
+            onSubmit = viewModel::submitAiEdit,
+            onDismiss = viewModel::dismissAiEditSheet,
+        )
     }
     if (selectedId != null) {
         AlertDialog(
@@ -771,7 +788,22 @@ fun MeetingBulletPointsScreen(
             if (state.error != null) {
                 Text(state.error!!, color = NeshastyarColors.Error, fontSize = 13.sp)
             }
+            NeshastyarSmartEditButton(
+                text = "ویرایش هوشمند",
+                onClick = viewModel::openAiEditSheet,
+            )
         }
+    }
+    if (state.showAiEditSheet) {
+        AiEditBottomSheet(
+            prompt = state.aiPrompt,
+            loading = state.aiEditing,
+            error = state.aiEditError,
+            onPromptChange = viewModel::onAiPromptChange,
+            onDictation = viewModel::appendAiDictation,
+            onSubmit = viewModel::submitAiEdit,
+            onDismiss = viewModel::dismissAiEditSheet,
+        )
     }
 
     editor?.let { current ->

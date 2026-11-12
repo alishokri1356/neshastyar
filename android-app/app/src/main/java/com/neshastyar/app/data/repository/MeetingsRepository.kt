@@ -11,6 +11,7 @@ import com.neshastyar.app.data.api.NeshastyarApi
 import com.neshastyar.app.data.api.NetworkErrors
 import com.neshastyar.app.data.api.ShareMeetingResponse
 import com.neshastyar.app.data.api.UpdateMeetingRequest
+import com.neshastyar.app.data.api.UpdateShareRequest
 import java.net.SocketTimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -109,6 +110,15 @@ class MeetingsRepository @Inject constructor(
         val body = r.body()
         if (!r.isSuccessful || body?.url.isNullOrBlank()) {
             error("ساخت لینک صورتجلسه ناموفق (${r.code()})")
+        }
+        body!!
+    }
+
+    suspend fun updateShareCanEdit(id: String, canEdit: Boolean): Result<ShareMeetingResponse> = runCatching {
+        val r = api.updateMeetingShare(id, UpdateShareRequest(canEdit))
+        val body = r.body()
+        if (!r.isSuccessful || body?.url.isNullOrBlank()) {
+            error("ذخیره اجازه ویرایش ناموفق بود (${r.code()})")
         }
         body!!
     }

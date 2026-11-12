@@ -1,5 +1,8 @@
 package com.neshastyar.app.navigation
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -8,8 +11,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import com.neshastyar.app.data.local.DraftStatus
 import com.neshastyar.app.ui.components.LocalGoHome
+import com.neshastyar.app.ui.components.MeetingShareActions
 import com.neshastyar.app.ui.components.NeshastyarTopBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +47,7 @@ import com.neshastyar.app.ui.screens.meeting.MeetingBottomTab
 import com.neshastyar.app.ui.screens.meeting.MeetingBulletPointsScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingConversationScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailBottomBar
+import com.neshastyar.app.ui.screens.meeting.MinutesShareDialog
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailScreen
 import com.neshastyar.app.ui.screens.meeting.MeetingDetailViewModel
 import com.neshastyar.app.util.StatusStyle
@@ -157,7 +167,19 @@ fun NeshastyarNavHost(
         containerColor = NeshastyarColors.Background,
         topBar = {
             if (showChrome) {
-                NeshastyarTopBar(onSearch = ::openSearch)
+                if (showMeetingBar) {
+                    MeetingSectionTopBar(
+                        navController = navController,
+                        onOptions = {
+                            openMeetingSection(
+                                Routes.MeetingOptions.create(meetingId.orEmpty()),
+                                Routes.MeetingOptions.route,
+                            )
+                        },
+                    )
+                } else {
+                    NeshastyarTopBar(onSearch = ::openSearch)
+                }
             }
         },
         bottomBar = {
@@ -175,8 +197,8 @@ fun NeshastyarNavHost(
                 val selectedTab = when (route) {
                     Routes.MeetingDetail.route -> MeetingBottomTab.Summary
                     Routes.MeetingBulletPoints.route -> MeetingBottomTab.BulletPoints
-                    Routes.MeetingOptions.route,
-                    Routes.MeetingConversation.route -> MeetingBottomTab.Options
+                    Routes.MeetingParticipants.route,
+                    Routes.MeetingAddParticipants.route -> MeetingBottomTab.Participants
                     else -> null
                 }
                 MeetingDetailBottomBar(
@@ -187,14 +209,10 @@ fun NeshastyarNavHost(
                             Routes.MeetingBulletPoints.route,
                         )
                     },
-                    onAiEdit = {
-                        openMeetingSummary(id)
-                        detailVm?.openAiEditSheet()
-                    },
-                    onMenu = {
+                    onParticipants = {
                         openMeetingSection(
-                            Routes.MeetingOptions.create(id),
-                            Routes.MeetingOptions.route,
+                            Routes.MeetingParticipants.create(id),
+                            Routes.MeetingParticipants.route,
                         )
                     },
                     selectedTab = selectedTab,
@@ -527,5 +545,89 @@ fun NeshastyarNavHost(
             onDismiss = updateViewModel::dismiss,
         )
     }
+    }
+}
+
+@Composable
+private fun MeetingSectionTopBar(
+    navController: NavHostController,
+    onOptions: () -> Unit,
+) {
+    val detailEntry = remember {
+        runCatching { navController.getBackStackEntry(Routes.MeetingDetail.route) }.getOrNull()
+    }
+    if (detailEntry == null) {
+        NeshastyarTopBar(
+            onSearch = {},
+            onOptions = onOptions,
+            share = MeetingShareActions(
+                copyEnabled = false,
+                emailEnabled = false,
+                minutesEnabled = false,
+                minutesLoading = false,
+                onCopy = {},
+                onEmail = {},
+                onMinutes = {},
+            ),
+        )
+        return
+    }
+    MeetingSectionTopBarWithVm(detailEntry, onOptions)
+}
+
+@Composable
+private fun MeetingSectionTopBarWithVm(
+    detailEntry: NavBackStackEntry,
+    onOptions: () -> Unit,
+) {
+    val detailVm: MeetingDetailViewModel = hiltViewModel(detailEntry)
+    val state by detailVm.ui.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    LaunchedEffect(state.browserUrl) {
+        val url = state.browserUrl ?: return@LaunchedEffect
+        detailVm.consumeBrowserUrl()
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }.onFailure {
+            Toast.makeText(context, "باز کردن مرورگر ناموفق بود", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val meeting = state.meeting
+    val showProcessed = meeting != null &&
+        !StatusStyle.isErrorStatus(meeting.status) &&
+        !state.summarySuppressed
+    val minutesReady = meeting != null && StatusStyle.isProcessedStatus(meeting.status)
+    NeshastyarTopBar(
+        onSearch = {},
+        onOptions = onOptions,
+        share = MeetingShareActions(
+            copyEnabled = showProcessed,
+            emailEnabled = showProcessed,
+            minutesEnabled = minutesReady && !state.shareLoading,
+            minutesLoading = state.shareLoading,
+            onCopy = {
+                val text = detailVm.summaryClipboardText()
+                if (text == null) {
+                    detailVm.noteCopyEmpty()
+                } else {
+                    clipboard.setText(AnnotatedString(text))
+                    detailVm.noteCopied()
+                }
+            },
+            onEmail = detailVm::sendEmail,
+            onMinutes = detailVm::openShareSheet,
+        ),
+    )
+    if (state.showShareSheet) {
+        MinutesShareDialog(
+            url = state.shareUrl,
+            loading = state.shareLoading,
+            canEdit = state.shareCanEdit,
+            error = state.shareError,
+            onCanEditChange = { detailVm.setShareCanEdit(it) },
+            onView = detailVm::viewSharedMinutes,
+            onDismiss = detailVm::dismissShareSheet,
+        )
     }
 }

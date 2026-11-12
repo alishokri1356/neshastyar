@@ -90,6 +90,12 @@ interface NeshastyarApi {
     @POST("meetings/{id}/share")
     suspend fun shareMeeting(@Path("id") id: String): Response<ShareMeetingResponse>
 
+    @PATCH("meetings/{id}/share")
+    suspend fun updateMeetingShare(
+        @Path("id") id: String,
+        @Body body: UpdateShareRequest,
+    ): Response<ShareMeetingResponse>
+
     @DELETE("meetings/{id}/share")
     suspend fun disableMeetingShare(@Path("id") id: String): Response<ShareMeetingResponse>
 

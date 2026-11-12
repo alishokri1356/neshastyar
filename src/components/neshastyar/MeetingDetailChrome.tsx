@@ -5,7 +5,6 @@ import {
   FileText,
   ListChecks,
   Loader2,
-  Menu,
   Mic,
   Sparkles,
   Tag,
@@ -31,24 +30,15 @@ import { cn } from "@/lib/utils";
 export function MeetingDetailBottomBar({
   meetingId,
   showProcessedSections = true,
-  onAiEdit,
 }: {
   meetingId: string;
   showProcessedSections?: boolean;
-  onAiEdit?: () => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
   const summaryPath = `/meeting/${meetingId}`;
-
-  const openAiEdit = () => {
-    if (onAiEdit) {
-      onAiEdit();
-    } else {
-      navigate(`/meeting/${meetingId}?aiEdit=1`);
-    }
-  };
+  const participantsPath = `/meeting/${meetingId}/participants`;
 
   return (
     <nav
@@ -74,27 +64,55 @@ export function MeetingDetailBottomBar({
               onClick={() => navigate(`/meeting/${meetingId}/points`)}
             />
             <BarAction
-              icon={<Sparkles className="h-5 w-5" />}
-              label="ویرایش هوشمند"
-              active={false}
-              onClick={openAiEdit}
+              icon={<Users className="h-5 w-5" />}
+              label="حاضرین"
+              active={path.startsWith(participantsPath)}
+              onClick={() => {
+                if (!path.startsWith(participantsPath)) navigate(participantsPath);
+              }}
             />
           </>
         ) : null}
-
-        <BarAction
-          icon={<Menu className="h-5 w-5" />}
-          label="گزینه‌ها"
-          active={
-            path.includes(`/meeting/${meetingId}/options`) ||
-            path.includes(`/meeting/${meetingId}/meeting_details_options`) ||
-            path.includes(`/meeting/${meetingId}/conversation`) ||
-            path.includes(`/meeting/${meetingId}/transcription`)
-          }
-          onClick={() => navigate(`/meeting/${meetingId}/options`)}
-        />
       </div>
     </nav>
+  );
+}
+
+export function SmartEditButton({
+  meetingId,
+  open,
+  onOpenChange,
+  onEdited,
+}: {
+  meetingId: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onEdited?: (result: AiEditMeetingResponse) => void;
+}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const isOpen = onOpenChange ? Boolean(open) : localOpen;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setLocalOpen(next);
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] border border-[#E4C48A] bg-gradient-to-l from-[#D7EFED] to-[#FDE8C4] px-4 text-[15px] font-semibold text-[#0D4D4D] transition hover:brightness-95 active:scale-[0.99]"
+      >
+        <Sparkles className="h-5 w-5 text-[#C88A2E]" />
+        ویرایش هوشمند
+      </button>
+      <AiEditBottomSheet
+        open={isOpen}
+        meetingId={meetingId}
+        onOpenChange={setOpen}
+        onEdited={onEdited}
+      />
+    </>
   );
 }
 

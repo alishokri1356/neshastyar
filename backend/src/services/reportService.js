@@ -21,6 +21,14 @@ const badRequest = (message) => {
   return error;
 };
 
+const forbidden = (message) => {
+  const error = new Error(message);
+  error.statusCode = 403;
+  return error;
+};
+
+const canEditShare = (row) => !row || Number(row.share_can_edit) !== 0;
+
 const cleanText = (value, max) => {
   const text = String(value ?? '').replace(/\u0000/g, '').trim();
   if (text.length > max) {
@@ -85,6 +93,23 @@ class ReportService {
     return token;
   }
 
+  async readShareRow(meetingId) {
+    const rows = await db.query(
+      'SELECT share_token, share_enabled, share_can_edit FROM meetings WHERE id = ? LIMIT 1',
+      [meetingId]
+    );
+    return rows[0] || null;
+  }
+
+  sharePayload(token, row) {
+    return {
+      token,
+      url: this.shareReportUrl(token),
+      enabled: true,
+      canEdit: canEditShare(row),
+    };
+  }
+
   async enableShare(meetingId, userId) {
     const owned = await db.query(
       'SELECT id FROM meetings WHERE id = ? AND user_id = ? LIMIT 1',
@@ -94,11 +119,25 @@ class ReportService {
       throw new Error('Meeting not found or access denied');
     }
     const token = await this.ensureShareToken(meetingId);
-    return {
-      token,
-      url: this.shareReportUrl(token),
-      enabled: true,
-    };
+    const row = await this.readShareRow(meetingId);
+    return this.sharePayload(token, row);
+  }
+
+  async setShareCanEdit(meetingId, userId, canEdit) {
+    const owned = await db.query(
+      'SELECT id FROM meetings WHERE id = ? AND user_id = ? LIMIT 1',
+      [meetingId, userId]
+    );
+    if (!owned[0]) {
+      throw new Error('Meeting not found or access denied');
+    }
+    const token = await this.ensureShareToken(meetingId);
+    await db.query(
+      'UPDATE meetings SET share_can_edit = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      [canEdit ? 1 : 0, meetingId, userId]
+    );
+    const row = await this.readShareRow(meetingId);
+    return this.sharePayload(token, row);
   }
 
   async disableShare(meetingId, userId) {
@@ -116,7 +155,7 @@ class ReportService {
     if (!token || typeof token !== 'string' || token.length > 64) return null;
 
     const rows = await db.query(
-      `SELECT m.id, m.title, m.meeting_date, m.summary, m.location, m.user_id,
+      `SELECT m.id, m.title, m.meeting_date, m.summary, m.location, m.user_id, m.share_can_edit,
               u.org_name, u.org_logo_path, u.updated_at AS user_updated_at
        FROM meetings m
        INNER JOIN users u ON u.id = m.user_id
@@ -155,6 +194,7 @@ class ReportService {
       decisions: content.decisions,
       summaryText: content.summaryText,
       location: content.location != null ? content.location : (meeting.location || ''),
+      canEdit: canEditShare(meeting),
       orgName: meeting.org_name || null,
       logoUrl: meeting.org_logo_path
         ? `/api/public/logos/${meeting.user_id}?v=${new Date(meeting.user_updated_at || 0).getTime()}`
@@ -165,7 +205,7 @@ class ReportService {
   async loadEditableMeeting(token) {
     if (!token || typeof token !== 'string' || token.length > 64) return null;
     const rows = await db.query(
-      `SELECT id, user_id, title, summary, location
+      `SELECT id, user_id, title, summary, location, share_can_edit
        FROM meetings
        WHERE share_token = ? AND share_enabled = 1
        LIMIT 1`,
@@ -213,6 +253,9 @@ class ReportService {
   async updatePublicReport(token, edit) {
     const meeting = await this.loadEditableMeeting(token);
     if (!meeting) return null;
+    if (!canEditShare(meeting)) {
+      throw forbidden('ویرایش این صورتجلسه برای دارنده لینک بسته است');
+    }
 
     const field = edit && edit.field;
     const parsed = parseMeetingSummaryJson(meeting.summary);

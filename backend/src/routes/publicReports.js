@@ -48,6 +48,10 @@ const logoUpload = multer({
             callback(new Error('این صورتجلسه پیدا نشد'));
             return;
           }
+          if (Number(meeting.share_can_edit) === 0) {
+            callback(new Error('ویرایش این صورتجلسه برای دارنده لینک بسته است'));
+            return;
+          }
           callback(null, `${meeting.user_id}-${Date.now()}${ext}`);
         })
         .catch((error) => callback(error));

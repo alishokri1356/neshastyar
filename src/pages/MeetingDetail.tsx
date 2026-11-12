@@ -15,7 +15,6 @@ import { getModelLabel, useAnalyzeModels } from "@/lib/analyzeModels";
 import {
   editableSummaryToJson,
   emptyEditableSummary,
-  formatEditableSummaryForClipboard,
   htmlToPlainText,
   isHtmlContent,
   jsonToEditableSummary,
@@ -32,15 +31,14 @@ import {
   NeshastyarCard,
   NeshastyarField,
   NeshastyarPrimaryButton,
-  NeshastyarSecondaryButton,
   NeshastyarSectionHeader,
   NeshastyarTopBar,
   StatusChip,
 } from "@/components/neshastyar/NeshastyarUi";
 import {
-  AiEditBottomSheet,
   MeetingDetailBottomBar,
   MeetingTopSectionActions,
+  SmartEditButton,
 } from "@/components/neshastyar/MeetingDetailChrome";
 
 interface LinkedParticipant {
@@ -73,7 +71,6 @@ const MeetingDetail: React.FC = () => {
   const [summarySuppressed, setSummarySuppressed] = useState(false);
 
   const [showAiEditSheet, setShowAiEditSheet] = useState(false);
-  const [shareLoading, setShareLoading] = useState(false);
 
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const [feedbackErr, setFeedbackErr] = useState<string | null>(null);
@@ -125,7 +122,6 @@ const MeetingDetail: React.FC = () => {
   });
 
   const meeting = data?.meeting ?? null;
-  const participants = data?.participants ?? [];
 
   useEffect(() => {
     if (meeting?.analyze_model) {
@@ -251,92 +247,6 @@ const MeetingDetail: React.FC = () => {
       );
     } finally {
       setReprocessing(false);
-    }
-  };
-
-  const handleCopySummary = async () => {
-    const approvedNames = participants.map((p) => p.name);
-    const clip = formatEditableSummaryForClipboard(parsedSummary, approvedNames);
-    if (!clip) {
-      setFeedbackErr("خلاصه‌ای برای کپی وجود ندارد");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(clip);
-      setFeedbackMsg("موضوع، خلاصه، حاضرین تاییدشده و نکات کلیدی کپی شد");
-      setFeedbackErr(null);
-    } catch {
-      setFeedbackErr("کپی به کلیپ‌بورد با خطا مواجه شد");
-    }
-  };
-
-  const handleSendEmail = async () => {
-    if (!meeting) return;
-    setFeedbackErr(null);
-    setFeedbackMsg(null);
-
-    try {
-      const emailWebhookBase =
-        import.meta.env.VITE_EMAIL_WEBHOOK_URL ||
-        `${API_BASE_URL.replace(/\/api\/?$/, "")}/sendmail`;
-      const webhookUrl = `${emailWebhookBase.replace(/\/$/, "")}/${encodeURIComponent(
-        meeting.id,
-      )}`;
-
-      const res = await fetch(webhookUrl, {
-        method: "GET",
-        headers: mysqlClient.getAuthHeaders(),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
-        if (res.status === 429 && json?.cooldownRemaining) {
-          throw new Error(
-            `برای ارسال ایمیل بعدی ${json.cooldownRemaining} ثانیه صبر کنید.`,
-          );
-        }
-        throw new Error(json?.message || "ارسال ایمیل ناموفق بود");
-      }
-      setFeedbackMsg(
-        json?.data?.userEmail
-          ? `خلاصه جلسه به ایمیل ${json.data.userEmail} ارسال شد.`
-          : "خلاصه جلسه به ایمیل شما ارسال شد.",
-      );
-    } catch (err) {
-      setFeedbackErr(
-        err instanceof Error ? err.message : "ارسال خلاصه به ایمیل ناموفق بود",
-      );
-    }
-  };
-
-  const handleOpenShare = async () => {
-    if (!meeting || shareLoading) return;
-    const popup = window.open("about:blank", "_blank");
-    setShareLoading(true);
-    setFeedbackErr(null);
-    setFeedbackMsg(null);
-    try {
-      const { data: shareData, error: shareErr } = await mysqlClient.shareMeeting(
-        meeting.id,
-      );
-      if (shareErr || !shareData?.url) {
-        throw new Error(
-          (shareErr as { message?: string } | null)?.message ||
-            "ساخت لینک صورتجلسه ناموفق بود",
-        );
-      }
-      if (popup) {
-        popup.opener = null;
-        popup.location.href = shareData.url;
-      } else {
-        window.location.assign(shareData.url);
-      }
-    } catch (err) {
-      popup?.close();
-      setFeedbackErr(
-        err instanceof Error ? err.message : "ساخت لینک صورتجلسه ناموفق بود",
-      );
-    } finally {
-      setShareLoading(false);
     }
   };
 
@@ -521,7 +431,6 @@ const MeetingDetail: React.FC = () => {
               </NeshastyarCard>
             ) : null}
 
-            {/* Action Buttons Row: Copy, Email, and Web's Shareable صورتجلسه */}
             {processingFailed ? (
               <div className="space-y-2.5">
                 <AnalyzeModelSelect
@@ -536,25 +445,6 @@ const MeetingDetail: React.FC = () => {
                   درخواست پردازش مجدد
                 </NeshastyarPrimaryButton>
               </div>
-            ) : showProcessed ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <NeshastyarSecondaryButton onClick={() => void handleCopySummary()}>
-                    کپی
-                  </NeshastyarSecondaryButton>
-                  <NeshastyarSecondaryButton onClick={() => void handleSendEmail()}>
-                    ایمیل
-                  </NeshastyarSecondaryButton>
-                </div>
-                {isProcessed ? (
-                  <NeshastyarSecondaryButton
-                    disabled={shareLoading}
-                    onClick={() => void handleOpenShare()}
-                  >
-                    {shareLoading ? "در حال باز کردن..." : "صورتجلسه (مشاهده و اشتراک)"}
-                  </NeshastyarSecondaryButton>
-                ) : null}
-              </div>
             ) : null}
 
             {feedbackMsg ? (
@@ -563,6 +453,22 @@ const MeetingDetail: React.FC = () => {
             {feedbackErr ? (
               <p className="text-[14px] text-[#B91C1C]">{feedbackErr}</p>
             ) : null}
+
+            {showProcessed ? (
+              <SmartEditButton
+                meetingId={meetingId}
+                open={showAiEditSheet}
+                onOpenChange={setShowAiEditSheet}
+                onEdited={(res) => {
+                  setSummarySuppressed(false);
+                  setEditing(false);
+                  setFeedbackMsg(
+                    res.changes_summary?.trim() || "ویرایش هوشمند انجام و ذخیره شد",
+                  );
+                  setFeedbackErr(null);
+                }}
+              />
+            ) : null}
           </div>
         ) : null}
       </main>
@@ -570,22 +476,6 @@ const MeetingDetail: React.FC = () => {
       <MeetingDetailBottomBar
         meetingId={meetingId}
         showProcessedSections={showProcessed}
-        onAiEdit={() => setShowAiEditSheet(true)}
-      />
-
-      {/* AI Smart Edit Sheet */}
-      <AiEditBottomSheet
-        open={showAiEditSheet}
-        meetingId={meetingId}
-        onOpenChange={setShowAiEditSheet}
-        onEdited={(res) => {
-          setSummarySuppressed(false);
-          setEditing(false);
-          setFeedbackMsg(
-            res.changes_summary?.trim() || "ویرایش هوشمند انجام و ذخیره شد",
-          );
-          setFeedbackErr(null);
-        }}
       />
     </div>
   );

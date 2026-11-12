@@ -210,6 +210,11 @@ data class ShareMeetingResponse(
     val token: String? = null,
     val url: String? = null,
     val enabled: Boolean? = null,
+    val canEdit: Boolean? = null,
+)
+
+data class UpdateShareRequest(
+    val canEdit: Boolean,
 )
 
 data class MeetingDecisionDto(

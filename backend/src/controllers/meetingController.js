@@ -284,6 +284,31 @@ class MeetingController {
     }
   }
 
+  // PATCH /api/meetings/:id/share
+  async setShareCanEdit(req, res) {
+    try {
+      if (typeof req.body?.canEdit !== 'boolean') {
+        return res.status(400).json({
+          error: 'Invalid share permission',
+          message: 'وضعیت ویرایش نامعتبر است',
+        });
+      }
+      const result = await reportService.setShareCanEdit(
+        req.params.id,
+        req.user.sub,
+        req.body.canEdit
+      );
+      res.json(result);
+    } catch (error) {
+      const missing = error.message && error.message.includes('not found');
+      console.error('Set share edit permission error:', error);
+      res.status(missing ? 404 : 500).json({
+        error: 'Failed to update share permission',
+        message: error.message || 'An error occurred while updating the share permission',
+      });
+    }
+  }
+
   // DELETE /api/meetings/:id/share
   async disableShare(req, res) {
     try {

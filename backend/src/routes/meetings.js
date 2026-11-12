@@ -36,6 +36,9 @@ router.post('/:id/ai-edit', meetingController.aiEditMeeting);
 // POST /api/meetings/:id/share
 router.post('/:id/share', meetingController.enableShare);
 
+// PATCH /api/meetings/:id/share
+router.patch('/:id/share', meetingController.setShareCanEdit);
+
 // DELETE /api/meetings/:id/share
 router.delete('/:id/share', meetingController.disableShare);
 

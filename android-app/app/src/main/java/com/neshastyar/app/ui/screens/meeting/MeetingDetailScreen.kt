@@ -1,7 +1,5 @@
 package com.neshastyar.app.ui.screens.meeting
 
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,34 +26,37 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -64,7 +65,7 @@ import com.neshastyar.app.data.repository.MeetingsRepository
 import com.neshastyar.app.ui.components.AnalyzeModelPicker
 import com.neshastyar.app.ui.components.NeshastyarCard
 import com.neshastyar.app.ui.components.NeshastyarPrimaryButton
-import com.neshastyar.app.ui.components.NeshastyarSecondaryButton
+import com.neshastyar.app.ui.components.NeshastyarSmartEditButton
 import com.neshastyar.app.ui.components.NeshastyarTextField
 import com.neshastyar.app.ui.components.SectionHeader
 import com.neshastyar.app.ui.components.StatusChip
@@ -82,26 +83,6 @@ fun MeetingDetailScreen(
     viewModel: MeetingDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    LaunchedEffect(state.browserUrl) {
-        val url = state.browserUrl ?: return@LaunchedEffect
-        viewModel.consumeBrowserUrl()
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-        }.onFailure {
-            Toast.makeText(context, "باز کردن مرورگر ناموفق بود", Toast.LENGTH_SHORT).show()
-        }
-    }
-    val clipboard = LocalClipboardManager.current
-    val copySummary = {
-        val text = viewModel.summaryClipboardText()
-        if (text == null) {
-            viewModel.noteCopyEmpty()
-        } else {
-            clipboard.setText(AnnotatedString(text))
-            viewModel.noteCopied()
-        }
-    }
     val topMeeting = state.meeting
     val showProcessedTop = topMeeting != null &&
         !StatusStyle.isErrorStatus(topMeeting.status) &&
@@ -298,33 +279,19 @@ fun MeetingDetailScreen(
                                 onClick = viewModel::requestReprocess,
                                 loading = state.reprocessing,
                             )
-                        } else if (showProcessed) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                NeshastyarSecondaryButton(
-                                    text = "کپی",
-                                    onClick = copySummary,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                NeshastyarSecondaryButton(
-                                    text = "ایمیل",
-                                    onClick = viewModel::sendEmail,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            if (isProcessed) {
-                                Spacer(Modifier.height(8.dp))
-                                NeshastyarSecondaryButton(
-                                    text = if (state.shareLoading) "در حال باز کردن..." else "صورتجلسه (مشاهده و اشتراک)",
-                                    onClick = viewModel::openMinutesInBrowser,
-                                    enabled = !state.shareLoading,
-                                )
-                            }
                         }
                         if (state.message != null) {
                             Text(state.message!!, color = NeshastyarColors.PrimaryBright, modifier = Modifier.padding(top = 8.dp))
                         }
                         if (state.error != null) {
                             Text(state.error!!, color = NeshastyarColors.Error, modifier = Modifier.padding(top = 8.dp))
+                        }
+                        if (showProcessed) {
+                            Spacer(Modifier.height(8.dp))
+                            NeshastyarSmartEditButton(
+                                text = "ویرایش هوشمند",
+                                onClick = viewModel::openAiEditSheet,
+                            )
                         }
                         Spacer(Modifier.height(8.dp))
                     }
@@ -349,7 +316,7 @@ fun MeetingDetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AiEditBottomSheet(
+fun AiEditBottomSheet(
     prompt: String,
     loading: Boolean,
     error: String?,
@@ -472,7 +439,7 @@ private fun DetailTextPart(
 enum class MeetingBottomTab {
     Summary,
     BulletPoints,
-    Options,
+    Participants,
 }
 
 @Composable
@@ -547,8 +514,7 @@ private fun MeetingTopActionChip(
 fun MeetingDetailBottomBar(
     onSummary: () -> Unit,
     onBulletPoints: () -> Unit,
-    onAiEdit: () -> Unit,
-    onMenu: () -> Unit,
+    onParticipants: () -> Unit,
     selectedTab: MeetingBottomTab? = null,
     showProcessedSections: Boolean = true,
 ) {
@@ -584,18 +550,12 @@ fun MeetingDetailBottomBar(
                     onClick = onBulletPoints,
                 )
                 MeetingDetailBarAction(
-                    icon = Icons.Default.AutoAwesome,
-                    label = "ویرایش هوشمند",
-                    selected = false,
-                    onClick = onAiEdit,
+                    icon = Icons.Default.People,
+                    label = "حاضرین",
+                    selected = selectedTab == MeetingBottomTab.Participants,
+                    onClick = onParticipants,
                 )
             }
-            MeetingDetailBarAction(
-                icon = Icons.Default.Menu,
-                label = "گزینه‌ها",
-                selected = selectedTab == MeetingBottomTab.Options,
-                onClick = onMenu,
-            )
         }
     }
 }
@@ -637,5 +597,117 @@ private fun RowScope.MeetingDetailBarAction(
             lineHeight = 13.sp,
             maxLines = 1,
         )
+    }
+}
+
+@Composable
+fun MinutesShareDialog(
+    url: String?,
+    loading: Boolean,
+    canEdit: Boolean,
+    error: String?,
+    onCanEditChange: (Boolean) -> Unit,
+    onView: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = NeshastyarColors.Background,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            ) {
+                Text(
+                    text = "صورتجلسه",
+                    color = NeshastyarColors.Primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                if (loading && url.isNullOrBlank()) {
+                    Box(
+                        Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = NeshastyarColors.Primary)
+                    }
+                } else {
+                    Text(
+                        text = url?.ifBlank { null } ?: "لینکی ساخته نشد",
+                        color = NeshastyarColors.TextPrimary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Left,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .border(1.dp, NeshastyarColors.Outline, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Checkbox(
+                            checked = canEdit,
+                            onCheckedChange = onCanEditChange,
+                            enabled = !url.isNullOrBlank(),
+                        )
+                        Text(
+                            text = "دارنده لینک می‌تواند صورتجلسه را ویرایش کند",
+                            color = NeshastyarColors.TextPrimary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (copied) {
+                        Text(
+                            text = "لینک کپی شد",
+                            color = NeshastyarColors.PrimaryBright,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                    if (!error.isNullOrBlank()) {
+                        Text(
+                            text = error,
+                            color = NeshastyarColors.Error,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val link = url?.takeIf { it.isNotBlank() } ?: return@TextButton
+                                clipboard.setText(AnnotatedString(link))
+                                copied = true
+                            },
+                            enabled = !url.isNullOrBlank(),
+                            modifier = Modifier.weight(1f),
+                        ) { Text("کپی", color = NeshastyarColors.PrimaryBright) }
+                        TextButton(
+                            onClick = onView,
+                            enabled = !url.isNullOrBlank(),
+                            modifier = Modifier.weight(1f),
+                        ) { Text("نمایش", color = NeshastyarColors.Primary, fontWeight = FontWeight.Bold) }
+                        TextButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                        ) { Text("بستن", color = NeshastyarColors.TextSecondary) }
+                    }
+                }
+            }
+        }
     }
 }

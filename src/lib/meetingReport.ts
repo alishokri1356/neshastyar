@@ -15,6 +15,7 @@ export interface MeetingReportData {
   location: string;
   orgName: string | null;
   logoUrl: string | null;
+  canEdit?: boolean;
 }
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';

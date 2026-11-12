@@ -114,7 +114,11 @@ const MeetingReport: React.FC = () => {
         <p className="py-16 text-center text-destructive">{error || 'صورتجلسه پیدا نشد'}</p>
       ) : (
         <div className="px-4 pb-10 print:p-0">
-          <MeetingMinutesReport report={report} onSave={saveCell} onUploadLogo={uploadLogo} />
+          <MeetingMinutesReport
+            report={report}
+            onSave={report.canEdit === false ? undefined : saveCell}
+            onUploadLogo={report.canEdit === false ? undefined : uploadLogo}
+          />
         </div>
       )}
     </div>

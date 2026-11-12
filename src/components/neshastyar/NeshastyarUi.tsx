@@ -1,6 +1,7 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, Clock, Home as HomeIcon, Loader2, Search } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowRight, Clock, Home as HomeIcon, Loader2, MoreVertical, Search } from "lucide-react";
+import { MeetingShareButton } from "@/components/neshastyar/MeetingShareButton";
 import { cn } from "@/lib/utils";
 import {
   formatJalaliDateTime,
@@ -19,6 +20,8 @@ export function NeshastyarTopBar({
   className?: string;
 }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const meetingId = pathname.match(/^\/meeting\/([^/]+)/)?.[1];
 
   return (
     <header
@@ -29,14 +32,18 @@ export function NeshastyarTopBar({
       )}
     >
       <div className="relative mx-auto flex h-14 w-full max-w-2xl items-center justify-between px-3">
-        <button
-          type="button"
-          onClick={onSearch ?? (() => navigate("/search"))}
-          aria-label="جستجو"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] transition hover:bg-[#0D4D4D]/10"
-        >
-          <Search className="h-[24px] w-[24px]" />
-        </button>
+        {meetingId ? (
+          <MeetingShareButton meetingId={meetingId} />
+        ) : (
+          <button
+            type="button"
+            onClick={onSearch ?? (() => navigate("/search"))}
+            aria-label="جستجو"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-[#0D4D4D] transition hover:bg-[#0D4D4D]/10"
+          >
+            <Search className="h-[24px] w-[24px]" />
+          </button>
+        )}
 
         <span className="pointer-events-none absolute inset-x-16 text-center text-[21px] font-bold text-[#0D4D4D]">
           نشست یار
@@ -44,11 +51,19 @@ export function NeshastyarTopBar({
 
         <button
           type="button"
-          onClick={onHome ?? (() => navigate("/home"))}
-          aria-label="خانه"
+          onClick={
+            meetingId
+              ? () => navigate(`/meeting/${meetingId}/options`)
+              : (onHome ?? (() => navigate("/home")))
+          }
+          aria-label={meetingId ? "گزینه‌ها" : "خانه"}
           className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#0D4D4D] text-white shadow-sm transition hover:bg-[#0F766E] active:scale-95"
         >
-          <HomeIcon className="h-[21px] w-[21px]" />
+          {meetingId ? (
+            <MoreVertical className="h-[21px] w-[21px]" />
+          ) : (
+            <HomeIcon className="h-[21px] w-[21px]" />
+          )}
         </button>
       </div>
     </header>
