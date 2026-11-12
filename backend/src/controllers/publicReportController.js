@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const reportService = require('../services/reportService');
 const userService = require('../services/userService');
+const aiEditorService = require('../services/aiEditorService');
 
 class PublicReportController {
   async getReport(req, res) {
@@ -39,6 +40,42 @@ class PublicReportController {
       res.status(status).json({
         error: 'Failed to update report',
         message: status < 500 ? error.message : 'ذخیره صورتجلسه انجام نشد',
+      });
+    }
+  }
+
+  async aiEdit(req, res) {
+    try {
+      const meeting = await reportService.loadEditableMeeting(req.params.token);
+      if (!meeting) {
+        return res.status(404).json({
+          error: 'Report not found',
+          message: 'این صورتجلسه پیدا نشد یا لینک آن غیرفعال شده است',
+        });
+      }
+      if (meeting.user_id !== req.user.sub) {
+        return res.status(403).json({
+          error: 'Not the meeting owner',
+          message: 'ویرایش هوشمند فقط برای صاحب این جلسه است. با همان حساب وارد شوید.',
+        });
+      }
+      const result = await aiEditorService.editMeeting(
+        req.user.sub,
+        meeting.id,
+        req.body?.prompt
+      );
+      res.json({
+        changes_summary: result.changes_summary || null,
+        model_used: result.model_used || null,
+      });
+    } catch (error) {
+      const status = error.status || error.statusCode || 500;
+      if (status >= 500) console.error('Public AI edit error:', error);
+      res.status(status).json({
+        error: 'Failed to edit meeting with AI',
+        message: status >= 500 && !error.status
+          ? 'ویرایش هوشمند ناموفق بود. دوباره تلاش کنید.'
+          : error.message,
       });
     }
   }

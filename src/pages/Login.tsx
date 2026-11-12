@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { safeReturnPath } from "@/lib/safeReturnPath";
 import { useToast } from "@/hooks/use-toast";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import {
@@ -21,12 +22,14 @@ const Login: React.FC = () => {
   const { login, loginWithGoogle, isAuthenticated } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = safeReturnPath(searchParams.get("next"));
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/home");
+      navigate(returnPath || "/home");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, returnPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +42,7 @@ const Login: React.FC = () => {
         title: "خوش آمدید!",
         description: "شما با موفقیت وارد شدید.",
       });
-      navigate("/home");
+      navigate(returnPath || "/home");
     } catch (error) {
       const message = (error as Error).message || "";
       if (
@@ -67,7 +70,7 @@ const Login: React.FC = () => {
           title: "خوش آمدید!",
           description: "با حساب گوگل وارد شدید.",
         });
-        navigate("/home");
+        navigate(returnPath || "/home");
       } catch (error) {
         setErrorMsg((error as Error).message || "ورود با گوگل ناموفق بود.");
         throw error;
@@ -75,7 +78,7 @@ const Login: React.FC = () => {
         setGoogleLoading(false);
       }
     },
-    [loginWithGoogle, navigate, toast],
+    [loginWithGoogle, navigate, returnPath, toast],
   );
 
   return (

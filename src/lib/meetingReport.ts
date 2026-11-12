@@ -1,4 +1,5 @@
 import moment from 'moment-jalaali';
+import { mysqlClient } from '@/lib/mysql-client';
 
 export interface MeetingDecision {
   text: string;
@@ -78,6 +79,28 @@ export async function uploadReportLogo(token: string, file: File): Promise<Meeti
     throw new Error(data?.message || 'ذخیره لوگو انجام نشد');
   }
   return withAbsoluteLogo(data as MeetingReportData);
+}
+
+export async function aiEditPublicReport(
+  token: string,
+  prompt: string,
+): Promise<{ changes_summary?: string | null }> {
+  const response = await fetch(
+    `${API_BASE_URL}/public/reports/${encodeURIComponent(token)}/ai-edit`,
+    {
+      method: 'POST',
+      headers: {
+        ...mysqlClient.getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt }),
+    },
+  );
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.message || 'ویرایش هوشمند ناموفق بود');
+  }
+  return data || {};
 }
 
 export async function updatePublicReport(token: string, edit: ReportEdit): Promise<MeetingReportData> {

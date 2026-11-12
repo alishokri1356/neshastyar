@@ -348,11 +348,13 @@ export function AiEditBottomSheet({
   meetingId,
   onOpenChange,
   onEdited,
+  onSubmit,
 }: {
   open: boolean;
   meetingId: string;
   onOpenChange: (open: boolean) => void;
   onEdited?: (result: AiEditMeetingResponse) => void;
+  onSubmit?: (prompt: string) => Promise<AiEditMeetingResponse>;
 }) {
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState("");
@@ -377,11 +379,15 @@ export function AiEditBottomSheet({
     setLoading(true);
     setError(null);
     try {
-      const result = await aiEditMeetingApi(meetingId, trimmed);
+      const result = onSubmit
+        ? await onSubmit(trimmed)
+        : await aiEditMeetingApi(meetingId, trimmed);
       setPrompt("");
       onOpenChange(false);
-      await queryClient.invalidateQueries({ queryKey: ["meeting-detail", meetingId] });
-      await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      if (!onSubmit) {
+        await queryClient.invalidateQueries({ queryKey: ["meeting-detail", meetingId] });
+        await queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      }
       onEdited?.(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "ویرایش هوشمند ناموفق بود");

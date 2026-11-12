@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import {
   Drawer,
@@ -8,6 +8,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useAuthStore } from "@/store/useAuthStore";
+import { safeReturnPath } from "@/lib/safeReturnPath";
 import { useToast } from "@/hooks/use-toast";
 
 const GIS_SCRIPT = "https://accounts.google.com/gsi/client";
@@ -45,6 +46,8 @@ function loadGisScript(): Promise<void> {
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = safeReturnPath(searchParams.get("next"));
   const { login, loginWithGoogle } = useAuthStore();
   const { toast } = useToast();
 
@@ -71,14 +74,14 @@ const Landing = () => {
           title: "خوش آمدید!",
           description: "با حساب گوگل وارد شدید.",
         });
-        navigate("/home");
+        navigate(returnPath || "/home");
       } catch (error) {
         setLandingError((error as Error).message || "خطا در ورود با گوگل");
       } finally {
         setGoogleLoading(false);
       }
     },
-    [loginWithGoogle, navigate, toast],
+    [loginWithGoogle, navigate, returnPath, toast],
   );
 
   const credentialCallbackRef = useRef(handleGoogleCredential);
@@ -155,7 +158,7 @@ const Landing = () => {
   const handleFallbackGoogleClick = () => {
     if (googleLoading || emailLoading) return;
     setLandingError(null);
-    navigate("/login");
+    navigate(returnPath ? `/login?next=${encodeURIComponent(returnPath)}` : "/login");
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -171,7 +174,7 @@ const Landing = () => {
         title: "خوش آمدید!",
         description: "شما با موفقیت وارد شدید.",
       });
-      navigate("/home");
+      navigate(returnPath || "/home");
     } catch (error) {
       const errorMessage = (error as Error).message || "";
       if (

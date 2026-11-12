@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Copy, Download, Printer } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Download, Printer, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import MeetingMinutesReport from '@/components/report/MeetingMinutesReport';
+import { AiEditBottomSheet } from '@/components/neshastyar/MeetingDetailChrome';
 import { downloadMeetingDocx } from '@/lib/exportMeetingDocx';
 import {
+  aiEditPublicReport,
   fetchPublicReport,
   parseReportDateInput,
   updatePublicReport,
@@ -12,14 +15,19 @@ import {
   type MeetingReportData,
   type ReportEdit,
 } from '@/lib/meetingReport';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const MeetingReport: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+  const { token = '' } = useParams<{ token: string }>();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated } = useAuthStore();
+  const { toast } = useToast();
   const [report, setReport] = useState<MeetingReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [showAiEdit, setShowAiEdit] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -49,6 +57,14 @@ const MeetingReport: React.FC = () => {
     document.title = `${report.title} | صورتجلسه`;
   }, [report]);
 
+  useEffect(() => {
+    if (searchParams.get('aiEdit') !== '1' || !isAuthenticated) return;
+    setShowAiEdit(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('aiEdit');
+    setSearchParams(next, { replace: true });
+  }, [isAuthenticated, searchParams, setSearchParams]);
+
   const saveCell = async (edit: ReportEdit) => {
     if (!token) return;
     let payload = edit;
@@ -69,43 +85,56 @@ const MeetingReport: React.FC = () => {
     setReport(updated);
   };
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
+  const openSmartEdit = () => {
+    if (!isAuthenticated) {
+      const back = `/report/${token}?aiEdit=1`;
+      navigate(`/?next=${encodeURIComponent(back)}`);
+      return;
     }
+    setShowAiEdit(true);
   };
 
   return (
     <div className="min-h-screen bg-muted/40 print:bg-white" dir="rtl">
-      <div className="mx-auto flex max-w-[210mm] flex-wrap items-center gap-2 px-4 py-4 print:hidden">
-        <Button onClick={() => window.print()} disabled={!report}>
-          <Printer className="h-4 w-4" />
-          چاپ / ذخیره PDF
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!report || downloading}
-          onClick={async () => {
-            if (!report) return;
-            setDownloading(true);
-            try {
-              await downloadMeetingDocx(report);
-            } finally {
-              setDownloading(false);
-            }
-          }}
-        >
-          <Download className="h-4 w-4" />
-          {downloading ? 'در حال ساخت...' : 'دانلود Word'}
-        </Button>
-        <Button variant="outline" onClick={copyLink}>
-          <Copy className="h-4 w-4" />
-          {copied ? 'کپی شد' : 'کپی لینک'}
-        </Button>
+      <div className="mx-auto flex max-w-[210mm] items-center justify-between gap-3 px-4 py-4 print:hidden">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => window.print()} disabled={!report}>
+            <Printer className="h-4 w-4" />
+            چاپ / ذخیره PDF
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!report || downloading}
+            onClick={async () => {
+              if (!report) return;
+              setDownloading(true);
+              try {
+                await downloadMeetingDocx(report);
+              } finally {
+                setDownloading(false);
+              }
+            }}
+          >
+            <Download className="h-4 w-4" />
+            {downloading ? 'در حال ساخت...' : 'دانلود Word'}
+          </Button>
+          <button
+            type="button"
+            onClick={openSmartEdit}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-[#E4C48A] bg-gradient-to-l from-[#D7EFED] to-[#FDE8C4] px-3 text-sm font-semibold text-[#0D4D4D] transition hover:brightness-95"
+          >
+            <Sparkles className="h-4 w-4 text-[#C88A2E]" />
+            ویرایش هوشمند
+          </button>
+        </div>
+        <Link to="/" dir="ltr" className="flex shrink-0 items-center gap-2 text-[#0D4D4D]">
+          <img
+            src="/icons/icon-192.png"
+            alt=""
+            className="h-9 w-9 rounded-lg"
+          />
+          <span className="text-[18px] font-bold">نشست یار</span>
+        </Link>
       </div>
 
       {loading ? (
@@ -121,6 +150,23 @@ const MeetingReport: React.FC = () => {
           />
         </div>
       )}
+
+      <AiEditBottomSheet
+        open={showAiEdit}
+        meetingId=""
+        onOpenChange={setShowAiEdit}
+        onSubmit={async (prompt) => {
+          const result = await aiEditPublicReport(token, prompt);
+          const updated = await fetchPublicReport(token);
+          setReport(updated);
+          return result;
+        }}
+        onEdited={(res) => {
+          toast({
+            title: res.changes_summary?.trim() || 'ویرایش هوشمند انجام و ذخیره شد',
+          });
+        }}
+      />
     </div>
   );
 };

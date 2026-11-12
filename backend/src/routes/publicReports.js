@@ -5,6 +5,8 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const publicReportController = require('../controllers/publicReportController');
 const reportService = require('../services/reportService');
+const { authenticateToken } = require('../middleware/auth');
+const { requireEmailVerification } = require('../middleware/emailVerification');
 
 const router = express.Router();
 
@@ -22,6 +24,14 @@ router.get('/reports/:token', publicReportController.getReport);
 
 // PATCH /api/public/reports/:token
 router.patch('/reports/:token', publicReportController.updateReport);
+
+// POST /api/public/reports/:token/ai-edit
+router.post(
+  '/reports/:token/ai-edit',
+  authenticateToken,
+  requireEmailVerification,
+  publicReportController.aiEdit
+);
 
 const logoUpload = multer({
   storage: multer.diskStorage({

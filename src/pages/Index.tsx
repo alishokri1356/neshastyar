@@ -1,17 +1,20 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
+import { safeReturnPath } from '@/lib/safeReturnPath';
 import Landing from './Landing';
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
+  const next = safeReturnPath(searchParams.get('next'));
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/home');
+      navigate(next || '/home');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, next]);
 
   // Show landing page for unauthenticated users
   if (!isAuthenticated) {
