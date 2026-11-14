@@ -248,13 +248,13 @@ const Home: React.FC = () => {
         )}
       </main>
 
-      {/* Fixed Bottom HomeActions matching Android HomeActions */}
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-[#FBF9F4]/95 backdrop-blur-sm pb-safe">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-2.5 px-[18px] py-[18px]">
+      {/* Floating actions over the timeline, matching the home reference */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 pb-safe">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-2.5 px-[18px] pb-[18px] pt-3">
           <button
             type="button"
             onClick={() => navigate("/record")}
-            className="flex h-[60px] flex-[1.12] items-center justify-center gap-2.5 rounded-[30px] bg-[#0D4D4D] px-[18px] text-[15px] font-medium text-white shadow-sm transition hover:bg-[#0F766E] active:scale-[0.99]"
+            className="pointer-events-auto flex h-[60px] flex-[1.12] items-center justify-center gap-2.5 rounded-[30px] bg-[#0D4D4D] px-[18px] text-[15px] font-medium text-white shadow-[0_12px_28px_rgba(13,77,77,0.32)] transition hover:bg-[#0F766E] active:scale-[0.99]"
           >
             <Mic className="h-[22px] w-[22px]" />
             <span>ضبط جدید</span>
@@ -263,7 +263,7 @@ const Home: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate("/chat")}
-            className="flex h-[60px] flex-1 items-center justify-center gap-2.5 rounded-[30px] border border-[#E8E2D5] bg-white px-[18px] text-[15px] font-medium text-[#1C1B18] transition hover:bg-[#F5F2EB] active:scale-[0.99]"
+            className="pointer-events-auto flex h-[60px] flex-1 items-center justify-center gap-2.5 rounded-[30px] border border-[#E8E2D5] bg-white px-[18px] text-[15px] font-medium text-[#1C1B18] shadow-[0_10px_24px_rgba(28,27,24,0.16)] transition hover:bg-[#F5F2EB] active:scale-[0.99]"
           >
             <Search className="h-[22px] w-[22px] text-[#1C1B18]" />
             <span>هر چیزی بپرس</span>

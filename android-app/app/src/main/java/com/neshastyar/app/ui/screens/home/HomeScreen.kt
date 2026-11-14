@@ -40,6 +40,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -87,41 +89,47 @@ fun HomeScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(HomeBackground),
     ) {
-        HomeHeader(
-            userName = state.name,
-            onRecord = onRecord,
-            onSearch = onSearch,
-            onAccount = onAccount,
-        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            HomeHeader(
+                userName = state.name,
+                onRecord = onRecord,
+                onSearch = onSearch,
+                onAccount = onAccount,
+            )
 
-        PullToRefreshBox(
-            isRefreshing = state.refreshing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-        ) {
-            when {
-                state.loading && state.localDraft == null -> HomeLoading()
-                state.error != null && state.groups.isEmpty() && state.localDraft == null -> {
-                    HomeError(message = state.error.orEmpty(), onRetry = viewModel::refresh)
+            PullToRefreshBox(
+                isRefreshing = state.refreshing,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                when {
+                    state.loading && state.localDraft == null -> HomeLoading()
+                    state.error != null && state.groups.isEmpty() && state.localDraft == null -> {
+                        HomeError(message = state.error.orEmpty(), onRetry = viewModel::refresh)
+                    }
+                    state.groups.isEmpty() && state.localDraft == null -> HomeEmpty()
+                    else -> HomeTimeline(
+                        state = state,
+                        onOpenMeeting = onOpenMeeting,
+                        onOpenLocalDraft = onOpenLocalDraft,
+                        onRetry = viewModel::refresh,
+                    )
                 }
-                state.groups.isEmpty() && state.localDraft == null -> HomeEmpty()
-                else -> HomeTimeline(
-                    state = state,
-                    onOpenMeeting = onOpenMeeting,
-                    onOpenLocalDraft = onOpenLocalDraft,
-                    onRetry = viewModel::refresh,
-                )
             }
         }
 
-        HomeActions(onRecord = onRecord, onAsk = onAsk)
+        HomeActions(
+            onRecord = onRecord,
+            onAsk = onAsk,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -229,7 +237,7 @@ private fun HomeTimeline(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+        contentPadding = PaddingValues(start = 18.dp, top = 10.dp, end = 18.dp, bottom = 108.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (state.localDraft != null && state.groups.none { it.label == draftLabel }) {
@@ -373,12 +381,15 @@ private fun TimelineCard(
 }
 
 @Composable
-private fun HomeActions(onRecord: () -> Unit, onAsk: () -> Unit) {
+private fun HomeActions(
+    onRecord: () -> Unit,
+    onAsk: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .background(HomeBackground)
-            .padding(horizontal = 18.dp, vertical = 18.dp),
+            .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 18.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         HomePill(
@@ -406,16 +417,23 @@ private fun HomePill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val shape = RoundedCornerShape(30.dp)
     Row(
         modifier = modifier
             .height(60.dp)
-            .clip(RoundedCornerShape(30.dp))
+            .shadow(
+                elevation = if (light) 16.dp else 12.dp,
+                shape = shape,
+                ambientColor = if (light) Color(0x520D4D4D) else Color(0x291C1B18),
+                spotColor = if (light) Color(0x520D4D4D) else Color(0x291C1B18),
+            )
+            .clip(shape)
             .background(if (light) NeshastyarColors.Primary else NeshastyarColors.Surface)
             .then(
                 if (light) Modifier else Modifier.border(
                     width = 1.dp,
                     color = NeshastyarColors.Outline,
-                    shape = RoundedCornerShape(30.dp),
+                    shape = shape,
                 ),
             )
             .clickable(onClick = onClick)
